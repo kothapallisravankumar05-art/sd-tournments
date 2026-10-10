@@ -1,0 +1,44 @@
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{font-family:Arial;padding:20px;background:#f0f2f5}input,select{padding:8px;margin:4px;border-radius:6px;border:1px solid #ccc}button{padding:8px 16px;background:#0a1931;color:white;border:none;border-radius:6px}.card{background:white;padding:15px;border-radius:10px;margin:10px 0}</style>
+</head><body>
+<h2>SD TOURNAMENTS - ADMIN PANEL</h2>
+<div class="card">
+<h3>Add New Match</h3>
+<form method="POST">
+<input type="hidden" name="action" value="add_match">
+<input name="game" placeholder="FF MAX" required>
+<input name="time" placeholder="Tonight 11 PM" required>
+<input name="prize" type="number" placeholder="Prize 1000" value="1000" required>
+<input name="per_kill" type="number" placeholder="Kill 10" value="10" required>
+<input name="fee" type="number" placeholder="Fee 50" value="50" required>
+<select name="type"><option>Solo</option><option>Duo</option><option>Squad</option></select>
+<input name="map" placeholder="Bermuda" value="Bermuda" required>
+<input name="total" type="number" placeholder="Total 48" value="48" required>
+<button>Add Match</button>
+</form>
+</div>
+
+<div class="card">
+<h3>Set Room ID / Password</h3>
+<form method="POST">
+<input type="hidden" name="action" value="set_room">
+<input name="mid" type="number" placeholder="Match ID" required>
+<input name="room_id" placeholder="Room ID" required>
+<input name="room_pass" placeholder="Password" required>
+<button>Update</button>
+</form>
+</div>
+
+{% for m in matches %}
+<div class="card">#{{ m.id }} - {{ m.game }} | {{ m.joined }}/{{ m.total }} | Room: {{ m.room_id }}</div>
+{% endfor %}
+<br><a href="/">Go to App</a>
+<div style="background:#1e293b; padding:20px; border-radius:15px; margin-top:20px; border:2px solid #f59e0b;">
+<h3 style="color:#f59e0b;">🏆 SET WINNER & GIVE PRIZE</h3>
+<form action="/set-winner" method="POST">
+<input type="number" name="match_id" placeholder="Match ID" required style="width:100%; padding:10px; margin:5px 0; border-radius:8px; border:none;">
+<input type="text" name="winner_phone" placeholder="Winner Phone Number" required style="width:100%; padding:10px; margin:5px 0; border-radius:8px; border:none;">
+<input type="number" name="prize_amount" placeholder="Prize Amount (Ex: 700)" required style="width:100%; padding:10px; margin:5px 0; border-radius:8px; border:none;">
+<button style="width:100%; padding:12px; background:#f59e0b; border:none; border-radius:8px; font-weight:900; margin-top:10px;">GIVE PRIZE MONEY</button>
+</form>
+</div></body></html>

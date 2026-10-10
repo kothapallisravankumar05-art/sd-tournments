@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}body{background:#f0f2f5;padding-bottom:80px}.top{background:#0a1931;color:white;padding:14px}.card{background:white;margin:10px;border-radius:12px;padding:14px}</style>
+</head><body>
+<div class="top"><a href="/" style="color:white;text-decoration:none">← Back</a> <b>My Matches</b></div>
+{% for m in matches %}
+<div class="card">
+<b>{{ m.game }} #{{ m.id }}</b><br><small>{{ m.time }}</small><br><br>
+Room ID: <b>{{ m.room_id }}</b><br>
+Password: <b>{{ m.room_pass }}</b><br><br>
+<p style="color:green">✅ Joined | Prize: ₹{{ m.prize }}</p>
+</div>
+{% else %}
+<div style="text-align:center;margin-top:100px">No matches joined yet<br><a href="/">Join now</a></div>
+{% endfor %}
+</body></html>

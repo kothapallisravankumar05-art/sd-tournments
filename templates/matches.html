@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{background:#0f172a;color:white;padding-bottom:80px}
+.top{background:#1e293b;padding:12px 15px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+.card{background:white;color:black;margin:12px;border-radius:16px;padding:14px}
+.row{display:flex;justify-content:space-between;font-size:12px;color:gray;margin-top:8px}
+.pool{color:#5a00ff;font-weight:900}
+.btn{width:100%;padding:12px;border:none;border-radius:10px;font-weight:900;margin-top:10px;cursor:pointer}
+.join{background:#ffde59;color:black}
+.joined{background:#00c851;color:white}
+.nav{position:fixed;bottom:0;left:0;right:0;background:#1e293b;display:flex;justify-content:space-around;padding:12px 0}
+.nav a{text-decoration:none;font-size:14px}
+</style>
+</head>
+<body>
+
+<div class="top">
+<b>SD TOURNAMENTS</b>
+<a href="/wallet" style="background:#ffde59;color:black;padding:6px 12px;border-radius:20px;text-decoration:none;font-weight:900">₹{{ user['balance'] }}</a>
+</div>
+
+{% for m in matches %}
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<b>{{ m['title'] }}</b>
+<span style="background:#e0e7ff;color:#5a00ff;padding:4px 10px;border-radius:12px;font-size:11px">{{ m['map'] }}</span>
+</div>
+
+<div style="font-size:12px;color:gray;margin:5px 0">⏰ {{ m['time'] }}</div>
+
+<div class="row">
+<span>POOL<br><b class="pool">₹{{ m['pool'] }}</b></span>
+<span>KILL<br><b>{{ m['kill'] }}</b></span>
+<span>FEE<br><b>₹{{ m['fee'] }}</b></span>
+</div>
+
+<div style="margin-top:10px">
+<div style="background:#eee;height:6px;border-radius:10px">
+<div style="background:#5a00ff;height:6px;border-radius:10px;width:{{ (m['players']/m['max_players']*100) if m['max_players']>0 else 0 }}%"></div>
+</div>
+<div style="font-size:12px;margin-top:4px;color:gray">{{ m['players'] }}/{{ m['max_players'] }} Joined</div>
+</div>
+
+{% if m['id'] in joined %}
+<button class="btn joined">✅ JOINED</button>
+{% else %}
+<a href="/join/{{ m['id'] }}" style="text-decoration:none"><button class="btn join">JOIN NOW - ₹{{ m['fee'] }}</button></a>
+{% endif %}
+
+</div>
+{% endfor %}
+
+<div class="nav">
+<a href="/" style="color:#ffde59">🏠 Home</a>
+<a href="/my-matches" style="color:white">🎮 My Matches</a>
+<a href="/wallet" style="color:white">💰 Wallet</a>
+<a href="/logout" style="color:white">Logout</a>
+</div>
+
+</body>
+</html>

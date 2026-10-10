@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}body{background:#e5e5e5}.top{background:#0a1931;color:white;padding:20px;text-align:center}.stats{background:#1e2a4a;color:white;display:flex;justify-content:space-around;padding:16px;border-radius:12px;margin:-25px 15px 15px 15px;text-align:center}.menu{margin:10px 15px;background:white;border-radius:10px;padding:15px;display:flex;justify-content:space-between}</style>
+</head>
+<body>
+<div class="top"><br><h2>Welcome Back,<br>{{ user.name }}</h2><p>ID: {{ user.id }}</p><br><br></div>
+<div class="stats"><div><b>{{ user.played }}</b><br><small>Matches Played</small></div><div><b>{{ user.killed }}</b><br><small>Total Killed</small></div><div><b>💰 {{ user.won }}</b><br><small>Amount Won</small></div></div>
+<a href="/wallet" style="text-decoration:none;color:black"><div class="menu">💼 My Wallet <span>></span></div></a>
+<div class="menu">🎮 My Matches <span>></span></div>
+<div class="menu">📊 My Statistics <span>></span></div>
+<br><a href="/" style="display:block;text-align:center">⬅ Back to Play</a>
+</body>
+</html>
