@@ -38,8 +38,10 @@ def home():
 
 @app.route('/login', methods=['GET','POST'])
 def login():
-    if request.method=='POST':
+        if request.method=='POST':
         phone=request.form['phone']
+        if not phone.isdigit() or len(phone) != 10:
+            return "<script>alert('10 digit number pettali bro!');history.back()</script>"
         otp=str(random.randint(100000,999999))
         session['otp']=otp; session['temp_phone']=phone
         return render_template('verify.html', phone=phone, otp=otp)
