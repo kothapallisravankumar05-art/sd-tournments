@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, session
 import sqlite3, random
-ADMIN_PASS = "SD@12345"
+ADMIN_PASS = "101210"
 DB = 'sd_tournament.db'
 app = Flask(__name__)
 app.secret_key = "sd_final_secure"
@@ -38,9 +38,9 @@ def home():
 
 @app.route('/login', methods=['GET','POST'])
 def login():
-        if request.method=='POST':
+    if request.method=='POST':
         phone=request.form['phone']
-        if not phone.isdigit() or len(phone) != 10:
+        if not phone.isdigit() or len(phone)!= 10:
             return "<script>alert('10 digit number pettali bro!');history.back()</script>"
         otp=str(random.randint(100000,999999))
         session['otp']=otp; session['temp_phone']=phone
@@ -122,7 +122,7 @@ def add_money():
 def logout(): session.clear();return redirect('/login')
 @app.route('/set-winner', methods=['POST'])
 def set_winner():
-    if session.get('is_admin') != True: return redirect('/admin')
+    if session.get('is_admin')!= True: return redirect('/admin')
     match_id = int(request.form['match_id'])
     winner_phone = request.form['winner_phone']
     prize = int(request.form['prize_amount'])
@@ -131,14 +131,17 @@ def set_winner():
     c.execute("SELECT id FROM users WHERE phone=?", (winner_phone,))
     w = c.fetchone()
     if w:
-        c.execute("UPDATE users SET balance = balance + ? WHERE phone=?", (prize, winner_phone))
-        c.execute("DELETE FROM joins WHERE match_id=?", (match_id,)) # Match clear
+        c.execute("UPDATE users SET balance = balance +? WHERE phone=?", (prize, winner_phone))
+        c.execute("DELETE FROM joins WHERE match_id=?", (match_id,))
         conn.commit()
         msg = f"Winner {winner_phone} ki Rs.{prize} add chesam!"
     else:
         msg = "User not found!"
     conn.close()
     return f"<script>alert('{msg}');location='/admin'</script>"
+@app.route('/admin-logout')
+def admin_logout(): session.pop('is_admin', None); return redirect('/')
+if __name__=='__main__': app.run(host='0.0.0.0',port=5000,debug=True)
 @app.route('/admin-logout')
 def admin_logout(): session.pop('is_admin', None); return redirect('/')
 if __name__=='__main__': app.run(host='0.0.0.0',port=5000,debug=True)
