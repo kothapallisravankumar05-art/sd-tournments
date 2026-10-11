@@ -156,41 +156,53 @@ def wallet():
     return render_template('wallet.html', user={'id':u[0],'phone':u[1],'username':u[2],'balance':u[3]})
 
 # --- FIX 2: Wallet SAFE chesa - Direct add kadu, pending ---
-@app.route('/add-money',methods=['POST'])
+@app.route('/add-money', methods=['POST'])
 def add_money():
     if 'user_id' not in session:
         return redirect('/login')
-    amount = request.form.get('amount')
-    utr = request.form.get('utr') # wallet.html lo UTR input add cheyali
+    
+    # Form nunchi vasthe & JSON nunchi vasthe rendu work avvali
+    if request.is_json:
+        data = request.get_json()
+        amt_str = data.get('amount')
+        utr = data.get('utr')
+    else:
+        amt_str = request.form.get('amount')
+        utr = request.form.get('utr')
 
-    # UTR lekapothe old flow la work avvakudadu
-    if not utr or len(utr) < 5:
-        # Simple ga amount + UTR lekunte pending loki vellali
-        try:
-            amt = int(amount)
-            if amt < 10:
-                return "<script>alert('Min 10 Rs bro!');location='/wallet'</script>"
-            conn=sqlite3.connect(DB)
-            c=conn.cursor()
-            # UTR fake ayina ok, kani unique undali
-            fake_utr = f"MANUAL_{session['user_id']}_{random.randint(10000,99999)}" if not utr else utr
-            c.execute("INSERT INTO payments (user_id,amount,utr,status) VALUES (?,?,?,?)",(session['user_id'], amt, fake_utr, 'pending'))
-            conn.commit()
-            conn.close()
-            return "<script>alert('Payment Pending! Admin verify chesi add chestadu!');location='/wallet'</script>"
-        except Exception as e:
-            return f"<script>alert('Error: UTR already undi or amount thappu!');location='/wallet'</script>"
-
-    # UTR unte kuda pending eh
     try:
-        conn=sqlite3.connect(DB)
-        c=conn.cursor()
-        c.execute("INSERT INTO payments (user_id,amount,utr,status) VALUES (?,?,?,?)",(session['user_id'], int(amount), utr, 'pending'))
+        amt = int(amt_str)
+    except:
+        amt = 0
+
+    if amt < 10:
+        if request.is_json:
+            return jsonify(ok=False, msg='Min 10 Rs bro!')
+        else:
+            return "<script>alert('Min 10 Rs bro!');location='/wallet'</script>"
+
+    if not utr or len(str(utr)) < 5:
+        if request.is_json:
+            return jsonify(ok=False, msg='UTR pettali bro!')
+        else:
+            return "<script>alert('UTR pettali bro!');location='/wallet'</script>"
+
+    conn=sqlite3.connect(DB)
+    c=conn.cursor()
+    try:
+        c.execute("INSERT INTO payments (user_id,amount,utr,status) VALUES (?,?,?,?)",(session['user_id'], amt, str(utr).strip(), 'pending'))
         conn.commit()
         conn.close()
-        return "<script>alert('Pending! Admin approve chestadu!');location='/wallet'</script>"
+        if request.is_json:
+            return jsonify(ok=True, msg='Pending bro! Nuvvu /admin lo Approve cheste ne add avthundi ✅')
+        else:
+            return "<script>alert('Pending! Admin Approve cheste add avthundi!');location='/wallet'</script>"
     except:
-        return "<script>alert('Ee UTR already vadaru bro!');location='/wallet'</script>"
+        conn.close()
+        if request.is_json:
+            return jsonify(ok=False, msg='Ee UTR already vadaru bro!')
+        else:
+            return "<script>alert('Ee UTR already undi!');location='/wallet'</script>"
 
 @app.route('/admin/approve_payment/<int:pid>')
 def approve_payment(pid):
