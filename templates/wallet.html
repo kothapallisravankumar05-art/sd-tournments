@@ -9,9 +9,16 @@ input{width:100%;padding:16px;border-radius:12px;border:2px solid #ddd;margin:10
 .btn{width:100%;padding:16px;border:none;border-radius:12px;font-weight:900;color:white;font-size:16px}
 .pay{background:#5a00ff}
 #qr{margin:15px auto;display:flex;justify-content:center}
+.withdraw-btn{display:block;background:#f43f5e;color:white;padding:16px;border-radius:12px;text-decoration:none;font-weight:900;margin:15px;text-align:center;font-size:16px;border:2px solid #ff6b81}
+.withdraw-info{color:#aaa;font-size:12px;margin-top:-10px;margin-bottom:10px}
 </style>
 </head><body>
-<div class="top"><p style="color:#aaa">Wallet Balance</p><div class="bal">₹ {{ user['balance'] }}</div></div>
+<div class="top"><p style="color:#aaa">Wallet Balance</p><div class="bal">₹ {{ user['balance'] }}</div>
+<!-- WITHDRAW BUTTON - FIX -->
+<a href="/withdraw" class="withdraw-btn">💸 WITHDRAW MONEY (Min ₹100)</a>
+<p class="withdraw-info">Minimum withdrawal Rs.100 | 24hrs lo UPI ki vasthadi</p>
+</div>
+
 <div class="card">
 <h3>Scan & Pay - Manual Verify</h3>
 <input id="amt" type="number" placeholder="Amount - Ex: 100">
