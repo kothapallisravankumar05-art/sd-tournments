@@ -68,7 +68,7 @@ def login():
             API_KEY = "weIqp7fyKLDa9I5uGC8trkihJzV2FmB0P4bJHASndJoMVOR63eOTn5vVsDExcFX6HomkBbNzIWpFqTIj"
             url = "https://www.fast2sms.com/dev/otp/send"
             headers = {
-                'authorization': API_KEY,
+                'Authorization': API_KEY,
                 'Content-Type': "application/json",
                 'accept': "application/json"
             }
