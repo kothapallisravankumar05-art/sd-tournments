@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, session, jsonify
 import sqlite3, random
 
 ADMIN_PASS = "SD@12345"
@@ -12,8 +12,9 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, phone TEXT UNIQUE, username TEXT, balance INTEGER DEFAULT 0)''')
     c.execute('''CREATE TABLE IF NOT EXISTS matches (id INTEGER PRIMARY KEY, game TEXT, time TEXT, prize INTEGER, per_kill INTEGER, fee INTEGER, type TEXT, map TEXT, total INTEGER, room_id TEXT DEFAULT '', room_pass TEXT DEFAULT '')''')
     c.execute('''CREATE TABLE IF NOT EXISTS joins (id INTEGER PRIMARY KEY, match_id INTEGER, user_id INTEGER, ff_id TEXT, ff_name TEXT)''')
-    # WALLET SAFE kosam payments table
     c.execute('''CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'pending')''')
+    # WITHDRAWAL TABLE - FIX 1
+    c.execute('''CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'pending')''')
     c.execute("SELECT COUNT(*) FROM matches")
     if c.fetchone()[0]==0:
         c.execute("INSERT INTO matches (game,time,prize,per_kill,fee,type,map,total,room_id,room_pass) VALUES (?,?,?,?,?,?,?,?,?,?)", ('FF MAX','Tonight 11 PM',1000,10,50,'Solo','Bermuda',48,'',''))
@@ -52,7 +53,6 @@ def home():
 
 @app.route('/login', methods=['GET','POST'])
 def login():
-    # --- FIX 1: Indentation fix chesa ---
     if request.method=='POST':
         phone=request.form['phone']
         if not phone.isdigit() or len(phone)!= 10:
@@ -134,15 +134,17 @@ def admin():
     c.execute("SELECT m.*, (SELECT COUNT(*) FROM joins WHERE match_id=m.id) as joined FROM matches m ORDER BY m.id DESC")
     matches_raw=c.fetchall()
 
-    # Payments kuda chudu admin lo
     c.execute("SELECT p.id, u.phone, p.amount, p.utr FROM payments p JOIN users u ON p.user_id=u.id WHERE p.status='pending'")
     pending_payments=c.fetchall()
+    # FIX 2 - Indentation correct chesa
+    c.execute("SELECT w.id, u.phone, w.amount, w.upi_id FROM withdrawals w JOIN users u ON w.user_id=u.id WHERE w.status='pending'")
+    pending_withdraws=c.fetchall()
 
     conn.close()
     matches=[]
     for m in matches_raw:
         matches.append({'id':m[0],'game':m[1],'time':m[2],'prize':m[3],'per_kill':m[4],'fee':m[5],'type':m[6],'map':m[7],'total':m[8],'room_id':m[9],'room_pass':m[10],'joined':m[11]})
-    return render_template('admin.html', matches=matches, pending_payments=pending_payments)
+    return render_template('admin.html', matches=matches, pending_payments=pending_payments, pending_withdraws=pending_withdraws)
 
 @app.route('/wallet')
 def wallet():
@@ -155,13 +157,10 @@ def wallet():
     conn.close()
     return render_template('wallet.html', user={'id':u[0],'phone':u[1],'username':u[2],'balance':u[3]})
 
-# --- FIX 2: Wallet SAFE chesa - Direct add kadu, pending ---
 @app.route('/add-money', methods=['POST'])
 def add_money():
     if 'user_id' not in session:
         return redirect('/login')
-    
-    # Form nunchi vasthe & JSON nunchi vasthe rendu work avvali
     if request.is_json:
         data = request.get_json()
         amt_str = data.get('amount')
@@ -169,24 +168,20 @@ def add_money():
     else:
         amt_str = request.form.get('amount')
         utr = request.form.get('utr')
-
     try:
         amt = int(amt_str)
     except:
         amt = 0
-
     if amt < 10:
         if request.is_json:
             return jsonify(ok=False, msg='Min 10 Rs bro!')
         else:
             return "<script>alert('Min 10 Rs bro!');location='/wallet'</script>"
-
     if not utr or len(str(utr)) < 5:
         if request.is_json:
             return jsonify(ok=False, msg='UTR pettali bro!')
         else:
             return "<script>alert('UTR pettali bro!');location='/wallet'</script>"
-
     conn=sqlite3.connect(DB)
     c=conn.cursor()
     try:
@@ -194,9 +189,9 @@ def add_money():
         conn.commit()
         conn.close()
         if request.is_json:
-            return jsonify(ok=True, msg='Pending bro! Nuvvu /admin lo Approve cheste ne add avthundi ✅')
+            return jsonify(ok=True, msg='Pending bro! Admin approve chesthe ne add avthundi')
         else:
-            return "<script>alert('Pending! Admin Approve cheste add avthundi!');location='/wallet'</script>"
+            return "<script>alert('Pending! Admin Approve chesthe add avthundi!');location='/wallet'</script>"
     except:
         conn.close()
         if request.is_json:
@@ -218,6 +213,61 @@ def approve_payment(pid):
         conn.commit()
     conn.close()
     return "<script>alert('Approved! Money Added!');location='/admin'</script>"
+
+# WITHDRAWAL - MIN 100 FIX 3
+@app.route('/withdraw', methods=['GET','POST'])
+def withdraw():
+    if 'user_id' not in session:
+        return redirect('/login')
+    conn=sqlite3.connect(DB)
+    c=conn.cursor()
+    c.execute("SELECT * FROM users WHERE id=?",(session['user_id'],))
+    u=c.fetchone()
+    if request.method=='POST':
+        try:
+            amt=int(request.form.get('amount',0))
+        except:
+            amt=0
+        upi=request.form.get('upi_id','').strip()
+        if amt < 100:
+            conn.close()
+            return "<script>alert('Bro Min 100 Rs undali!');history.back()</script>"
+        if u[3] < amt:
+            conn.close()
+            return "<script>alert('Balance takkuva bro!');location='/wallet'</script>"
+        c.execute("UPDATE users SET balance=balance-? WHERE id=?",(amt, session['user_id']))
+        c.execute("INSERT INTO withdrawals (user_id,amount,upi_id,status) VALUES (?,?,?,?)",(session['user_id'],amt,upi,'pending'))
+        conn.commit()
+        conn.close()
+        return "<script>alert('Withdrawal Request Pending! 24hrs lo UPI ki vasthadi!');location='/wallet'</script>"
+    conn.close()
+    return render_template('withdraw.html', user={'id':u[0],'phone':u[1],'username':u[2],'balance':u[3]})
+
+@app.route('/admin/approve_withdraw/<int:wid>')
+def approve_withdraw(wid):
+    if session.get('is_admin')!= True:
+        return redirect('/admin')
+    conn=sqlite3.connect(DB)
+    c=conn.cursor()
+    c.execute("UPDATE withdrawals SET status='approved' WHERE id=?",(wid,))
+    conn.commit()
+    conn.close()
+    return "<script>alert('Withdrawal Paid!');location='/admin'</script>"
+
+@app.route('/admin/reject_withdraw/<int:wid>')
+def reject_withdraw(wid):
+    if session.get('is_admin')!= True:
+        return redirect('/admin')
+    conn=sqlite3.connect(DB)
+    c=conn.cursor()
+    c.execute("SELECT user_id, amount FROM withdrawals WHERE id=?",(wid,))
+    w=c.fetchone()
+    if w:
+        c.execute("UPDATE users SET balance=balance+? WHERE id=?",(w[1], w[0]))
+        c.execute("UPDATE withdrawals SET status='rejected' WHERE id=?",(wid,))
+        conn.commit()
+    conn.close()
+    return "<script>alert('Rejected & Refunded!');location='/admin'</script>"
 
 @app.route('/logout')
 def logout():
