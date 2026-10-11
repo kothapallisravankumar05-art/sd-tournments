@@ -12,11 +12,6 @@ button{width:100%;padding:15px;background:#5a00ff;color:white;border:none;border
 <body>
 <div class="box">
 <h3>OTP Verify</h3>
-<p style="color:#aaa">{{ phone }} ki OTP pampamu</p>
-<div style="background:#0f172a;padding:15px;border-radius:12px;margin:15px 0;border:1px dashed #ffde59">
-<small style="color:#aaa">DEMO OTP</small>
-<h1 style="color:#ffde59;margin:5px 0">{{ otp }}</h1>
-</div>
 <form method="POST" action="/verify">
 <input name="otp" placeholder="Enter OTP" maxlength="6" required>
 <button type="submit">VERIFY & LOGIN ✅</button>
