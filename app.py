@@ -194,7 +194,7 @@ def verify_upi():
         return jsonify({'ok':False,'msg':'Thappu bro'})
     conn=sqlite3.connect(DB)
     c=conn.cursor()
-            c.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY, user_id INT, amount INT, utr TEXT UNIQUE, status TEXT)")
+         c.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY, user_id INT, amount INT, utr TEXT UNIQUE, status TEXT)")
         try:
         c.execute("INSERT INTO payments VALUES (NULL,?,?,?,?)", (session['user_id'], amt, utr, 'pending'))
         conn.commit()
