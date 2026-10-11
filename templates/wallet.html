@@ -39,7 +39,7 @@ function genQR(){
   let myUPI = "9550043870@ibl";
   let upiLink = `upi://pay?pa=${myUPI}&pn=SD%20Tournaments&am=${a}&cu=INR&tn=SD${Date.now()}`;
   document.getElementById('area').style.display='block';
-  document.getElementById('orderTxt').innerText = `Pay ₹${a} to ${myUPI}`;
+  document.getElementById('orderTxt').innerText = `Pay ₹${a}`;
   document.getElementById('qr').innerHTML = "";
   new QRCode(document.getElementById('qr'), {text: upiLink, width: 200, height: 200});
 }
