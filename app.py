@@ -59,21 +59,19 @@ def login():
         phone=request.form['phone']
         if not phone.isdigit() or len(phone)!= 10:
             return "<script>alert('10 digit number pettali bro!');history.back()</script>"
-        otp=str(random.randint(100000,999999))
+               otp=str(random.randint(100000,999999))
         session['otp']=otp
         session['temp_phone']=phone
 
         try:
-            API_KEY = os.environ.get("FAST2SMS_KEY")
-            message = f"{otp} is your OTP for SD Tournaments login. Valid for 5 mins."
-            url = f"https://www.fast2sms.com/dev/bulkV2?authorization={API_KEY}&route=q&message={message}&language=english&flash=0&numbers={phone}"
-            response = requests.get(url)
-            print("FAST2SMS RESPONSE:", response.text)
+            print(f"*** FREE OTP FOR {phone} IS {otp} ***", flush=True)
+            flash(f"Your OTP is {otp} - Free Demo Login", "success")
         except Exception as e:
-            print("OTP ERROR:", e)
-        
+            print(f"OTP ERROR: {e}", flush=True)
+            flash(f"Your OTP is {otp} - Free Demo Login", "success")
+
         return render_template('verify.html', phone=phone)
-    
+
     return render_template('login.html')
 
 @app.route('/verify', methods=['POST'])
