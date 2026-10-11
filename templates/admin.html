@@ -1,7 +1,28 @@
 <!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
-<style>body{font-family:Arial;padding:20px;background:#f0f2f5}input,select{padding:8px;margin:4px;border-radius:6px;border:1px solid #ccc}button{padding:8px 16px;background:#0a1931;color:white;border:none;border-radius:6px}.card{background:white;padding:15px;border-radius:10px;margin:10px 0}</style>
+<style>body{font-family:Arial;padding:20px;background:#f0f2f5}input,select{padding:8px;margin:4px;border-radius:6px;border:1px solid #ccc}button{padding:8px 16px;background:#0a1931;color:white;border:none;border-radius:6px}.card{background:white;padding:15px;border-radius:10px;margin:10px 0}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #ddd;font-size:13px}</style>
 </head><body>
 <h2>SD TOURNAMENTS - ADMIN PANEL</h2>
+
+<div class="card" style="border:2px solid #00c851; background:#e8fff0;">
+<h3 style="color:#00c851;">💰 PENDING PAYMENTS - APPROVE HERE</h3>
+{% if pending_payments and pending_payments|length > 0 %}
+<table>
+<tr><th>ID</th><th>Phone</th><th>Amt</th><th>UTR</th><th>Action</th></tr>
+{% for p in pending_payments %}
+<tr>
+<td>{{ p[0] }}</td>
+<td>{{ p[1] }}</td>
+<td><b>₹{{ p[2] }}</b></td>
+<td style="font-size:11px">{{ p[3] }}</td>
+<td><a href="/admin/approve_payment/{{ p[0] }}" style="background:#00c851;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;font-weight:700">APPROVE</a></td>
+</tr>
+{% endfor %}
+</table>
+{% else %}
+<p>No Pending Payments bro!</p>
+{% endif %}
+</div>
+
 <div class="card">
 <h3>Add New Match</h3>
 <form method="POST">
