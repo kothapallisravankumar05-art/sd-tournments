@@ -2,83 +2,74 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ADMIN PANEL</title>
+<title>ADMIN - SD</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
 body{background:#0f172a;color:#fff;padding:10px}
-h2{margin:10px 0}
+.header{background:#1e293b;padding:15px;border-radius:10px;display:flex;justify-content:space-between;margin-bottom:10px}
 .card{background:#1e293b;padding:15px;border-radius:12px;margin:10px 0;border:1px solid #334155}
-input,select{padding:10px;border-radius:6px;border:none;margin:5px;background:#0f172a;color:#fff;border:1px solid #334155}
-button{padding:10px 15px;background:#00ff88;border:none;border-radius:6px;font-weight:900;cursor:pointer;margin:3px}
+input,select{padding:10px;border-radius:6px;border:none;margin:5px;background:#0f172a;color:#fff;border:1px solid #334155;width:150px}
+button{padding:10px 15px;background:#00ff88;border:none;border-radius:6px;font-weight:900;cursor:pointer}
 .btn-red{background:#ff4444;color:#fff}
 .btn-green{background:#00ff88;color:#000}
-.item{padding:10px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}
-a{text-decoration:none}
+.item{padding:12px;background:#0f172a;margin:5px 0;border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+a{color:#00ff88;text-decoration:none}
 </style>
 </head>
 <body>
-<h2>🔐 ADMIN PANEL <a href="/admin-logout" style="color:#ff4444;font-size:12px">Logout</a> | <a href="/" style="color:#00ff88;font-size:12px">Home</a></h2>
+<div class="header">
+<b>🔐 ADMIN PANEL - Password: 101210</b>
+<div><a href="/" style="margin-right:15px">Home</a><a href="/admin-logout" style="color:#ff4444">Logout</a></div>
+</div>
 
 <div class="card">
-<h3>➕ Add Tournament</h3><br>
+<h3>➕ Add New Tournament</h3><br>
 <form method="POST">
 <input type="hidden" name="action" value="add_match">
-<input name="game" placeholder="Game: FF MAX" value="FF MAX" required>
-<input name="time" placeholder="Time: Tonight 11 PM" required>
-<input name="prize" type="number" placeholder="Prize 1000" required>
-<input name="per_kill" type="number" placeholder="Per Kill 10" required>
-<input name="fee" type="number" placeholder="Entry Fee 50" required>
+<input name="game" placeholder="FF MAX" value="FF MAX" required>
+<input name="time" placeholder="Time - Ex: Tonight 11 PM" required>
+<input name="prize" type="number" placeholder="Prize ₹" required>
+<input name="per_kill" type="number" placeholder="Per Kill ₹" required>
+<input name="fee" type="number" placeholder="Entry Fee ₹" required>
 <select name="type"><option>Solo</option><option>Duo</option><option>Squad</option></select>
-<input name="map" placeholder="Map: Bermuda" value="Bermuda" required>
-<input name="total" type="number" placeholder="Total 48" required>
-<button>Add Tournament</button>
+<input name="map" placeholder="Bermuda" value="Bermuda" required>
+<input name="total" type="number" placeholder="Total Spots" required>
+<button>ADD TOURNAMENT</button>
 </form>
 </div>
 
 <div class="card">
-<h3>🔑 Set Room ID (Match Ongoing Avthadi)</h3><br>
+<h3>🔴 Make Match LIVE (Room ID Pettali)</h3><br>
 <form method="POST">
 <input type="hidden" name="action" value="set_room">
-<input name="mid" type="number" placeholder="Match ID (Ex: 1)" required>
+<input name="mid" type="number" placeholder="Match ID" required>
 <input name="room_id" placeholder="Room ID" required>
 <input name="room_pass" placeholder="Password" required>
-<button class="btn-red">Set Room & Make LIVE</button>
+<button class="btn-red">SET ROOM & GO LIVE</button>
 </form>
 </div>
 
 <div class="card">
-<h3>📋 All Matches ({{matches|length}})</h3>
+<h3>📋 All Tournaments ({{matches|length}})</h3>
 {% for m in matches %}
-<div class="item">
-<div>ID: {{m.id}} | <b>{{m.game}} - {{m.type}}</b> | {{m.time}} | Joined: {{m.joined}}/{{m.total}} | Room: <b style="color:#00ff88">{{m.room_id}} {{m.room_pass}}</b></div>
-</div>
+<div class="item"><span>ID: <b>{{m.id}}</b> | {{m.game}} {{m.type}} | Time: {{m.time}} | Joined: {{m.joined}}/{{m.total}} | Room: <b style="color:#00ff88">{{m.room_id}} {{m.room_pass}}</b></span></div>
 {% endfor %}
 </div>
 
 <div class="card">
-<h3>💰 Pending Add Money ({{pending_payments|length}})</h3>
-{% if pending_payments|length == 0 %}<p style="color:#888">No pending</p>{% endif %}
+<h3>💰 Pending Add Money Requests</h3>
+{% if pending_payments|length==0 %}<p style="color:#666">No pending payments</p>{% endif %}
 {% for p in pending_payments %}
-<div class="item">
-<div>Pay ID: {{p[0]}} | Phone: {{p[1]}} | Amount: ₹{{p[2]}} | UTR: {{p[3]}}</div>
-<a href="/admin/approve_payment/{{p[0]}}"><button class="btn-green">Approve & Add Money</button></a>
-</div>
+<div class="item"><span>Phone: {{p[1]}} | Amount: ₹{{p[2]}} | UTR: {{p[3]}}</span><a href="/admin/approve_payment/{{p[0]}}"><button class="btn-green">Approve</button></a></div>
 {% endfor %}
 </div>
 
 <div class="card">
-<h3>💸 Pending Withdrawals ({{pending_withdraws|length}})</h3>
-{% if pending_withdraws|length == 0 %}<p style="color:#888">No pending</p>{% endif %}
+<h3>💸 Pending Withdraw Requests</h3>
+{% if pending_withdraws|length==0 %}<p style="color:#666">No pending withdraw</p>{% endif %}
 {% for w in pending_withdraws %}
-<div class="item">
-<div>W ID: {{w[0]}} | Phone: {{w[1]}} | Amount: ₹{{w[2]}} | UPI: {{w[3]}}</div>
-<div>
-<a href="/admin/approve_withdraw/{{w[0]}}"><button class="btn-green">Paid</button></a>
-<a href="/admin/reject_withdraw/{{w[0]}}"><button class="btn-red">Reject & Refund</button></a>
-</div>
-</div>
+<div class="item"><span>Phone: {{w[1]}} | Amount: ₹{{w[2]}} | UPI: {{w[3]}}</span><div><a href="/admin/approve_withdraw/{{w[0]}}"><button class="btn-green">Paid</button></a><a href="/admin/reject_withdraw/{{w[0]}}"><button class="btn-red">Reject</button></a></div></div>
 {% endfor %}
 </div>
-
 </body>
 </html>
