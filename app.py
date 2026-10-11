@@ -164,14 +164,19 @@ def wallet():
     c=conn.cursor()
     c.execute("SELECT * FROM users WHERE id=?",(session['user_id'],))
     u=c.fetchone()
-    c.execute("SELECT * FROM withdrawals WHERE user_id=? ORDER BY id DESC LIMIT 10",(session['user_id'],))
+    c.execute("SELECT * FROM payments WHERE user_id=? ORDER BY id DESC",(session['user_id'],))
+    deposits=c.fetchall()
+    c.execute("SELECT * FROM withdrawals WHERE user_id=? ORDER BY id DESC",(session['user_id'],))
     withdraws=c.fetchall()
     conn.close()
     user={'id':u[0],'phone':u[1],'username':u[2],'balance':u[3]}
+    d_list=[]
+    for d in deposits:
+        d_list.append({'amount':d[2],'utr':d[3],'status':d[4]})
     w_list=[]
     for w in withdraws:
-        w_list.append({'id':w[0],'amount':w[2],'upi':w[3],'status':w[4]})
-    return render_template('wallet.html', user=user, withdraws=w_list)
+        w_list.append({'amount':w[2],'upi':w[3],'status':w[4]})
+    return render_template('wallet.html', user=user, deposits=d_list, withdraws=w_list)
 
 @app.route('/add-money', methods=['POST'])
 def add_money():
