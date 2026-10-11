@@ -5,31 +5,30 @@
 <title>SD TOURNAMENTS</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
-body{background:#0a0e1a;color:#fff;min-height:100vh}
-.header{background:#1e293b;padding:15px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('https://wallpapercave.com/wp/wp10551227.jpg'); background-size:cover; background-attachment:fixed; background-position:center; color:#fff;min-height:100vh}
+.header{background:rgba(30,41,59,0.95);padding:15px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
 .logo{font-weight:900;color:#00ff88;font-size:18px}
 .wallet{ background:#00ff88;color:#000;padding:6px 12px;border-radius:20px;font-weight:900;text-decoration:none;font-size:13px}
-.tabs{display:flex;background:#111827;padding:5px;margin:10px;border-radius:12px;gap:5px}
+.tabs{display:flex;background:rgba(17,24,39,0.9);padding:5px;margin:10px;border-radius:12px;gap:5px}
 .tab{flex:1;text-align:center;padding:12px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;color:#9ca3af}
 .tab.active{background:#00ff88;color:#000}
 .section{display:none;padding:10px}
 .section.active{display:block}
-.card{background:#1e293b;margin-bottom:12px;border-radius:15px;padding:15px;border-left:4px solid #00ff88}
+.card{background:rgba(30,41,59,0.95);margin-bottom:12px;border-radius:15px;padding:15px;border-left:4px solid #00ff88}
 .card.ongoing{border-left-color:#ff4444}
 .card.result{border-left-color:#888}
 .card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .badge{font-size:10px;padding:4px 8px;border-radius:20px;font-weight:900}
 .badge.up{background:#00ff8833;color:#00ff88}
-.badge.on{background:#ff444433;color:#ff4444;animation:blink 1s infinite}
+.badge.on{background:#ff444433;color:#ff4444}
 .badge.re{background:#8883;color:#888}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0.5}}
 .title{font-weight:900;font-size:16px;margin:5px 0}
 .details{font-size:12px;color:#9ca3af;display:flex;gap:12px;margin:8px 0;flex-wrap:wrap}
 .btn{width:100%;padding:12px;border:none;border-radius:10px;font-weight:900;margin-top:8px;cursor:pointer}
 .btn-join{background:#00ff88;color:#000}
 .btn-room{background:#ff4444;color:#fff}
 .btn-dis{background:#2d3748;color:#666}
-.room-box{background:#0003;padding:10px;border-radius:10px;margin-top:10px;border:1px dashed #ff4444}
+.room-box{background:#0006;padding:10px;border-radius:10px;margin-top:10px;border:1px dashed #ff4444}
 </style>
 </head>
 <body>
@@ -42,12 +41,11 @@ body{background:#0a0e1a;color:#fff;min-height:100vh}
 </div>
 
 <div class="tabs">
-<div class="tab active" onclick="showTab('upcoming')">UPCOMING</div>
-<div class="tab" onclick="showTab('ongoing')">ONGOING</div>
-<div class="tab" onclick="showTab('results')">RESULTS</div>
+<div class="tab active" onclick="showTab('upcoming', this)">UPCOMING</div>
+<div class="tab" onclick="showTab('ongoing', this)">ONGOING</div>
+<div class="tab" onclick="showTab('results', this)">RESULTS</div>
 </div>
 
-<!-- UPCOMING -->
 <div id="upcoming" class="section active">
 {% for t in tournaments %}
 {% if not t.room_id %}
@@ -65,49 +63,32 @@ body{background:#0a0e1a;color:#fff;min-height:100vh}
 {% endfor %}
 </div>
 
-<!-- ONGOING -->
 <div id="ongoing" class="section">
 {% for t in tournaments %}
 {% if t.room_id %}
 <div class="card ongoing">
-<div class="card-top"><span class="badge on">● LIVE - ONGOING</span><span style="font-size:11px;color:#ff4444">{{t.time}}</span></div>
+<div class="card-top"><span class="badge on">● LIVE</span><span style="font-size:11px;color:#ff4444">{{t.time}}</span></div>
 <div class="title">{{t.game}} - {{t.type}}</div>
 <div class="details"><span>🗺 {{t.map}}</span><span>💰 ₹{{t.prize}}</span></div>
 {% if t.id in my_joined_ids %}
-<div class="room-box">
-<div style="font-weight:900;color:#ff4444;margin-bottom:5px">🔑 ROOM DETAILS:</div>
-<div>ID: <b>{{t.room_id}}</b></div>
-<div>PASS: <b>{{t.room_pass}}</b></div>
-</div>
+<div class="room-box"><div style="font-weight:900;color:#ff4444;margin-bottom:5px">🔑 ROOM DETAILS:</div><div>ID: <b>{{t.room_id}}</b></div><div>PASS: <b>{{t.room_pass}}</b></div></div>
 {% else %}
-<button class="btn btn-dis">ROOM LOCKED - You didn't join</button>
+<button class="btn btn-dis">ROOM LOCKED</button>
 {% endif %}
 </div>
 {% endif %}
-{% endfor %}
-{% for r in my_rooms %}
 {% endfor %}
 </div>
 
-<!-- RESULTS -->
 <div id="results" class="section">
-{% for t in results %}
-<div class="card result">
-<div class="card-top"><span class="badge re">COMPLETED</span><span style="font-size:11px">{{t.time}}</span></div>
-<div class="title">{{t.game}} - {{t.type}}</div>
-<div class="details"><span>🏆 Prize: ₹{{t.prize}}</span><span>🗺 {{t.map}}</span></div>
-<button class="btn btn-dis">RESULTS PUBLISHED</button>
-</div>
-{% else %}
-<div style="text-align:center;padding:40px;color:#666">No Results Yet bro!</div>
-{% endfor %}
+<div style="text-align:center;padding:40px;color:#aaa">🏁 Results Coming Soon!</div>
 </div>
 
 <script>
-function showTab(name){
+function showTab(name, el){
 document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
 document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-event.target.classList.add('active');
+el.classList.add('active');
 document.getElementById(name).classList.add('active');
 }
 </script>
