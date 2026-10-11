@@ -204,38 +204,28 @@ def approve_payment(pid):
 @app.route('/withdraw', methods=['GET','POST'])
 def withdraw():
     if 'user_id' not in session: return redirect('/login')
-    conn=sqlite3.connect(DB); c=conn.cursor()
-    c.execute("SELECT * FROM users WHERE id=?",(session['user_id'],)); u=c.fetchone()
+    conn=sqlite3.connect(DB);c=conn.cursor();c.execute("SELECT * FROM users WHERE id=?",(session['user_id'],));u=c.fetchone()
     if request.method=='POST':
-        try: amt=int(request.form.get('amount',0))
-        except: amt=0
-        upi=request.form.get('upi_id','').strip()
-        if amt < 100: conn.close(); return "<script>alert('Bro Min 100 Rs undali!');history.back()</script>"
-        if u[4] < amt: conn.close(); return "<script>alert('Balance takkuva bro!');location='/wallet'</script>"
-        c.execute("UPDATE users SET balance=balance-? WHERE id=?",(amt, session['user_id']))
-        c.execute("INSERT INTO withdrawals (user_id,amount,upi_id,status) VALUES (?,?,?,?)",(session['user_id'],amt,upi,'pending'))
-        conn.commit(); conn.close()
-        return "<script>alert('Withdrawal Request Pending!');location='/wallet'</script>"
+        amt=int(request.form['amount'])
+        if u[4] < amt or amt < 50: conn.close();return "<script>alert('Balance ledu or Min 50');history.back()</script>"
+        c.execute("UPDATE users SET balance=balance-? WHERE id=?",(amt,session['user_id']))
+        c.execute("INSERT INTO withdrawals (user_id,amount,upi_id,status) VALUES (?,?,?,?)",(session['user_id'],amt,request.form['upi_id'],'pending'));conn.commit();conn.close()
+        return "<script>alert('Withdraw Request Sent');location='/wallet'</script>"
     conn.close()
     return render_template('withdraw.html', user={'id':u[0],'phone':u[1],'username':u[2],'balance':u[4]})
 
 @app.route('/admin/approve_withdraw/<int:wid>')
 def approve_withdraw(wid):
-    if session.get('is_admin')!= True: return redirect('/admin')
-    conn=sqlite3.connect(DB); c=conn.cursor()
-    c.execute("UPDATE withdrawals SET status='approved' WHERE id=?",(wid,)); conn.commit(); conn.close()
-    return "<script>alert('Withdrawal Paid!');location='/admin'</script>"
+    if session.get('is_admin')!=True: return redirect('/admin')
+    conn=sqlite3.connect(DB);c=conn.cursor();c.execute("UPDATE withdrawals SET status='approved' WHERE id=?",(wid,));conn.commit();conn.close()
+    return "<script>alert('Withdraw Approved');location='/admin'</script>"
 
 @app.route('/admin/reject_withdraw/<int:wid>')
 def reject_withdraw(wid):
-    if session.get('is_admin')!= True: return redirect('/admin')
-    conn=sqlite3.connect(DB); c=conn.cursor()
-    c.execute("SELECT user_id, amount FROM withdrawals WHERE id=?",(wid,)); w=c.fetchone()
-    if w:
-        c.execute("UPDATE users SET balance=balance+? WHERE id=?",(w[1], w[0]))
-        c.execute("UPDATE withdrawals SET status='rejected' WHERE id=?",(wid,)); conn.commit()
-    conn.close()
-    return "<script>alert('Rejected & Refunded!');location='/admin'</script>"
+    if session.get('is_admin')!=True: return redirect('/admin')
+    conn=sqlite3.connect(DB);c=conn.cursor();c.execute("SELECT user_id,amount FROM withdrawals WHERE id=?",(wid,));w=c.fetchone()
+    if w: c.execute("UPDATE users SET balance=balance+? WHERE id=?",(w[1],w[0]));c.execute("UPDATE withdrawals SET status='rejected' WHERE id=?",(wid,));conn.commit()
+    conn.close();return "<script>alert('Rejected & Refunded');location='/admin'</script>"
 
 @app.route('/logout')
 def logout():
