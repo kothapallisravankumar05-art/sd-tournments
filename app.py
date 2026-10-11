@@ -56,21 +56,19 @@ def home():
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method=='POST':
-        phone=request.form['phone']
-        if not phone.isdigit() or len(phone)!= 10:
-            return "<script>alert('10 digit number pettali bro!');history.back()</script>"
-               otp=str(random.randint(100000,999999))
-        session['otp']=otp
-        session['temp_phone']=phone
-
-        try:
-            print(f"*** FREE OTP FOR {phone} IS {otp} ***", flush=True)
-            flash(f"Your OTP is {otp} - Free Demo Login", "success")
-        except Exception as e:
-            print(f"OTP ERROR: {e}", flush=True)
-            flash(f"Your OTP is {otp} - Free Demo Login", "success")
-
-        return render_template('verify.html', phone=phone)
+            phone=request.form['phone']
+    if not phone.isdigit() or len(phone)!=10:
+        return "<script>alert('10 digit number pettali bro!');history.back()</script>"
+    otp=str(random.randint(100000,999999))
+    session['otp']=otp
+    session['temp_phone']=phone
+    try:
+        print(f"*** FREE OTP FOR {phone} IS {otp} ***", flush=True)
+        flash(f"Your OTP is {otp} - Free Demo Login", "success")
+    except Exception as e:
+        print(f"OTP ERROR: {e}", flush=True)
+        flash(f"Your OTP is {otp} - Free Demo Login", "success")
+    return render_template('verify.html', phone=phone)
 
     return render_template('login.html')
 
