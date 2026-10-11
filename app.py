@@ -194,15 +194,15 @@ def verify_upi():
         return jsonify({'ok':False,'msg':'Thappu bro'})
     conn=sqlite3.connect(DB)
     c=conn.cursor()
-    c.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY, user_id INT, amount INT, utr TEXT UNIQUE, status TEXT)")
-    try:
-        c.execute("INSERT INTO payments VALUES (NULL,?,?,?,?)",(session['user_id'],amt,utr,'pending'))
+            c.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY, user_id INT, amount INT, utr TEXT UNIQUE, status TEXT)")
+        try:
+        c.execute("INSERT INTO payments VALUES (NULL,?,?,?,?)", (session['user_id'], amt, utr, 'pending'))
         conn.commit()
         conn.close()
-        return jsonify({'ok':True,'msg':f'{amt}rs Pending bro! Nenu check chesi add chesta ✅'})
+        return jsonify({'ok':True, 'msg':f'{amt}rs Pending bro! Nenu check chesi add chesta ✅'})
     except:
         conn.close()
-        return jsonify({'ok':False,'msg':'Ee UTR already vadaru bro!'})
+        return jsonify({'ok':False, 'msg':'Ee UTR already vadaru bro!'})
 
 # === END ===
 if __name__ == '__main__': app.run(host='0.0.0.0',port=5000,debug=True)
