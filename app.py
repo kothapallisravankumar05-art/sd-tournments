@@ -145,5 +145,46 @@ def set_winner():
     return f"<script>alert('{msg}');location='/admin'</script>"
 @app.route('/admin-logout')
 def admin_logout(): session.pop('is_admin', None); return redirect('/')
-if __name__=='__main__': app.run(host='0.0.0.0',port=5000,debug=True)
+    # === ADD MONEY - UPI HIDDEN ===
+MY_UPI_ID = "9550043870@ibl"
+
+@app.route('/get_upi_link')
+def get_upi_link():
+    if 'user_id' not in session: 
+        return jsonify({'ok':False,'msg':'Login avvu'})
+    amt=request.args.get('amount','10')
+    upi_link=f"upi://pay?pa={MY_UPI_ID}&pn=ESPORTS&am={amt}&cu=INR"
+    return jsonify({'ok':True,'upi_link':upi_link})
+
+@app.route('/add_money')
+def add_money():
+    if 'user_id' not in session: 
+        return redirect('/login')
+    return render_template('add_money.html')
+
+@app.route('/verify_upi', methods=['POST'])
+def verify_upi():
+    if 'user_id' not in session: 
+        return jsonify({'ok':False,'msg':'Login avvu'})
+    data=request.get_json()
+    amt=int(data.get('amount',0))
+    utr=data.get('utr','').strip()
+    if amt<10 or len(utr)<10:
+        return jsonify({'ok':False,'msg':'Thappu bro'})
+    conn=sqlite3.connect(DB)
+    c=conn.cursor()
+    c.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY, user_id INT, amount INT, utr TEXT UNIQUE, status TEXT)")
+    try:
+        c.execute("INSERT INTO payments VALUES (NULL,?,?,?,?)",(session['user_id'],amt,utr,'approved'))
+        c.execute("UPDATE users SET balance=balance+? WHERE id=?",(amt,session['user_id']))
+        conn.commit()
+        conn.close()
+        return jsonify({'ok':True,'msg':f'{amt}rs Added bro ✅'})
+    except:
+        conn.close()
+        return jsonify({'ok':False,'msg':'Ee UTR already vadaru bro!'})
+
+# === END ===
+if __name__ == '__main__': app.run(host='0.0.0.0',port=5000,debug=True)
+
 
