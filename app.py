@@ -185,7 +185,7 @@ def submit_utr():
 
 @app.route('/verify_upi', methods=['POST'])
 def verify_upi():
-    if 'user_id' not in session: 
+    if 'user_id' not in session:
         return jsonify({'ok':False,'msg':'Login avvu'})
     data=request.get_json()
     amt=int(data.get('amount',0))
@@ -194,15 +194,43 @@ def verify_upi():
         return jsonify({'ok':False,'msg':'Thappu bro'})
     conn=sqlite3.connect(DB)
     c=conn.cursor()
-         c.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY, user_id INT, amount INT, utr TEXT UNIQUE, status TEXT)")
-        try:
+    c.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY, user_id INT, amount INT, utr TEXT UNIQUE, status TEXT)")
+    try:
         c.execute("INSERT INTO payments VALUES (NULL,?,?,?,?)", (session['user_id'], amt, utr, 'pending'))
         conn.commit()
         conn.close()
-        return jsonify({'ok':True, 'msg':f'{amt}rs Pending bro! Nenu check chesi add chesta ✅'})
+        return jsonify({'ok':True,'msg':f'{amt}rs Pending bro! Nenu check chesi add chesta ✅'})
     except:
         conn.close()
-        return jsonify({'ok':False, 'msg':'Ee UTR already vadaru bro!'})
+        return jsonify({'ok':False,'msg':'Ee UTR already vadaru bro!'})
+@app.route('/admin/payments')
+def admin_payments():
+    if 'user_id' not in session: return redirect('/login')
+    if session.get('username')!= 'admin': return "Admin only bro!"
+    conn=sqlite3.connect(DB)
+    c=conn.cursor()
+    c.execute("SELECT * FROM payments WHERE status='pending'")
+    rows=c.fetchall()
+    conn.close()
+    html="<h2>Pending Payments</h2>"
+    for r in rows:
+        html+=f"ID:{r[0]} User:{r[1]} Amount:{r[2]} UTR:{r[3]} <a href='/admin/approve/{r[0]}'>Approve</a><br>"
+    return html
+
+@app.route('/admin/approve/<int:pid>')
+def approve_pay(pid):
+    if 'user_id' not in session: return redirect('/login')
+    if session.get('username')!= 'admin': return "Admin only"
+    conn=sqlite3.connect(DB)
+    c=conn.cursor()
+    c.execute("SELECT user_id,amount FROM payments WHERE id=?",(pid,))
+    pay=c.fetchone()
+    if pay:
+        c.execute("UPDATE users SET balance=balance+? WHERE id=?",(pay[1],pay[0]))
+         c.execute("UPDATE payments SET status='approved' WHERE id=?",(pid,))
+        conn.commit()
+    conn.close()
+    return "Approved! <a href='/admin/payments'>Back</a>"
 
 # === END ===
 if __name__ == '__main__': app.run(host='0.0.0.0',port=5000,debug=True)
