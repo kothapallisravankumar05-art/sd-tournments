@@ -157,7 +157,7 @@ def get_upi_link():
     return jsonify({'ok':True,'upi_link':upi_link})
 
 @app.route('/add_money')
-def add_money():
+def add_money_new():   # <--- _new add chesa
     if 'user_id' not in session: 
         return redirect('/login')
     return render_template('add_money.html')
