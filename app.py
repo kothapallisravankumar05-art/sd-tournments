@@ -79,8 +79,8 @@ def login():
 @app.route('/verify', methods=['POST'])
 def verify():
     if request.form['otp']==session.get('otp'):
+        session.permanent = True  # <--- IKKADA UNDALI BRO, paina!
         conn=sqlite3.connect(DB)
-        c=conn.cursor()
         c.execute("SELECT * FROM users WHERE phone=?",(session['temp_phone'],))
         u=c.fetchone()
         if not u:
@@ -89,7 +89,6 @@ def verify():
             c.execute("SELECT * FROM users WHERE phone=?",(session['temp_phone'],))
             u=c.fetchone()
         conn.close()
-        session.permanent = True
         session['user_id']=u[0]
         return redirect('/')
     return "<script>alert('Wrong OTP');history.back()</script>"
