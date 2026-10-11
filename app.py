@@ -63,20 +63,11 @@ def login():
         session['otp']=otp
         session['temp_phone']=phone
 
-        # --- REAL SMS SEND - NEW SMART OTP API ---
         try:
             API_KEY = "weIqp7fyKLDa9I5uGC8trkihJzV2FmB0P4bJHASndJoMVOR63eOTn5vVsDExcFX6HomkBbNzIWpFqTIj"
-            url = "https://www.fast2sms.com/dev/otp/send"
-            headers = {
-                'Authorization': API_KEY,
-                'Content-Type': "application/json",
-                'accept': "application/json"
-            }
-            data = {
-                "mobile": phone,
-                "otp": otp
-            }
-            response = requests.post(url, headers=headers, json=data)
+            message = f"{otp} is your OTP for SD Tournaments login. Valid for 5 mins."
+            url = f"https://www.fast2sms.com/dev/bulkV2?authorization={API_KEY}&route=q&message={message}&language=english&flash=0&numbers={phone}"
+            response = requests.get(url)
             print("FAST2SMS RESPONSE:", response.text)
         except Exception as e:
             print("OTP ERROR:", e)
