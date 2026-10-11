@@ -6,39 +6,56 @@ body{background:#0f172a;color:white;font-family:Arial;margin:0}
 .bal{font-size:42px;color:#ffde59;font-weight:900}
 .card{background:white;color:black;margin:15px;border-radius:20px;padding:20px;text-align:center}
 input{width:100%;padding:16px;border-radius:12px;border:2px solid #ddd;margin:10px 0;box-sizing:border-box;font-size:16px}
-.btn{width:100%;padding:16px;border:none;border-radius:12px;font-weight:900;color:white;font-size:16px}
+.btn{width:100%;padding:16px;border:none;border-radius:12px;font-weight:900;color:white;font-size:16px;cursor:pointer}
 .pay{background:#5a00ff}
 #qr{margin:15px auto;display:flex;justify-content:center}
 </style>
 </head><body>
 <div class="top"><p style="color:#aaa">Wallet Balance</p><div class="bal">₹ {{ user['balance'] }}</div></div>
 <div class="card">
-<h3>📱 Scan & Pay - Auto Add</h3>
+<h3>🔳 Scan & Pay - Auto Add</h3>
 <input id="amt" type="number" placeholder="Enter Amount - Ex: 100">
 <button class="btn pay" onclick="startPay()">GENERATE UPI QR & PAY</button>
 <div id="area" style="display:none">
 <div id="qr"></div>
 <p id="txt" style="color:gray;font-size:12px;font-weight:700"></p>
-<p style="color:#00c851;font-weight:900">⏳ Payment kosam wait chesthunna... Auto detect avuthundi...</p>
+<p style="color:#00c851;font-weight:900">⌛ Payment kosam wait chesthunna... Auto detect avuthundi...</p>
 </div>
 </div>
-<a href="/" style="display:block;text-align:center;color:#ffde59;text-decoration:none;margin:20px;font-weight:700">⬅ Back to Matches</a>
+<a href="/" style="display:block;text-align:center;color:#ffde59;text-decoration:none;margin:20px;font-weight:700">← Back to Matches</a>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
+let orderId = "";
 function startPay(){
- let a = document.getElementById('amt').value;
- if(!a){alert('Amount kottu bro');return;}
- // ===== IKKADA NEE UPI ID PETTU - BAYATA KANIPINCHADU =====
- let myUPI = "9550043870@ibl"; // <--- NEE PHONEPE / GPAY UPI IKKADA MARCHU
- // ==========================================================
- let upi = `upi://pay?pa=${myUPI}&pn=SDTournaments&am=${a}&cu=INR`;
- let qr = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upi)}`;
- document.getElementById('qr').innerHTML = `<img src="${qr}" style="border-radius:12px;border:10px solid white">`;
- document.getElementById('txt').innerText = `Scan to Pay ₹${a} via GPay / PhonePe`;
- document.getElementById('area').style.display='block';
- setTimeout(()=>{
-  fetch('/add-money',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'amount='+a})
- .then(()=>{ alert('✅ Payment Success! ₹'+a+' Added!'); location.reload(); });
- }, 5000);
+  let a = document.getElementById('amt').value;
+  if(!a || a < 10){ alert('Amount kottu bro! Min 10'); return; }
+  
+  // === IKKADA NEE UPI ID - NUVVU PETTINDI CORRECT ===
+  let myUPI = "9550043870@ibl";
+  
+  orderId = "SD" + Date.now();
+  let upiLink = `upi://pay?pa=${myUPI}&pn=SD%20Tournaments&am=${a}&cu=INR&tn=${orderId}`;
+  
+  document.getElementById('area').style.display='block';
+  document.getElementById('txt').innerText = `Order: ${orderId} - Amount: ₹${a}`;
+  document.getElementById('qr').innerHTML = "";
+  new QRCode(document.getElementById('qr'), {text: upiLink, width: 200, height: 200});
+  
+  // 5 sec tarvata auto add anukundam - TESTING KOSAM
+  // Real UPI auto verify ki gateway kavali bro
+  setTimeout(()=>{
+    if(confirm(`₹${a} pay chesava bro? OK nokkithe Auto Add avthundi!`)){
+      fetch('/add-money-auto', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({amount:a, order_id:orderId})
+      }).then(r=>r.json()).then(d=>{
+        alert(d.msg);
+        if(d.ok) location.reload();
+      });
+    }
+  }, 8000);
 }
 </script>
 </body></html>
