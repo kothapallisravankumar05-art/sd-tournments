@@ -1,89 +1,84 @@
-<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
-<style>body{font-family:Arial;padding:20px;background:#f0f2f5}input,select{padding:8px;margin:4px;border-radius:6px;border:1px solid #ccc}button{padding:8px 16px;background:#0a1931;color:white;border:none;border-radius:6px}.card{background:white;padding:15px;border-radius:10px;margin:10px 0}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #ddd;font-size:13px}</style>
-</head><body>
-<h2>SD TOURNAMENTS - ADMIN PANEL</h2>
-
-<div class="card" style="border:2px solid #00c851; background:#e8fff0;">
-<h3 style="color:#00c851;">💰 PENDING PAYMENTS - APPROVE HERE</h3>
-{% if pending_payments and pending_payments|length > 0 %}
-<table>
-<tr><th>ID</th><th>Phone</th><th>Amt</th><th>UTR</th><th>Action</th></tr>
-{% for p in pending_payments %}
-<tr>
-<td>{{ p[0] }}</td>
-<td>{{ p[1] }}</td>
-<td><b>₹{{ p[2] }}</b></td>
-<td style="font-size:11px">{{ p[3] }}</td>
-<td><a href="/admin/approve_payment/{{ p[0] }}" style="background:#00c851;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;font-weight:700">APPROVE</a></td>
-</tr>
-{% endfor %}
-</table>
-{% else %}
-<p>No Pending Payments bro!</p>
-{% endif %}
-</div>
-
-<!-- WITHDRAWAL SECTION - NEW ADDED -->
-<div class="card" style="border:2px solid #f43f5e; background:#fff0f3;">
-<h3 style="color:#f43f5e;">💸 PENDING WITHDRAWALS - MIN 100</h3>
-{% if pending_withdraws and pending_withdraws|length > 0 %}
-<table>
-<tr><th>ID</th><th>Phone</th><th>Amt</th><th>UPI ID</th><th>Action</th></tr>
-{% for w in pending_withdraws %}
-<tr>
-<td>{{ w[0] }}</td>
-<td>{{ w[1] }}</td>
-<td><b>₹{{ w[2] }}</b></td>
-<td style="font-size:11px">{{ w[3] }}</td>
-<td>
-<a href="/admin/approve_withdraw/{{ w[0] }}" style="background:#00c851;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;font-weight:700">✅ PAID</a>
-<a href="/admin/reject_withdraw/{{ w[0] }}" style="background:#ef4444;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;font-weight:700;margin-left:5px">❌ REJECT</a>
-</td>
-</tr>
-{% endfor %}
-</table>
-{% else %}
-<p>No Pending Withdrawals bro!</p>
-{% endif %}
-</div>
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADMIN PANEL</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{background:#0f172a;color:#fff;padding:10px}
+h2{margin:10px 0}
+.card{background:#1e293b;padding:15px;border-radius:12px;margin:10px 0;border:1px solid #334155}
+input,select{padding:10px;border-radius:6px;border:none;margin:5px;background:#0f172a;color:#fff;border:1px solid #334155}
+button{padding:10px 15px;background:#00ff88;border:none;border-radius:6px;font-weight:900;cursor:pointer;margin:3px}
+.btn-red{background:#ff4444;color:#fff}
+.btn-green{background:#00ff88;color:#000}
+.item{padding:10px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}
+a{text-decoration:none}
+</style>
+</head>
+<body>
+<h2>🔐 ADMIN PANEL <a href="/admin-logout" style="color:#ff4444;font-size:12px">Logout</a> | <a href="/" style="color:#00ff88;font-size:12px">Home</a></h2>
 
 <div class="card">
-<h3>Add New Match</h3>
+<h3>➕ Add Tournament</h3><br>
 <form method="POST">
 <input type="hidden" name="action" value="add_match">
-<input name="game" placeholder="FF MAX" required>
-<input name="time" placeholder="Tonight 11 PM" required>
-<input name="prize" type="number" placeholder="Prize 1000" value="1000" required>
-<input name="per_kill" type="number" placeholder="Kill 10" value="10" required>
-<input name="fee" type="number" placeholder="Fee 50" value="50" required>
+<input name="game" placeholder="Game: FF MAX" value="FF MAX" required>
+<input name="time" placeholder="Time: Tonight 11 PM" required>
+<input name="prize" type="number" placeholder="Prize 1000" required>
+<input name="per_kill" type="number" placeholder="Per Kill 10" required>
+<input name="fee" type="number" placeholder="Entry Fee 50" required>
 <select name="type"><option>Solo</option><option>Duo</option><option>Squad</option></select>
-<input name="map" placeholder="Bermuda" value="Bermuda" required>
-<input name="total" type="number" placeholder="Total 48" value="48" required>
-<button>Add Match</button>
+<input name="map" placeholder="Map: Bermuda" value="Bermuda" required>
+<input name="total" type="number" placeholder="Total 48" required>
+<button>Add Tournament</button>
 </form>
 </div>
 
 <div class="card">
-<h3>Set Room ID / Password</h3>
+<h3>🔑 Set Room ID (Match Ongoing Avthadi)</h3><br>
 <form method="POST">
 <input type="hidden" name="action" value="set_room">
-<input name="mid" type="number" placeholder="Match ID" required>
+<input name="mid" type="number" placeholder="Match ID (Ex: 1)" required>
 <input name="room_id" placeholder="Room ID" required>
 <input name="room_pass" placeholder="Password" required>
-<button>Update</button>
+<button class="btn-red">Set Room & Make LIVE</button>
 </form>
 </div>
 
+<div class="card">
+<h3>📋 All Matches ({{matches|length}})</h3>
 {% for m in matches %}
-<div class="card">#{{ m.id }} - {{ m.game }} | {{ m.joined }}/{{ m.total }} | Room: {{ m.room_id }}</div>
+<div class="item">
+<div>ID: {{m.id}} | <b>{{m.game}} - {{m.type}}</b> | {{m.time}} | Joined: {{m.joined}}/{{m.total}} | Room: <b style="color:#00ff88">{{m.room_id}} {{m.room_pass}}</b></div>
+</div>
 {% endfor %}
-<br><a href="/">Go to App</a>
-<div style="background:#1e293b; padding:20px; border-radius:15px; margin-top:20px; border:2px solid #f59e0b;">
-<h3 style="color:#f59e0b;">🏆 SET WINNER & GIVE PRIZE</h3>
-<form action="/set-winner" method="POST">
-<input type="number" name="match_id" placeholder="Match ID" required style="width:100%; padding:10px; margin:5px 0; border-radius:8px; border:none;">
-<input type="text" name="winner_phone" placeholder="Winner Phone Number" required style="width:100%; padding:10px; margin:5px 0; border-radius:8px; border:none;">
-<input type="number" name="prize_amount" placeholder="Prize Amount (Ex: 700)" required style="width:100%; padding:10px; margin:5px 0; border-radius:8px; border:none;">
-<button style="width:100%; padding:12px; background:#f59e0b; border:none; border-radius:8px; font-weight:900; margin-top:10px;">GIVE PRIZE MONEY</button>
-</form>
-</div></body></html>
+</div>
+
+<div class="card">
+<h3>💰 Pending Add Money ({{pending_payments|length}})</h3>
+{% if pending_payments|length == 0 %}<p style="color:#888">No pending</p>{% endif %}
+{% for p in pending_payments %}
+<div class="item">
+<div>Pay ID: {{p[0]}} | Phone: {{p[1]}} | Amount: ₹{{p[2]}} | UTR: {{p[3]}}</div>
+<a href="/admin/approve_payment/{{p[0]}}"><button class="btn-green">Approve & Add Money</button></a>
+</div>
+{% endfor %}
+</div>
+
+<div class="card">
+<h3>💸 Pending Withdrawals ({{pending_withdraws|length}})</h3>
+{% if pending_withdraws|length == 0 %}<p style="color:#888">No pending</p>{% endif %}
+{% for w in pending_withdraws %}
+<div class="item">
+<div>W ID: {{w[0]}} | Phone: {{w[1]}} | Amount: ₹{{w[2]}} | UPI: {{w[3]}}</div>
+<div>
+<a href="/admin/approve_withdraw/{{w[0]}}"><button class="btn-green">Paid</button></a>
+<a href="/admin/reject_withdraw/{{w[0]}}"><button class="btn-red">Reject & Refund</button></a>
+</div>
+</div>
+{% endfor %}
+</div>
+
+</body>
+</html>
