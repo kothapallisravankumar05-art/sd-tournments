@@ -1,1 +1,24 @@
-<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}body{background:#0a1931;display:flex;justify-content:center;align-items:center;min-height:100vh}.box{background:white;width:90%;max-width:380px;padding:25px;border-radius:16px}input{width:100%;padding:14px;margin:8px 0;border-radius:10px;border:1px solid #ccc}.btn{width:100%;background:#5a00ff;color:white;padding:14px;border:none;border-radius:10px;font-weight:900}</style></head><body><div class="box"><h2 style="text-align:center">📱 Register</h2><form method="POST"><input name="username" placeholder="Username" required><input name="phone" type="tel" placeholder="10 digits Phone" required><input name="password" type="password" placeholder="Password" required><button class="btn">SEND OTP</button></form></div></body></html>
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{background:#f2f2f2;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;font-family:Arial}
+.box{background:white;width:90%;max-width:380px;padding:25px;border-radius:16px;box-shadow:0 4px 15px rgba(0,0,0,0.1)}
+input{width:100%;padding:14px;margin:8px 0;border-radius:10px;border:1px solid #ccc;box-sizing:border-box}
+.btn{width:100%;background:#5a00ff;color:white;padding:14px;border:none;border-radius:10px;font-size:16px;margin-top:10px}
+h2{text-align:center}
+</style>
+</head>
+<body>
+<div class="box">
+<h2>Register</h2>
+<form method="POST">
+<input type="text" name="name" placeholder="Full Name" required>
+<input type="tel" name="phone" placeholder="Phone Number" pattern="[6-9][0-9]{9}" maxlength="10" minlength="10" required title="10 digits, 6-9 tho start avali">
+<input type="password" name="password" placeholder="Password" required>
+<button class="btn" type="submit">Register</button>
+</form>
+</div>
+</body>
+</html>
