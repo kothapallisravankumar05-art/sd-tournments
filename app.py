@@ -64,7 +64,7 @@ def login():
         session['temp_phone']=phone
 
         try:
-            API_KEY = "weIqp7fyKLDa9I5uGC8trkihJzV2FmB0P4bJHASndJoMVOR63eOTn5vVsDExcFX6HomkBbNzIWpFqTIj"
+            API_KEY = os.environ.get("FAST2SMS_KEY")
             message = f"{otp} is your OTP for SD Tournaments login. Valid for 5 mins."
             url = f"https://www.fast2sms.com/dev/bulkV2?authorization={API_KEY}&route=q&message={message}&language=english&flash=0&numbers={phone}"
             response = requests.get(url)
