@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Add Money</title>
+</head>
+<body style="background:#0f0f0f;color:white;font-family:sans-serif;text-align:center;padding:20px">
+<h2>💰 Add Money</h2>
+<input type="number" id="amt" placeholder="Amount Ex: 100" style="padding:15px;width:85%;border-radius:10px;border:none;font-size:18px;text-align:center"><br><br>
+<button onclick="payUPI()" style="background:#00ff88;color:black;padding:15px 50px;border:none;border-radius:12px;font-size:20px;font-weight:bold">PAY WITH UPI</button>
+<div id="box" style="margin-top:25px"></div>
+<script>
+function payUPI(){
+ let a=document.getElementById('amt').value;
+ if(!a || a<10){alert("Min 10rs bro");return}
+ document.getElementById('box').innerHTML="Loading...";
+ fetch('/get_upi_link?amount='+a).then(r=>r.json()).then(d=>{
+   if(!d.ok){alert(d.msg);return}
+   window.location.href=d.upi_link;
+   document.getElementById('box').innerHTML=`<p style="color:#00ff88">PhonePe/GPay open ayindi... Pay chesi ra bro!</p><input id="utr" placeholder="12 digit UTR pettu" style="padding:12px;width:75%;border-radius:8px;border:none;text-align:center"><br><br><button onclick="verify()" style="background:white;color:black;padding:12px 30px;border-radius:8px;font-weight:bold">VERIFY</button>`;
+ });
+}
+function verify(){
+ let u=document.getElementById('utr').value;
+ let a=document.getElementById('amt').value;
+ if(u.length<10){alert("Correct UTR pettu bro");return}
+ fetch('/verify_upi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:a,utr:u})})
+ .then(r=>r.json()).then(d=>{alert(d.msg); if(d.ok) location.href='/';})
+}
+</script>
+</body>
+</html>
