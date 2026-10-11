@@ -62,8 +62,8 @@ def login():
         session['otp']=otp
         session['temp_phone']=phone
         print(f"*** FREE OTP FOR {phone} IS {otp} ***", flush=True)
-        flash(f"Your OTP is {otp} - Free Demo Login", "success")
-        return render_template('verify.html', phone=phone)
+        # OTP ni direct ga page lo ki pampistunnam bro - flash vaddu
+        return render_template('verify.html', phone=phone, otp=otp)
     return render_template('login.html')
 
 @app.route('/verify', methods=['POST'])
