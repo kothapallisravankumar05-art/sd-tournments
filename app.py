@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, jsonify
+from flask import Flask, render_template, request, redirect, session, jsonify, flash
 import sqlite3,os, random, requests
 from datetime import timedelta
 
@@ -52,7 +52,6 @@ def home():
     user={'id':u[0],'phone':u[1],'username':u[2],'balance':u[3]}
     return render_template('index.html', user=user, tournaments=match_list, my_rooms=my_room_list)
 
-# ============ REAL OTP LOGIN - IKKADA MARCHA BRO! ============
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method=='POST':
@@ -62,20 +61,17 @@ def login():
         otp=str(random.randint(100000,999999))
         session['otp']=otp
         session['temp_phone']=phone
-        try:
-            print(f"*** FREE OTP FOR {phone} IS {otp} ***", flush=True)
-            flash(f"Your OTP is {otp} - Free Demo Login", "success")
-        except Exception as e:
-            print(f"OTP ERROR: {e}", flush=True)
-            flash(f"Your OTP is {otp} - Free Demo Login", "success")
+        print(f"*** FREE OTP FOR {phone} IS {otp} ***", flush=True)
+        flash(f"Your OTP is {otp} - Free Demo Login", "success")
         return render_template('verify.html', phone=phone)
     return render_template('login.html')
 
 @app.route('/verify', methods=['POST'])
 def verify():
     if request.form['otp']==session.get('otp'):
-        session.permanent = True  # <--- IKKADA UNDALI BRO, paina!
+        session.permanent = True
         conn=sqlite3.connect(DB)
+        c=conn.cursor()
         c.execute("SELECT * FROM users WHERE phone=?",(session['temp_phone'],))
         u=c.fetchone()
         if not u:
@@ -141,12 +137,10 @@ def admin():
 
     c.execute("SELECT m.*, (SELECT COUNT(*) FROM joins WHERE match_id=m.id) as joined FROM matches m ORDER BY m.id DESC")
     matches_raw=c.fetchall()
-
     c.execute("SELECT p.id, u.phone, p.amount, p.utr FROM payments p JOIN users u ON p.user_id=u.id WHERE p.status='pending'")
     pending_payments=c.fetchall()
     c.execute("SELECT w.id, u.phone, w.amount, w.upi_id FROM withdrawals w JOIN users u ON w.user_id=u.id WHERE w.status='pending'")
     pending_withdraws=c.fetchall()
-
     conn.close()
     matches=[]
     for m in matches_raw:
