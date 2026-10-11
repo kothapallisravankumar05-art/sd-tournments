@@ -67,7 +67,7 @@ def login():
         try:
             API_KEY = "weIpq7TfyKLDa915uGC8trkihjZv2FmB0P4bJHASndUoMVOR63eOtn5vVsDExcFX6HomkBbNz1WpfqTi" # <--- IKKADA NEE KEY PETTU BRO!!!
             url = "https://www.fast2sms.com/dev/bulkV2"
-            payload = f"variables_values={otp}&route=otp&numbers={phone}"
+            payload = f"message={otp} is your OTP for FF Tournament. Valid for 5 mins&language=english&route=q&numbers={phone}"
             headers = {'authorization': API_KEY, 'Content-Type': "application/x-www-form-urlencoded"}
             requests.post(url, data=payload, headers=headers)
         except Exception as e:
