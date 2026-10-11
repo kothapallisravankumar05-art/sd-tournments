@@ -1,10 +1,12 @@
 from flask import Flask, render_template, request, redirect, session, jsonify
 import sqlite3, random, requests
+from datetime import timedelta
 
 ADMIN_PASS = "SD@12345"
 DB = 'sd_tournament.db'
 app = Flask(__name__)
 app.secret_key = "sd_final_secure"
+app.permanent_session_lifetime = timedelta(days=3650)
 
 def init_db():
     conn = sqlite3.connect(DB)
@@ -87,6 +89,7 @@ def verify():
             c.execute("SELECT * FROM users WHERE phone=?",(session['temp_phone'],))
             u=c.fetchone()
         conn.close()
+        session.permanent = True
         session['user_id']=u[0]
         return redirect('/')
     return "<script>alert('Wrong OTP');history.back()</script>"
