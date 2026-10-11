@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, session, jsonify
-import sqlite3, random
+import sqlite3, random, requests
 
 ADMIN_PASS = "SD@12345"
 DB = 'sd_tournament.db'
@@ -13,7 +13,6 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS matches (id INTEGER PRIMARY KEY, game TEXT, time TEXT, prize INTEGER, per_kill INTEGER, fee INTEGER, type TEXT, map TEXT, total INTEGER, room_id TEXT DEFAULT '', room_pass TEXT DEFAULT '')''')
     c.execute('''CREATE TABLE IF NOT EXISTS joins (id INTEGER PRIMARY KEY, match_id INTEGER, user_id INTEGER, ff_id TEXT, ff_name TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'pending')''')
-    # WITHDRAWAL TABLE - FIX 1
     c.execute('''CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'pending')''')
     c.execute("SELECT COUNT(*) FROM matches")
     if c.fetchone()[0]==0:
@@ -51,6 +50,7 @@ def home():
     user={'id':u[0],'phone':u[1],'username':u[2],'balance':u[3]}
     return render_template('index.html', user=user, tournaments=match_list, my_rooms=my_room_list)
 
+# ============ REAL OTP LOGIN - IKKADA MARCHA BRO! ============
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method=='POST':
@@ -60,7 +60,18 @@ def login():
         otp=str(random.randint(100000,999999))
         session['otp']=otp
         session['temp_phone']=phone
-        return render_template('verify.html', phone=phone, otp=otp)
+
+        # --- REAL SMS SEND ---
+        try:
+            API_KEY = "weIpq7TfyKLDa915uGC8trkihjZv2FmB0P4bJHASndUoMVOR63eOtn5vVsDExcFX6HomkBbNz1WpfqTi" # <--- IKKADA NEE KEY PETTU BRO!!!
+            url = "https://www.fast2sms.com/dev/bulkV2"
+            payload = f"variables_values={otp}&route=otp&numbers={phone}"
+            headers = {'authorization': API_KEY, 'Content-Type': "application/x-www-form-urlencoded"}
+            requests.post(url, data=payload, headers=headers)
+        except Exception as e:
+            print(e)
+
+        return render_template('verify.html', phone=phone) # otp teesesanu - demo aipoyindi!
     return render_template('login.html')
 
 @app.route('/verify', methods=['POST'])
@@ -136,7 +147,6 @@ def admin():
 
     c.execute("SELECT p.id, u.phone, p.amount, p.utr FROM payments p JOIN users u ON p.user_id=u.id WHERE p.status='pending'")
     pending_payments=c.fetchall()
-    # FIX 2 - Indentation correct chesa
     c.execute("SELECT w.id, u.phone, w.amount, w.upi_id FROM withdrawals w JOIN users u ON w.user_id=u.id WHERE w.status='pending'")
     pending_withdraws=c.fetchall()
 
@@ -220,7 +230,6 @@ def approve_payment(pid):
     conn.close()
     return "<script>alert('Approved! Money Added!');location='/admin'</script>"
 
-# WITHDRAWAL - MIN 100 FIX 3
 @app.route('/withdraw', methods=['GET','POST'])
 def withdraw():
     if 'user_id' not in session:
