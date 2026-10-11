@@ -196,11 +196,10 @@ def verify_upi():
     c=conn.cursor()
     c.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY, user_id INT, amount INT, utr TEXT UNIQUE, status TEXT)")
     try:
-        c.execute("INSERT INTO payments VALUES (NULL,?,?,?,?)",(session['user_id'],amt,utr,'approved'))
-        c.execute("UPDATE users SET balance=balance+? WHERE id=?",(amt,session['user_id']))
+        c.execute("INSERT INTO payments VALUES (NULL,?,?,?,?)",(session['user_id'],amt,utr,'pending'))
         conn.commit()
         conn.close()
-        return jsonify({'ok':True,'msg':f'{amt}rs Added bro ✅'})
+        return jsonify({'ok':True,'msg':f'{amt}rs Pending bro! Nenu check chesi add chesta ✅'})
     except:
         conn.close()
         return jsonify({'ok':False,'msg':'Ee UTR already vadaru bro!'})
