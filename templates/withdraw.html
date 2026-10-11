@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Withdraw - SD TOURNAMENTS</title>
+<style>
+body{background:#0f172a;color:#fff;font-family:Arial;padding:20px;margin:0}
+.box{background:#1e293b;padding:25px;border-radius:15px;max-width:400px;margin:50px auto;text-align:center;border:1px solid #334155}
+input{width:90%;padding:14px;border-radius:10px;border:none;margin:10px 0;background:#0f172a;color:#fff;font-size:16px;border:1px solid #475569}
+button{width:95%;padding:14px;background:#00ff88;border:none;border-radius:10px;font-weight:900;font-size:16px;margin-top:15px;cursor:pointer}
+.back{display:inline-block;margin-top:15px;color:#94a3b8;text-decoration:none}
+.alert{background:#1a2e05;color:#a3e635;padding:10px;border-radius:8px;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class="box">
+<h2>💸 WITHDRAW MONEY</h2>
+<p>Balance: <b style="color:#00ff88">Rs. {{user.balance}}</b></p>
+<p style="color:#fbbf24;font-size:13px">Min Withdraw: Rs.100</p>
+
+<form method="POST">
+<input type="number" name="amount" placeholder="Amount (Min 100)" min="100" required>
+<input type="text" name="upi_id" placeholder="UPI ID (ex: 6300@ybl)" required>
+<button type="submit">REQUEST WITHDRAW</button>
+</form>
+
+<a class="back" href="/wallet">← Back to Wallet</a>
+</div>
+</body>
+</html>
