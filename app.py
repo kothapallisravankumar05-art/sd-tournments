@@ -41,13 +41,15 @@ def home():
         return redirect('/login')
     c.execute("SELECT m.*, (SELECT COUNT(*) FROM joins WHERE match_id=m.id) as joined FROM matches m ORDER BY m.id DESC")
     matches=c.fetchall()
+    c.execute("SELECT match_id FROM joins WHERE user_id=?", (session['user_id'],))
+    my_joined_ids = [r[0] for r in c.fetchall()]
     c.execute("SELECT m.* FROM matches m JOIN joins j ON m.id=j.match_id WHERE j.user_id=? AND m.room_id!=''", (session['user_id'],))
     my_rooms=c.fetchall()
     conn.close()
     match_list=[{'id':m[0],'game':m[1],'time':m[2],'prize':m[3],'per_kill':m[4],'fee':m[5],'type':m[6],'map':m[7],'total':m[8],'room_id':m[9],'room_pass':m[10],'joined':m[11]} for m in matches]
     my_room_list=[{'id':r[0],'game':r[1],'time':r[2],'prize':r[3],'type':r[6],'room_id':r[9],'room_pass':r[10]} for r in my_rooms]
     user={'id':u[0],'phone':u[1],'username':u[2],'balance':u[4]}
-    return render_template('index.html', user=user, tournaments=match_list, my_rooms=my_room_list)
+    return render_template('index.html', user=user, tournaments=match_list, my_rooms=my_room_list, my_joined_ids=my_joined_ids, results=[])
 
 @app.route('/login', methods=['GET','POST'])
 def login():
@@ -91,7 +93,23 @@ def register():
             return "<script>alert('Ee Phone/Username already undi bro!');history.back()</script>"
     return render_template('register.html')
 
-#... migilina wallet, join, admin routes same ne unchuko bro - paina nunchi copy chesko...
+@app.route('/forgot', methods=['GET','POST'])
+def forgot():
+    if request.method=='POST':
+        phone = request.form['phone']
+        new_pass = request.form['new_password']
+        conn=sqlite3.connect(DB)
+        c=conn.cursor()
+        c.execute("SELECT * FROM users WHERE phone=?", (phone,))
+        u=c.fetchone()
+        if not u:
+            conn.close()
+            return "<script>alert('Ee number tho account ledu bro!');history.back()</script>"
+        c.execute("UPDATE users SET password=? WHERE phone=?", (new_pass, phone))
+        conn.commit()
+        conn.close()
+        return "<script>alert('Password marchindi bro! Ippudu login avvu!');location='/login'</script>"
+    return render_template('forgot.html')
 
 @app.route('/join/<int:tid>', methods=['GET','POST'])
 def join(tid):
