@@ -23,6 +23,30 @@
 {% endif %}
 </div>
 
+<!-- WITHDRAWAL SECTION - NEW ADDED -->
+<div class="card" style="border:2px solid #f43f5e; background:#fff0f3;">
+<h3 style="color:#f43f5e;">💸 PENDING WITHDRAWALS - MIN 100</h3>
+{% if pending_withdraws and pending_withdraws|length > 0 %}
+<table>
+<tr><th>ID</th><th>Phone</th><th>Amt</th><th>UPI ID</th><th>Action</th></tr>
+{% for w in pending_withdraws %}
+<tr>
+<td>{{ w[0] }}</td>
+<td>{{ w[1] }}</td>
+<td><b>₹{{ w[2] }}</b></td>
+<td style="font-size:11px">{{ w[3] }}</td>
+<td>
+<a href="/admin/approve_withdraw/{{ w[0] }}" style="background:#00c851;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;font-weight:700">✅ PAID</a>
+<a href="/admin/reject_withdraw/{{ w[0] }}" style="background:#ef4444;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;font-weight:700;margin-left:5px">❌ REJECT</a>
+</td>
+</tr>
+{% endfor %}
+</table>
+{% else %}
+<p>No Pending Withdrawals bro!</p>
+{% endif %}
+</div>
+
 <div class="card">
 <h3>Add New Match</h3>
 <form method="POST">
