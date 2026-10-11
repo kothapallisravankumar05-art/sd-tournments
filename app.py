@@ -64,14 +64,24 @@ def login():
         session['temp_phone']=phone
 
         # --- REAL SMS SEND ---
-        try:
-            API_KEY = "weIpq7TfyKLDa915uGC8trkihjZv2FmB0P4bJHASndUoMVOR63eOtn5vVsDExcFX6HomkBbNz1WpfqTi" # <--- IKKADA NEE KEY PETTU BRO!!!
-            url = "https://www.fast2sms.com/dev/bulkV2"
-            payload = f"variables_values={otp}&route=otp&numbers={phone}" 
-            headers = {'authorization': API_KEY, 'Content-Type': "application/x-www-form-urlencoded"}
-            requests.post(url, data=payload, headers=headers)
-        except Exception as e:
-            print(e)
+       # --- REAL SMS SEND - NEW SMART OTP API ---
+    try:
+        API_KEY = "weIpq7TfyKLDa915uGC8trkihjZv2FmB0P4bJHASndUoMVOR63eOtn5vVsDExcFX6HomkBbNz1WpfqTi"
+        url = "https://www.fast2sms.com/dev/otp/send"
+        headers = {
+            'authorization': API_KEY,
+            'Content-Type': "application/json",
+            'accept': "application/json"
+        }
+        data = {
+            "mobile": phone,
+            "otp": otp,
+            "variables_values": otp
+        }
+        response = requests.post(url, headers=headers, json=data)
+        print("FAST2SMS RESPONSE:", response.text)
+    except Exception as e:
+        print("OTP ERROR:", e)
 
         return render_template('verify.html', phone=phone) # otp teesesanu - demo aipoyindi!
     return render_template('login.html')
