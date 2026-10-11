@@ -145,22 +145,43 @@ def set_winner():
     return f"<script>alert('{msg}');location='/admin'</script>"
 @app.route('/admin-logout')
 def admin_logout(): session.pop('is_admin', None); return redirect('/')
-    # === ADD MONEY - UPI HIDDEN ===
+ # === SAFE ADD MONEY SYSTEM ===
 MY_UPI_ID = "9550043870@ibl"
 
-@app.route('/get_upi_link')
-def get_upi_link():
-    if 'user_id' not in session: 
-        return jsonify({'ok':False,'msg':'Login avvu'})
-    amt=request.args.get('amount','10')
-    upi_link=f"upi://pay?pa={MY_UPI_ID}&pn=ESPORTS&am={amt}&cu=INR"
-    return jsonify({'ok':True,'upi_link':upi_link})
+@app.route('/wallet')
+def wallet_page():
+    if 'user_id' not in session:
+        return redirect('/login')
+    return render_template('wallet.html', upi_id=MY_UPI_ID)
 
 @app.route('/add_money')
-def add_money_new():   # <--- _new add chesa
-    if 'user_id' not in session: 
+def add_money_new():
+    if 'user_id' not in session:
         return redirect('/login')
-    return render_template('add_money.html')
+    return redirect('/wallet')
+
+@app.route('/submit_utr', methods=['POST'])
+def submit_utr():
+    if 'user_id' not in session:
+        return jsonify({'ok':False,'msg':'Login avvu bro'})
+    data = request.get_json()
+    amt = int(data.get('amount',0))
+    utr = data.get('utr','').strip()
+    if amt < 10 or len(utr) < 10:
+        return jsonify({'ok':False,'msg':'Thappu bro'})
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY, user_id INT, username TEXT, amount INT, utr TEXT UNIQUE, status TEXT)")
+    c.execute("SELECT username FROM users WHERE id=?", (session['user_id'],))
+    uname = c.fetchone()[0]
+    try:
+        c.execute("INSERT INTO payments (user_id, username, amount, utr, status) VALUES (?,?,?,?,?)",(session['user_id'], uname, amt, utr, 'pending'))
+        conn.commit()
+        conn.close()
+        return jsonify({'ok':True,'msg':'UTR Submitted bro! Nenu check chesi add chesta ✅'})
+    except:
+        conn.close()
+        return jsonify({'ok':False,'msg':'Ee UTR already vadaru!'})
 
 @app.route('/verify_upi', methods=['POST'])
 def verify_upi():
