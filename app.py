@@ -22,6 +22,10 @@ def home():
     conn=sqlite3.connect(DB); c=conn.cursor()
     c.execute("SELECT * FROM users WHERE id=?", (session['user_id'],))
     u=c.fetchone()
+    if not u:
+        conn.close()
+        session.clear()
+        return redirect('/login')
     c.execute("SELECT m.*, (SELECT COUNT(*) FROM joins WHERE match_id=m.id) as joined FROM matches m ORDER BY m.id DESC")
     matches=c.fetchall()
     c.execute("SELECT m.* FROM matches m JOIN joins j ON m.id=j.match_id WHERE j.user_id=? AND m.room_id!=''", (session['user_id'],))
@@ -29,7 +33,7 @@ def home():
     conn.close()
     match_list=[]
     for m in matches:
-        match_list.append({'id':m[0],'game':m[1],'time':m[2],'prize':m[3],'per_kill':m[4],'fee':m[5],'type':m[6],'map':m[7],'total':m[8],'room_id':m[9],'room_pass':m[10],'joined':m[11]})
+        match_list.append({'id':m[0],'game':m[1],'time':m[2],'prize':m[3],'per_kill':m[4],'fee':m[5],'type':m[6],'map':m[7],'total':m[8],'room_id':m[9],'room_pass':m[10]})
     my_room_list=[]
     for r in my_rooms:
         my_room_list.append({'id':r[0],'game':r[1],'time':r[2],'prize':r[3],'type':r[6],'room_id':r[9],'room_pass':r[10]})
