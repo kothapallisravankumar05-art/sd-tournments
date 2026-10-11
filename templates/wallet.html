@@ -11,10 +11,11 @@ input{width:100%;padding:16px;border-radius:12px;border:2px solid #ddd;margin:10
 #qr{margin:15px auto;display:flex;justify-content:center}
 .withdraw-btn{display:block;background:#f43f5e;color:white;padding:16px;border-radius:12px;text-decoration:none;font-weight:900;margin:15px;text-align:center;font-size:16px;border:2px solid #ff6b81}
 .withdraw-info{color:#aaa;font-size:12px;margin-top:-10px;margin-bottom:10px}
+.history-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;font-size:14px}
+.status-pending{color:orange;font-weight:700}.status-approved{color:green;font-weight:700}.status-rejected{color:red;font-weight:700}
 </style>
 </head><body>
 <div class="top"><p style="color:#aaa">Wallet Balance</p><div class="bal">₹ {{ user['balance'] }}</div>
-<!-- WITHDRAW BUTTON - FIX -->
 <a href="/withdraw" class="withdraw-btn">💸 WITHDRAW MONEY (Min ₹100)</a>
 <p class="withdraw-info">Minimum withdrawal Rs.100 | 24hrs lo UPI ki vasthadi</p>
 </div>
@@ -27,13 +28,39 @@ input{width:100%;padding:16px;border-radius:12px;border:2px solid #ddd;margin:10
 <div id="area" style="display:none">
 <div id="qr"></div>
 <p id="orderTxt" style="color:gray;font-size:12px"></p>
-
 <input id="utr" placeholder="12 Digit UTR Number kotu">
 <button class="btn" style="background:#00c851;margin-top:10px" onclick="submitUTR()">SUBMIT FOR VERIFY</button>
 <p style="color:red;font-size:11px;margin-top:10px">Manam verify chesi 5 mins lo add chestam!</p>
 <p id="msg" style="color:#5a00ff;font-weight:900"></p>
 </div>
 </div>
+
+<!-- DEPOSIT HISTORY - NEW ADDED -->
+<div class="card" style="text-align:left">
+<h3 style="text-align:center">📥 Deposit History</h3>
+{% for d in deposits %}
+<div class="history-row">
+<span>₹{{ d.amount }} - {{ d.utr }}</span>
+<span class="status-{{ d.status }}">{{ d.status }}</span>
+</div>
+{% else %}
+<p style="text-align:center;color:gray">No deposits yet!</p>
+{% endfor %}
+</div>
+
+<!-- WITHDRAW HISTORY - NEW ADDED -->
+<div class="card" style="text-align:left">
+<h3 style="text-align:center">📤 Withdraw History</h3>
+{% for w in withdraws %}
+<div class="history-row">
+<span>₹{{ w.amount }} - {{ w.upi }}</span>
+<span class="status-{{ w.status }}">{{ w.status }}</span>
+</div>
+{% else %}
+<p style="text-align:center;color:gray">No withdraws yet!</p>
+{% endfor %}
+</div>
+
 <a href="/" style="display:block;text-align:center;color:#ffde59;text-decoration:none;margin:20px;font-weight:700">← Back to Matches</a>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -50,7 +77,6 @@ function genQR(){
   document.getElementById('qr').innerHTML = "";
   new QRCode(document.getElementById('qr'), {text: upiLink, width: 200, height: 200});
 }
-
 function submitUTR(){
   let utr = document.getElementById('utr').value;
   if(utr.length < 6){ alert('Valid UTR kotu bro!'); return; }
@@ -60,6 +86,7 @@ function submitUTR(){
     body: JSON.stringify({amount: finalAmt, utr: utr})
   }).then(r=>r.json()).then(d=>{
     document.getElementById('msg').innerText = d.msg;
+    setTimeout(()=>location.reload(), 1500);
   });
 }
 </script>
