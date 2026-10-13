@@ -13,13 +13,12 @@ os.makedirs('static', exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 MY_UPI_ID = "yourname@phonepe"
-# --- CHANGE THIS AFTER RENDER LINK READY ---
-SITE_URL = "https://sd-tournament.onrender.com"
+# --- FIXED URL ---
+SITE_URL = "https://sd-tournments.onrender.com"
 
 def get_db():
     conn = sqlite3.connect(DB, check_same_thread=False, timeout=20)
     conn.row_factory = sqlite3.Row
-    # FAST RUN OPTIMIZATION
     try:
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA synchronous=NORMAL;")
@@ -27,7 +26,6 @@ def get_db():
     except: pass
     return conn
 
-# --- INIT TABLES ---
 conn = get_db()
 conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0)")
 conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING', winner_id TEXT)")
@@ -51,8 +49,12 @@ def nocache(view):
     wrapper.__name__ = view.__name__
     return wrapper
 
-# ========== PWA + SEO + GOOGLE SEARCH ROUTES ==========
+# ========== GOOGLE VERIFICATION - ADDED ==========
+@app.route('/google08d3e829b688619a.html')
+def google_verify():
+    return "google-site-verification: google08d3e829b688619a.html"
 
+# ========== PWA + SEO ROUTES ==========
 @app.route('/manifest.json')
 def manifest():
     return send_from_directory('static', 'manifest.json')
@@ -78,8 +80,7 @@ def robots():
     txt = f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n"
     return make_response(txt, 200, {'Content-Type': 'text/plain'})
 
-# ========== MAIN APP ROUTES ==========
-
+# ========== MAIN ROUTES ==========
 @app.route('/')
 @nocache
 def index():
