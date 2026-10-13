@@ -23,7 +23,7 @@ h3{margin-top:0;color:#00ff88}
 </head>
 <body>
 <h2 style="text-align:center">👑 SD TOURNAMENT - ADMIN PANEL</h2>
-<div style="text-align:center;margin-bottom:10px"><a href="/" style="color:#00ff88;text-decoration:none;font-weight:900;">← GO TO HOME</a></div>
+<div style="text-align:center;margin-bottom:10px"><a href="/" style="color:#00ff88;text-decoration:none;font-weight:900;">← GO TO HOME</a> | <a href="/logout" style="color:#ff4444;text-decoration:none;">LOGOUT</a></div>
 
 <!-- 1. ADD TOURNAMENT -->
 <div class="card">
@@ -43,28 +43,31 @@ h3{margin-top:0;color:#00ff88}
 
 <!-- 2. MAKE LIVE -->
 <div class="card" style="border:1px solid #ff4444;">
-<h3 style="color:#ff4444;">🔴 Make Match LIVE (Room ID Pettali)</h3>
+<h3 style="color:#ff4444;">🔴 Make Match LIVE (Room ID Pettali) - Vallake Velthadi!</h3>
 <form method="POST">
 <input type="hidden" name="action" value="set_room">
-<input name="mid" type="number" placeholder="Match ID" required>
+<input name="mid" type="number" placeholder="Match ID (Ex: 1)" required>
 <input name="room_id" placeholder="Room ID" required>
 <input name="room_pass" placeholder="Password" required>
 <button class="btn-red">SET ROOM & GO LIVE</button>
 </form>
+<p style="font-size:11px;color:#888;margin-top:8px;">Note: Room ID pedithe JOIN ayina vallake matrame kanipistadi. Vere vallaki kanipiyadu - 100% Secure!</p>
 </div>
 
-<!-- 3. ALL TOURNAMENTS -->
+<!-- 3. ALL TOURNAMENTS - UPDATED -->
 <div class="card">
 <h3>📋 All Tournaments ({{matches|length}})</h3>
 {% for m in matches %}
 <div class="item">
-<span>ID: <b>{{m.id}}</b> | {{m.game}} {{m.type}} | Time: {{m.time}} | Joined: {{m.joined}}/{{m.total}} | Room: <b style="color:#00ff88">{{m.room_id}} / {{m.room_pass}}</b> | Status: {{m.status}}</span>
-<form method="POST"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red">DELETE</button></form>
+<span>ID: <b style="color:gold">{{m.id}}</b> | {{m.game}} {{m.type}} | Time: {{m.time}}<br>Joined: <b style="color:gold">{{m.joined}}/{{m.total}}</b> | Status: <b style="color:{% if m.status=='LIVE'%}#ff4444{% else %}#00ff88{% endif %}">{{m.status}}</b> | Room: <b style="color:#00ff88">{{m.room_id}} / {{m.room_pass}}</b></span>
+<div style="display:flex;gap:5px">
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red">DELETE</button></form>
+</div>
 </div>
 {% endfor %}
 </div>
 
-<!-- 4. NEW - MATCH RESULTS VERIFICATION - ANTI-CHEAT -->
+<!-- 4. MATCH RESULTS VERIFICATION -->
 <div class="card" style="border:2px solid gold;">
 <h3 style="color:gold;">🏆 Match Results Verification - Anti Cheat ({{pending_results|length}} Pending)</h3>
 <p style="font-size:12px;color:#888;">Player screenshot chusi kills verify chesi APPROVE kottali. Fake aithe REJECT.</p>
@@ -88,26 +91,25 @@ Kills: <b style="font-size:18px;color:gold;">{{r.kills}}</b> | Status: <span cla
 </div>
 </div>
 {% endfor %}
-
-<h4 style="color:#888;margin-top:20px;">Approved/Rejected History</h4>
+{% if all_results is defined %}
+<h4 style="color:#888;margin-top:20px;">Approved/Rejected History (Last 20)</h4>
 {% for r in all_results %}
-{% if r.status != 'PENDING' %}
 <div class="item" style="opacity:0.6;">
-<span>ID:{{r.id}} Match:{{r.match_id}} User:{{r.user_id}} Kills:{{r.kills}} | <span class="badge {% if r.status=='APPROVED'%}badge-approved{% else %}badge-rejected{% endif %}">{{r.status}}</span></span>
+<span>ID:{{r.id}} Match:{{r.match_id}} User:{{r.user_id}} ({{r.username}}) Kills:{{r.kills}} | <span class="badge {% if r.status=='APPROVED'%}badge-approved{% else %}badge-rejected{% endif %}">{{r.status}}</span></span>
 </div>
-{% endif %}
 {% endfor %}
+{% endif %}
 </div>
 
 <!-- 5. DEPOSIT APPROVAL -->
-<div class="card">
-<h3>💰 Pending Add Money Requests</h3>
+<div class="card" style="border:1px solid #00ff88;">
+<h3>💰 Pending Add Money Requests ({{pending_payments|length}})</h3>
 {% if pending_payments|length==0 %}<p style="color:#666">No pending payments</p>{% endif %}
 {% for p in pending_payments %}
 <div class="item">
-<span>ID: <b>{{p.id}}</b> | User: {{p.user_id}} | ₹{{p.amount}} | UTR: <b style="color:#00ff88">{{p.utr}}</b> | {{p.time}}</span>
+<span>ID: <b>{{p.id}}</b> | User: {{p.user_id}} | ₹<b style="color:gold">{{p.amount}}</b> | UTR: <b style="color:#00ff88">{{p.utr}}</b> | {{p.time}}</span>
 <div>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_payment"><input type="hidden" name="payment_id" value="{{p.id}}"><button class="btn-green">APPROVE</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_payment"><input type="hidden" name="payment_id" value="{{p.id}}"><button class="btn-green">APPROVE +₹{{p.amount}}</button></form>
 <form method="POST" style="display:inline"><input type="hidden" name="action" value="reject_payment"><input type="hidden" name="payment_id" value="{{p.id}}"><button class="btn-red">REJECT</button></form>
 </div>
 </div>
@@ -115,8 +117,8 @@ Kills: <b style="font-size:18px;color:gold;">{{r.kills}}</b> | Status: <span cla
 </div>
 
 <!-- 6. WITHDRAWAL APPROVAL -->
-<div class="card">
-<h3>💸 Pending Withdraw Requests</h3>
+<div class="card" style="border:1px solid #008cff;">
+<h3>💸 Pending Withdraw Requests ({{pending_withdrawals|length}})</h3>
 {% if pending_withdrawals|length==0 %}<p style="color:#666">No pending withdrawals</p>{% endif %}
 {% for w in pending_withdrawals %}
 <div class="item">
