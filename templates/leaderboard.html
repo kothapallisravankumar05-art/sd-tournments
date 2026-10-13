@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leaderboard - SD TOURNAMENTS</title>
+<style>
+body{background:#0a0a0a;color:#fff;font-family:Arial;margin:0;padding:0}
+.header{background:#1a1a1a;padding:15px;text-align:center;border-bottom:2px solid gold;position:sticky;top:0;z-index:10}
+.header h2{margin:0;color:gold}
+.header p{margin:5px 0 0;color:#888;font-size:12px}
+.container{padding:10px;max-width:600px;margin:0 auto}
+.top3{display:flex;justify-content:center;align-items:end;gap:10px;margin:20px 0 25px}
+.top-card{background:#1e1e1e;border-radius:15px;padding:15px;text-align:center;width:30%;border:1px solid #333;position:relative}
+.top-card.first{background:linear-gradient(135deg,#1a1a00,gold);border:1px solid gold;transform:scale(1.1);order:2}
+.top-card.second{order:1;border:1px solid #888}
+.top-card.third{order:3;border:1px solid #cd7f32}
+.crown{font-size:24px;position:absolute;top:-15px;left:50%;transform:translateX(-50%)}
+.avatar{width:50px;height:50px;background:#333;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900}
+.first.avatar{background:gold;color:#000}
+.second.avatar{background:#888;color:#fff}
+.third.avatar{background:#cd7f32;color:#fff}
+.name{font-weight:900;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wins{color:gold;font-weight:900;margin-top:5px}
+.badge-rank{position:absolute;top:5px;right:5px;background:#000;color:#fff;font-size:10px;padding:2px 6px;border-radius:10px}
+.list-item{background:#1a1a1a;padding:12px;border-radius:10px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;border:1px solid #222}
+.rank{font-weight:900;width:30px;color:#888}
+.rank.gold{color:gold}
+.player{display:flex;align-items:center;gap:10px;flex:1}
+.player-av{width:35px;height:35px;background:#333;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px}
+.p-name{font-weight:700;font-size:14px}
+.p-wins{color:#00ff88;font-size:12px}
+.p-balance{color:gold;font-weight:900}
+.my-card{background:linear-gradient(90deg,#003300,#00ff88);border:1px solid #00ff88;margin-top:20px}
+.btn-home{display:block;text-align:center;background:#222;color:#fff;padding:12px;border-radius:10px;text-decoration:none;margin-top:15px;font-weight:900}
+</style>
+</head>
+<body>
+<div class="header">
+<h2>🏆 LEADERBOARD</h2>
+<p>Top Winners - SD TOURNAMENTS</p>
+</div>
+
+<div class="container">
+<!-- TOP 3 -->
+<div class="top3">
+{% if top|length >=2 %}
+<div class="top-card second">
+<span class="badge-rank">#2</span>
+<div class="avatar">{{top[1].username[0]|upper}}</div>
+<div class="name">{{top[1].username}}</div>
+<div class="wins">{{top[1].total_wins}} Wins</div>
+<div style="font-size:11px;color:gold">₹{{top[1].balance}}</div>
+</div>
+{% endif %}
+
+{% if top|length >=1 %}
+<div class="top-card first">
+<div class="crown">👑</div>
+<span class="badge-rank" style="background:gold;color:#000">#1</span>
+<div class="avatar">{{top[0].username[0]|upper}}</div>
+<div class="name">{{top[0].username}}</div>
+<div class="wins">{{top[0].total_wins}} Wins</div>
+<div style="font-size:11px;color:#000;font-weight:900">₹{{top[0].balance}}</div>
+</div>
+{% endif %}
+
+{% if top|length >=3 %}
+<div class="top-card third">
+<span class="badge-rank">#3</span>
+<div class="avatar">{{top[2].username[0]|upper}}</div>
+<div class="name">{{top[2].username}}</div>
+<div class="wins">{{top[2].total_wins}} Wins</div>
+<div style="font-size:11px;color:gold">₹{{top[2].balance}}</div>
+</div>
+{% endif %}
+</div>
+
+<!-- LIST 4-20 -->
+{% for p in top[3:] %}
+<div class="list-item">
+<div class="rank">#{{loop.index+3}}</div>
+<div class="player">
+<div class="player-av">{{p.username[0]|upper}}</div>
+<div>
+<div class="p-name">{{p.username}}</div>
+<div class="p-wins">{{p.total_wins}} Wins</div>
+</div>
+</div>
+<div class="p-balance">₹{{p.balance}}</div>
+</div>
+{% endfor %}
+
+{% if top|length ==0 %}
+<p style="text-align:center;color:#666;margin-top:30px">No winners yet! Be the first! 🔥</p>
+{% endif %}
+
+<!-- MY RANK -->
+{% if user %}
+<div class="list-item my-card">
+<div class="rank" style="color:#000">YOU</div>
+<div class="player">
+<div class="player-av" style="background:#000;color:#00ff88">{{user.username[0]|upper}}</div>
+<div>
+<div class="p-name" style="color:#000">{{user.username}}</div>
+<div class="p-wins" style="color:#000">{{user.total_wins}} Wins</div>
+</div>
+</div>
+<div class="p-balance" style="color:#000">₹{{user.balance}}</div>
+</div>
+{% endif %}
+
+<a href="/" class="btn-home">← BACK TO HOME</a>
+</div>
+</body>
+</html>
