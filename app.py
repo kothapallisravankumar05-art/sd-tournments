@@ -236,7 +236,7 @@ def register():
                     add_txn(ref_user['id'], 20, "REFERRAL", f"Referral bonus for {username}")
                     add_txn(user['id'], 20, "REFERRAL", "Welcome Referral Bonus ₹20")
                     send_notify(f"💸 <b>REFERRAL BONUS</b>\n{username} joined via {session['ref_code']}\nBoth got ₹20")
-            session['user_id'] = user['id']
+            session.permanent=True;session['user_id'] =...
             conn.close()
             send_notify(f"👤 <b>NEW USER</b>\n{username}\nPhone: {phone}")
             return redirect('/')
