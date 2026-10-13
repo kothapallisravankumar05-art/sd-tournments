@@ -2,64 +2,92 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matches - SD TOURNAMENT</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
-body{background:#0f172a;color:white;padding-bottom:80px}
+body{background:#0f172a;color:white;padding-bottom:80px;min-height:100vh}
 .top{background:#1e293b;padding:12px 15px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
 .card{background:white;color:black;margin:12px;border-radius:16px;padding:14px}
+.card.live{border:2px solid #ff4444}
 .row{display:flex;justify-content:space-between;font-size:12px;color:gray;margin-top:8px}
 .pool{color:#5a00ff;font-weight:900}
 .btn{width:100%;padding:12px;border:none;border-radius:10px;font-weight:900;margin-top:10px;cursor:pointer}
 .join{background:#ffde59;color:black}
 .joined{background:#00c851;color:white}
-.nav{position:fixed;bottom:0;left:0;right:0;background:#1e293b;display:flex;justify-content:space-around;padding:12px 0}
+.nav{position:fixed;bottom:0;left:0;right:0;background:#1e293b;display:flex;justify-content:space-around;padding:12px 0;z-index:20}
 .nav a{text-decoration:none;font-size:14px}
+.live-banner{background:linear-gradient(90deg,#ff0000,#ff9900);color:#fff;padding:6px;text-align:center;font-weight:900;font-size:11px;margin:-14px -14px 10px -14px;border-radius:16px 16px 0 0}
+.room-box{background:#fff2f2;border:1px dashed #ff4444;padding:10px;border-radius:10px;margin-top:10px;color:#000}
+.tabs{display:flex;background:#1e293b;margin:10px;border-radius:10px;padding:4px;gap:4px}
+.tab{flex:1;text-align:center;padding:10px;border-radius:8px;font-weight:800;font-size:12px;cursor:pointer;color:#9ca3af}
+.tab.active{background:#ffde59;color:#000}
+.section{display:none}.section.active{display:block}
 </style>
 </head>
 <body>
 
 <div class="top">
-<b>SD TOURNAMENTS</b>
-<a href="/wallet" style="background:#ffde59;color:black;padding:6px 12px;border-radius:20px;text-decoration:none;font-weight:900">₹{{ user['balance'] }}</a>
+<b>🔥 SD TOURNAMENTS</b>
+<a href="/wallet" style="background:#ffde59;color:black;padding:6px 12px;border-radius:20px;text-decoration:none;font-weight:900">₹{{ user.balance }}</a>
 </div>
 
-{% for m in matches %}
+<div class="tabs">
+<div class="tab active" onclick="showTab('upcoming', this)">UPCOMING</div>
+<div class="tab" onclick="showTab('ongoing', this)">ONGOING 🔴</div>
+<div class="tab" onclick="showTab('results', this)">RESULTS</div>
+</div>
+
+<div id="upcoming" class="section active">
+{% for t in tournaments %}
+{% if not t.room_id and t.status!= 'COMPLETED' %}
 <div class="card">
-<div style="display:flex;justify-content:space-between;align-items:center">
-<b>{{ m['title'] }}</b>
-<span style="background:#e0e7ff;color:#5a00ff;padding:4px 10px;border-radius:12px;font-size:11px">{{ m['map'] }}</span>
+<div style="display:flex;justify-content:space-between"><b>{{ t.game }} - {{ t.type }}</b><span style="background:#e0e7ff;color:#5a00ff;padding:4px 10px;border-radius:12px;font-size:11px">{{ t.map }}</span></div>
+<div style="font-size:12px;color:gray;margin:5px 0">⏰ {{ t.time }} | 💰 ₹{{ t.prize }} | 🎯 ₹{{ t.per_kill }}/Kill</div>
+<div class="row"><span>POOL<br><b class="pool">₹{{ t.prize }}</b></span><span>JOINED<br><b>{{ t.joined }}/{{ t.total }}</b></span><span>FEE<br><b>₹{{ t.fee }}</b></span></div>
+<div style="background:#eee;height:6px;border-radius:10px;margin-top:10px"><div style="background:#5a00ff;height:6px;border-radius:10px;width:{{ (t.joined*100/t.total) if t.total>0 else 0 }}%"></div></div>
+{% if t.id in my_joined_ids %}<button class="btn joined">✅ JOINED</button>{% else %}<a href="/join/{{ t.id }}" style="text-decoration:none"><button class="btn join">JOIN NOW - ₹{{ t.fee }}</button></a>{% endif %}
 </div>
-
-<div style="font-size:12px;color:gray;margin:5px 0">⏰ {{ m['time'] }}</div>
-
-<div class="row">
-<span>POOL<br><b class="pool">₹{{ m['pool'] }}</b></span>
-<span>KILL<br><b>{{ m['kill'] }}</b></span>
-<span>FEE<br><b>₹{{ m['fee'] }}</b></span>
-</div>
-
-<div style="margin-top:10px">
-<div style="background:#eee;height:6px;border-radius:10px">
-<div style="background:#5a00ff;height:6px;border-radius:10px;width:{{ (m['players']/m['max_players']*100) if m['max_players']>0 else 0 }}%"></div>
-</div>
-<div style="font-size:12px;margin-top:4px;color:gray">{{ m['players'] }}/{{ m['max_players'] }} Joined</div>
-</div>
-
-{% if m['id'] in joined %}
-<button class="btn joined">✅ JOINED</button>
-{% else %}
-<a href="/join/{{ m['id'] }}" style="text-decoration:none"><button class="btn join">JOIN NOW - ₹{{ m['fee'] }}</button></a>
 {% endif %}
-
-</div>
 {% endfor %}
+</div>
+
+<div id="ongoing" class="section">
+{% for t in tournaments %}
+{% if t.room_id and t.status!= 'COMPLETED' %}
+<div class="card live">
+<div class="live-banner">🔴 LIVE NOW - ROOM ID READY!</div>
+<div style="display:flex;justify-content:space-between"><b>{{ t.game }} - {{ t.type }}</b><span style="color:#ff4444;font-size:11px">● LIVE</span></div>
+{% if t.id in my_joined_ids %}
+<div class="room-box">
+<div style="font-weight:900;color:#ff4444">🔑 ROOM DETAILS (Vallake!):</div>
+<div>ID: <b>{{ t.room_id }}</b> <button onclick="navigator.clipboard.writeText('{{ t.room_id }}');alert('Copied')" style="padding:3px 8px">COPY</button></div>
+<div>PASS: <b>{{ t.room_pass }}</b></div>
+</div>
+{% else %}
+<button class="btn" style="background:#333;color:#888">🔒 ROOM LOCKED - NOT JOINED</button>
+{% endif %}
+</div>
+{% endif %}
+{% endfor %}
+</div>
+
+<div id="results" class="section">
+{% for t in tournaments %}
+{% if t.status == 'COMPLETED' %}
+<div class="card"><b>{{ t.game }} - {{ t.type }}</b><br><small>Winner: {{ t.winner_id }}</small><br><a href="/match_result/{{ t.id }}"><button class="btn" style="background:gold">VIEW RESULT</button></a></div>
+{% endif %}
+{% endfor %}
+</div>
 
 <div class="nav">
-<a href="/" style="color:#ffde59">🏠 Home</a>
-<a href="/my-matches" style="color:white">🎮 My Matches</a>
+<a href="/" style="color:white">🏠 Home</a>
+<a href="/matches" style="color:#ffde59">🎮 Matches</a>
 <a href="/wallet" style="color:white">💰 Wallet</a>
 <a href="/logout" style="color:white">Logout</a>
 </div>
 
+<script>
+function showTab(n,el){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));el.classList.add('active');document.getElementById(n).classList.add('active');}
+</script>
 </body>
 </html>
