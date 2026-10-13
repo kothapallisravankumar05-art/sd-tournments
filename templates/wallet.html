@@ -19,14 +19,15 @@ input{width:100%;padding:14px;border-radius:10px;border:none;margin:10px 0;font-
 <h2>💰 Wallet - ₹{{wallet}}</h2>
 {% with messages = get_flashed_messages() %}{% if messages %}{% for m in messages %}<div style="background:#ffaa00;color:#000;padding:12px;border-radius:10px;margin-bottom:15px;font-weight:bold">{{m}}</div>{% endfor %}{% endif %}{% endwith %}
 
-<div class="card"><h3>➕ Add Money (Min ₹20)</h3>
+<div class="card"><h3>💰 Add Money (Min ₹20)</h3>
 <input type="number" id="amt" min="20" value="50"><button class="btn btn-green" onclick="showQR()">PAY ₹<span id="amtText">50</span> - SHOW QR</button></div>
 
-<div id="qrBox" class="qr-box"><h3>Scan & Pay ₹<span id="qrAmt">50</span></h3>
-<img src="/static/qr.jpg" style="width:220px" onerror="this.src='https://via.placeholder.com/220?text=Add+qr.jpg+in+static'">
-<p><b>UPI: kothapalli@ybl</b></p><button class="btn btn-blue" onclick="showUTR()">I HAVE PAID - ENTER UTR</button></div>
+<div id="qrBox" class="qr-box" style="display:none;text-align:center"><h3>Scan & Pay ₹<span id="qrAmt">50</span></h3>
+<img id="mainQR" src="" style="width:220px;height:220px;border-radius:12px">
+<p style="font-size:13px">PhonePe / GPay lo scan chey - Number kanipinchadu, direct payment neeku vastadi!</p>
+<button class="btn btn-blue" onclick="showUTR()">I HAVE PAID - ENTER UTR</button></div>
 
-<div id="utrBox" class="utr-box card"><h3>12 Digit UTR Enter Chey</h3>
+<div id="utrBox" class="utr-box card" style="display:none"><h3>12 Digit UTR Enter Chey</h3>
 <form method="POST"><input type="hidden" name="action" value="add_money"><input type="hidden" name="amount" id="finalAmt" value="50">
 <input type="text" name="utr" maxlength="12" minlength="12" pattern="[0-9]{12}" required placeholder="123456789012">
 <button type="submit" class="btn btn-green">SUBMIT TO ADMIN</button></form></div>
@@ -34,14 +35,17 @@ input{width:100%;padding:14px;border-radius:10px;border:none;margin:10px 0;font-
 <div class="card"><h3>💸 Withdraw (Min ₹200)</h3>
 <form method="POST"><input type="hidden" name="action" value="withdraw">
 <input type="number" name="w_amount" min="200" max="{{wallet}}" required placeholder="Amount Min 200">
-<input type="text" name="upi_id" required placeholder="Your UPI ID - Ex: 9398@ybl">
+<input type="text" name="upi_id" required placeholder="Your UPI ID - Ex: 9396@ybl">
 <button type="submit" class="btn btn-orange">REQUEST WITHDRAWAL</button></form></div>
 
-<div class="card"><h3>Payment History</h3>{% for p in payments %}<div class="hist-item"><span>₹{{p[2]}} - UTR:{{p[3]}}</span><span class="badge badge-{{p[4]}}">{{p[4]}}</span></div>{% else %}<p>No payments</p>{% endfor %}
-<h3 style="margin-top:20px">Withdrawal History</h3>{% for w in withdrawals %}<div class="hist-item"><span>₹{{w[2]}} - {{w[3]}}</span><span class="badge badge-{{w[4]}}">{{w[4]}}</span></div>{% else %}<p>No withdrawals</p>{% endfor %}</div>
+<div class="card"><h3>Payment History</h3>{% for p in payments %}<div class="hist-item"><span>₹{{p[2]}} - UTR:{{p[3]}}</span><span class="badge badge-{{p[4]}}">{{p[4]}}</span></div>{% endfor %}
+<h3 style="margin-top:20px">Withdrawal History</h3>{% for w in withdrawals %}<div class="hist-item"><span>₹{{w[2]}} - {{w[3]}}</span><span class="badge badge-{{w[4]}}">{{w[4]}}</span></div>{% endfor %}</div>
 
 <script>
-document.getElementById('amt').addEventListener('input',function(){let v=this.value||50;document.getElementById('amtText').innerText=v;document.getElementById('qrAmt').innerText=v;document.getElementById('finalAmt').value=v;});
-function showQR(){let a=document.getElementById('amt').value;if(a<20){alert("Min 20 bro");return;}document.getElementById('finalAmt').value=a;document.getElementById('qrAmt').innerText=a;document.getElementById('qrBox').style.display="block";}
-function showUTR(){document.getElementById('utrBox').style.display="block";}
-</script></body></html>
+document.getElementById('amt').addEventListener('input',function(){let v=this.value||50;document.getElementById('amtText').innerText=v;document.getElementById('qrAmt').innerText=v;});
+function showQR(){let a=document.getElementById('amt').value;if(a<20){alert("Min 20 bro");return;}document.getElementById('finalAmt').value=a;document.getElementById('qrAmt').innerText=a;
+let upi="upi://pay?pa=9550043870@ibl&pn=SDTournament&am="+a+"&cu=INR";
+let qr="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data="+encodeURIComponent(upi);
+document.getElementById('mainQR').src=qr;document.getElementById('qrBox').style.display='block';}
+function showUTR(){document.getElementById('utrBox').style.display='block';}
+</script>
