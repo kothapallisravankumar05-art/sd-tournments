@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Joining Match - SD</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{background:#0f172a;color:#fff;min-height:100vh}
+.top{background:#0f172a;padding:15px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #1e293b}
+.top b{font-size:18px}
+.card{margin:15px;background:#1e293b;border-radius:12px;padding:15px;border:1px solid #334155}
+.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #334155;font-size:14px}
+.row:last-child{border:none}
+.row span:last-child{color:#00ff88;font-weight:900}
+.row.pay span:last-child{color:#facc15;font-size:18px}
+.green-head{background:#00ff88;color:#000;text-align:center;padding:12px;border-radius:10px 10px 0 0;font-weight:900;letter-spacing:1px;margin:15px 15px 0 15px}
+.white-box{background:#fff;color:#000;margin:0 15px;border-radius:0 0 10px 10px;overflow:hidden}
+.white-box table{width:100%;border-collapse:collapse;text-align:center}
+.white-box th{background:#f1f5f9;padding:12px;font-size:13px;color:#475569}
+.white-box td{padding:14px;font-weight:700;border-top:1px solid #e2e8f0}
+.input-box{margin:15px;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:3px}
+.input-box input{width:100%;background:transparent;border:none;color:#fff;padding:14px;text-align:center;font-size:16px;outline:none}
+.input-box input::placeholder{color:#64748b}
+.btns{display:flex;gap:12px;padding:15px}
+.btn{flex:1;padding:14px;border:none;border-radius:10px;font-weight:900;font-size:16px;cursor:pointer}
+.btn-cancel{background:#334155;color:#fff}
+.btn-join{background:#00ff88;color:#000;box-shadow:0 0 15px rgba(0,255,136,0.3)}
+.note{margin:20px 15px 100px 15px;background:#1e293b;border-left:3px solid #facc15;padding:12px;border-radius:8px;color:#94a3b8;font-size:13px}
+.balance{margin:15px;background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid #00ff8833;border-radius:12px;padding:15px;display:flex;justify-content:space-between;align-items:center}
+.balance small{color:#94a3b8;display:block}
+.balance b{color:#00ff88;font-size:20px}
+</style>
+</head>
+<body>
+
+<div class="top">
+<a href="/slots/{{t.id}}" style="color:#fff;text-decoration:none;font-size:22px">←</a>
+<b>Joining Match #{{t.id}}</b>
+</div>
+
+<div class="balance">
+<div><small>Your Wallet Balance</small><b>₹ {{user.balance}}</b></div>
+<div style="text-align:right"><small>Match Fee</small><b style="color:#facc15">₹ {{t.fee}}</b></div>
+</div>
+
+<div class="card">
+<div class="row"><span>Current Balance</span><span>₹ {{user.balance}}.00</span></div>
+<div class="row"><span>Entry Fee Per Person</span><span>₹ {{t.fee}}</span></div>
+<div class="row pay"><span>Total Payable</span><span>₹ {{t.fee}}</span></div>
+</div>
+
+<div class="green-head">SELECTED POSITION</div>
+<div class="white-box">
+<table>
+<tr><th>Team</th><th>Position</th><th>Player Name</th></tr>
+<tr><td>Team 1</td><td style="color:#00ff88;font-size:18px">#{{slot_no}}</td><td>{{user.username}}</td></tr>
+</table>
+</div>
+
+<form method="POST" action="/final_join/{{t.id}}">
+<div class="input-box">
+<input type="text" name="game_name" value="{{user.username}}" placeholder="Enter Your Free Fire Name" required>
+</div>
+<input type="hidden" name="slot_no" value="{{slot_no}}">
+
+<div class="btns">
+<button type="button" class="btn btn-cancel" onclick="location.href='/slots/{{t.id}}'">CANCEL</button>
+<button type="submit" class="btn btn-join">JOIN NOW</button>
+</div>
+</form>
+
+<div class="note">
+💡 <b>Note:</b> Please enter correct In-Game Name. Room ID will be visible only to joined players. Wrong name = No prize!
+<br><br>
+Remaining: <b style="color:#00ff88">{{t.total - t.joined}} slots left</b> | Selected: <b style="color:#facc15">Slot #{{slot_no}}</b>
+</div>
+
+</body>
+</html>
