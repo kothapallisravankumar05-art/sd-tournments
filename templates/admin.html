@@ -1,45 +1,41 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ADMIN - SD</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SD TOURNAMENT - Admin</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
-body{background:#0f172a;color:#fff;padding:10px}
-.header{background:#1e293b;padding:15px;border-radius:10px;display:flex;justify-content:space-between;margin-bottom:10px}
-.card{background:#1e293b;padding:15px;border-radius:12px;margin:10px 0;border:1px solid #334155}
-input,select{padding:10px;border-radius:6px;border:none;margin:5px;background:#0f172a;color:#fff;border:1px solid #334155;width:150px}
-button{padding:10px 15px;background:#00ff88;border:none;border-radius:6px;font-weight:900;cursor:pointer}
-.btn-red{background:#ff4444;color:#fff}
+body{background:#0a0a0a;color:#fff;font-family:Arial;padding:10px;margin:0}
+.card{background:#1a1a1a;padding:15px;border-radius:10px;margin-bottom:15px;border:1px solid #333}
+.item{background:#222;padding:10px;margin:8px 0;border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+input,select{padding:10px;margin:5px;border-radius:5px;border:none;background:#333;color:#fff}
+button{padding:8px 15px;border:none;border-radius:5px;cursor:pointer;font-weight:bold}
 .btn-green{background:#00ff88;color:#000}
-.item{padding:12px;background:#0f172a;margin:5px 0;border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
-a{color:#00ff88;text-decoration:none}
+.btn-red{background:#ff4444;color:#fff}
+.btn-blue{background:#008cff;color:#fff}
+h3{margin-top:0;color:#00ff88}
 </style>
 </head>
 <body>
-<div class="header">
-<b>🔐 ADMIN PANEL - Password: 101210</b>
-<div><a href="/" style="margin-right:15px">Home</a><a href="/admin-logout" style="color:#ff4444">Logout</a></div>
-</div>
+<h2 style="text-align:center">👑 SD TOURNAMENT - ADMIN PANEL</h2>
 
+<!-- 1. ADD TOURNAMENT -->
 <div class="card">
-<h3>➕ Add New Tournament</h3><br>
+<h3>➕ Add New Tournament</h3>
 <form method="POST">
-<input type="hidden" name="action" value="add_match">
-<input name="game" placeholder="FF MAX" value="FF MAX" required>
-<input name="time" placeholder="Time - Ex: Tonight 11 PM" required>
-<input name="prize" type="number" placeholder="Prize ₹" required>
-<input name="per_kill" type="number" placeholder="Per Kill ₹" required>
-<input name="fee" type="number" placeholder="Entry Fee ₹" required>
-<select name="type"><option>Solo</option><option>Duo</option><option>Squad</option></select>
-<input name="map" placeholder="Bermuda" value="Bermuda" required>
-<input name="total" type="number" placeholder="Total Spots" required>
-<button>ADD TOURNAMENT</button>
+<input type="hidden" name="action" value="add_tournament">
+<input name="game" placeholder="Game (BGMI/FREE FIRE)" required>
+<input name="type" placeholder="SOLO/DUO/SQUAD" required>
+<input name="entry_fee" type="number" placeholder="Entry Fee" required>
+<input name="prize" type="number" placeholder="Prize Pool" required>
+<input name="total_slots" type="number" placeholder="Total Slots" required>
+<input name="time" type="datetime-local" required>
+<button class="btn-green">CREATE TOURNAMENT</button>
 </form>
 </div>
 
+<!-- 2. MAKE LIVE -->
 <div class="card">
-<h3>🔴 Make Match LIVE (Room ID Pettali)</h3><br>
+<h3>🔴 Make Match LIVE (Room ID Pettali)</h3>
 <form method="POST">
 <input type="hidden" name="action" value="set_room">
 <input name="mid" type="number" placeholder="Match ID" required>
@@ -49,27 +45,46 @@ a{color:#00ff88;text-decoration:none}
 </form>
 </div>
 
+<!-- 3. ALL TOURNAMENTS -->
 <div class="card">
 <h3>📋 All Tournaments ({{matches|length}})</h3>
 {% for m in matches %}
-<div class="item"><span>ID: <b>{{m.id}}</b> | {{m.game}} {{m.type}} | Time: {{m.time}} | Joined: {{m.joined}}/{{m.total}} | Room: <b style="color:#00ff88">{{m.room_id}} {{m.room_pass}}</b></span></div>
+<div class="item">
+<span>ID: <b>{{m.id}}</b> | {{m.game}} {{m.type}} | Time: {{m.time}} | Joined: {{m.joined}}/{{m.total}} | Room: <b style="color:#00ff88">{{m.room_id}} / {{m.room_pass}}</b></span>
+<form method="POST"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red">DELETE</button></form>
+</div>
 {% endfor %}
 </div>
 
+<!-- 4. DEPOSIT APPROVAL -->
 <div class="card">
 <h3>💰 Pending Add Money Requests</h3>
 {% if pending_payments|length==0 %}<p style="color:#666">No pending payments</p>{% endif %}
 {% for p in pending_payments %}
-<div class="item"><span>Phone: {{p[1]}} | Amount: ₹{{p[2]}} | UTR: {{p[3]}}</span><a href="/admin/approve_payment/{{p[0]}}"><button class="btn-green">Approve</button></a></div>
+<div class="item">
+<span>ID: <b>{{p.id}}</b> | User: {{p.user_id}} | ₹{{p.amount}} | UTR: <b style="color:#00ff88">{{p.utr}}</b> | {{p.time}}</span>
+<div>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_payment"><input type="hidden" name="payment_id" value="{{p.id}}"><button class="btn-green">APPROVE</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="reject_payment"><input type="hidden" name="payment_id" value="{{p.id}}"><button class="btn-red">REJECT</button></form>
+</div>
+</div>
 {% endfor %}
 </div>
 
+<!-- 5. WITHDRAWAL APPROVAL -->
 <div class="card">
 <h3>💸 Pending Withdraw Requests</h3>
-{% if pending_withdraws|length==0 %}<p style="color:#666">No pending withdraw</p>{% endif %}
-{% for w in pending_withdraws %}
-<div class="item"><span>Phone: {{w[1]}} | Amount: ₹{{w[2]}} | UPI: {{w[3]}}</span><div><a href="/admin/approve_withdraw/{{w[0]}}"><button class="btn-green">Paid</button></a><a href="/admin/reject_withdraw/{{w[0]}}"><button class="btn-red">Reject</button></a></div></div>
+{% if pending_withdrawals|length==0 %}<p style="color:#666">No pending withdrawals</p>{% endif %}
+{% for w in pending_withdrawals %}
+<div class="item">
+<span>ID: <b>{{w.id}}</b> | User: {{w.user_id}} | ₹{{w.amount}} | UPI: <b>{{w.upi_id}}</b> | {{w.time}}</span>
+<div>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_withdrawal"><input type="hidden" name="withdrawal_id" value="{{w.id}}"><button class="btn-green">PAID</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="reject_withdrawal"><input type="hidden" name="withdrawal_id" value="{{w.id}}"><button class="btn-red">REJECT & REFUND</button></form>
+</div>
+</div>
 {% endfor %}
 </div>
+
 </body>
 </html>
