@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, session, jsonify, f
 import sqlite3, os
 from datetime import timedelta
 
-DB = '/data/sd_tournament.db' if os.path.exists('/data') else 'sd_tournament.db'
+DB = 'sd_tournament.db'
 app = Flask(__name__)
 app.secret_key = "sd_final_secure_2026"
 app.permanent_session_lifetime = timedelta(days=3650)
@@ -179,8 +179,8 @@ def add_money():
     utr = request.get_json().get('utr') if request.is_json else request.form.get('utr')
     try: amt = int(amt_str)
     except: amt = 0
-    if amt < 10: return jsonify(ok=False, msg='Min 10 Rs bro!') if request.is_json else "<script>alert('Min 10 Rs bro!');location='/wallet'</script>"
-    if not utr or len(str(utr)) < 5: return jsonify(ok=False, msg='UTR pettali bro!') if request.is_json else "<script>alert('UTR pettali bro!');location='/wallet'</script>"
+    if amt < 20: return jsonify(ok=False, msg='❌ Min Rs.20 Required!') if request.is_json else "<script>alert('❌ Min Rs.20 Required !');location='/wallet'</script>"
+    if not utr or len(str(utr)) != 12 or not str(utr).isdigit(): return jsonify(ok=False, msg='❌ UTR 12 digits !') if request.is_json else "<script>alert('❌ UTR 12 digits wrong!');location='/wallet'</script>"
     conn=sqlite3.connect(DB); c=conn.cursor()
     try:
         c.execute("INSERT INTO payments (user_id,amount,utr,status) VALUES (?,?,?,?)",(session['user_id'], amt, str(utr).strip(), 'pending'))
