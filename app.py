@@ -16,8 +16,8 @@ SITE_URL = "https://sd-tournments.onrender.com"
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "PASTE_YOUR_BOT_TOKEN_HERE")
 ADMIN_CHAT_ID = os.getenv("CHAT_ID", "PASTE_YOUR_CHAT_ID_HERE")
-ADMIN_USER_ID = 19 # FIRST USER = ADMIN
-ADMIN_PASSWORD = "101210" 
+ADMIN_USER_ID = 19
+ADMIN_PASSWORD = "101210" # <-- PASSWORD IKKADA MARCHU BRO!
 
 def send_notify(msg):
     try:
@@ -331,7 +331,24 @@ def wallet():
 @nocache
 def admin():
     if 'user_id' not in session: return redirect('/login')
-    if session['user_id']!= ADMIN_USER_ID: return "<h2>⛔ Access Denied! Admin only</h2><a href='/'>Home</a>"
+    if session['user_id']!= ADMIN_USER_ID:
+        return "<h2>⛔ Access Denied! Only ID 19 can access</h2><a href='/'>Home</a>"
+
+    # PASSWORD CHECK
+    if session.get('admin_unlocked')!= True:
+        if request.method == 'POST' and request.form.get('admin_pass_input'):
+            if request.form.get('admin_pass_input') == ADMIN_PASSWORD:
+                session['admin_unlocked'] = True
+            else:
+                return """<body style="background:#0a1628;color:#fff;font-family:Arial;text-align:center;padding:60px"><h2 style="color:#ff4444">❌ Wrong Password!</h2><a href="/admin" style="color:#00ff88">Try Again</a></body>"""
+        else:
+            return """
+            <body style="background:#0a1628;color:#fff;font-family:Arial;text-align:center;padding:40px">
+            <div style="background:#162435;padding:30px;border-radius:15px;max-width:350px;margin:0 auto;border:1px solid gold">
+            <h2 style="color:gold">🔒 ADMIN LOGIN</h2><p style="color:#888;font-size:13px">ID 19 - Enter Password</p>
+            <form method="POST"><input type="password" name="admin_pass_input" placeholder="Enter Password 101210" style="width:100%;padding:14px;border-radius:10px;border:none;margin:15px 0;box-sizing:border-box" required>
+            <button type="submit" style="width:100%;background:gold;color:#000;padding:12px;border:none;border-radius:10px;font-weight:900;cursor:pointer">UNLOCK ADMIN</button></form></div></body>"""
+
     conn = get_db()
     if request.method == 'POST':
         action = request.form.get('action')
