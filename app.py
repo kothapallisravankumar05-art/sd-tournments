@@ -37,6 +37,7 @@ def index():
     conn.close()
     return render_template('index.html', tournaments=t, user=user, my_joined_ids=my_joined_ids)
 
+@app.route('/register', methods=['GET','POST'])
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method == 'POST':
