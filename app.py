@@ -4,21 +4,24 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, date
 
 app = Flask(__name__)
-app.secret_key = "sd_final_secret_2026_rocket"
+app.secret_key = os.getenv("SECRET_KEY", "sd_final_secret_2026_rocket")
 DB = "sd.db"
 UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs('static', exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-MY_UPI_ID = "yourname@phonepe"
+MY_UPI_ID = os.getenv("UPI_ID", "yourname@phonepe")
 SITE_URL = "https://sd-tournments.onrender.com"
 
-BOT_TOKEN = "PASTE_YOUR_BOT_TOKEN_HERE"
-ADMIN_CHAT_ID = "PASTE_YOUR_CHAT_ID_HERE"
+BOT_TOKEN = os.getenv("BOT_TOKEN", "PASTE_YOUR_BOT_TOKEN_HERE")
+ADMIN_CHAT_ID = os.getenv("CHAT_ID", "PASTE_YOUR_CHAT_ID_HERE")
+ADMIN_USER_ID = 19 # FIRST USER = ADMIN
+ADMIN_PASSWORD = "101210" 
+
 def send_notify(msg):
     try:
-        if "PASTE" in BOT_TOKEN: return
+        if "PASTE" in BOT_TOKEN or not BOT_TOKEN: return
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
         requests.post(url, json={"chat_id": ADMIN_CHAT_ID, "text": msg, "parse_mode": "HTML"}, timeout=5)
     except: pass
@@ -40,7 +43,6 @@ def add_txn(user_id, amount, type_, desc):
         c.close()
     except: pass
 
-# --- DB SETUP ---
 conn = get_db()
 conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0, last_bonus TEXT)")
 conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING', winner_id TEXT)")
@@ -77,7 +79,7 @@ def manifest(): return send_from_directory('static', 'manifest.json')
 def service_worker(): return send_from_directory('static', 'sw.js', mimetype='application/javascript')
 @app.route('/sitemap.xml')
 def sitemap():
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>{SITE_URL}/</loc><priority>1.0</priority></url><url><loc>{SITE_URL}/matches</loc><priority>0.9</priority></url></urlset>"""
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>{SITE_URL}/</loc><priority>1.0</priority></url></urlset>"""
     return make_response(xml, 200, {'Content-Type': 'application/xml'})
 @app.route('/robots.txt')
 def robots(): return make_response(f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n", 200, {'Content-Type': 'text/plain'})
@@ -91,8 +93,7 @@ def index():
     conn = get_db()
     t = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-    if not user:
-        session.clear(); conn.close(); return redirect('/login')
+    if not user: session.clear(); conn.close(); return redirect('/login')
     my_joined = conn.execute("SELECT tournament_id FROM joined WHERE user_id=?", (session['user_id'],)).fetchall()
     my_joined_ids = [r[0] for r in my_joined]
     conn.close()
@@ -160,20 +161,14 @@ def final_join(tid):
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     tour = conn.execute("SELECT * FROM tournaments WHERE id=?", (tid,)).fetchone()
     ex = conn.execute("SELECT * FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
-    if ex:
-        conn.close()
-        return redirect(f'/match/{tid}')
+    if ex: conn.close(); return redirect(f'/match/{tid}')
     fee = int(tour['fee'] or 0)
-    if user['balance'] < fee:
-        conn.close()
-        return f"<h2>Balance Low! Need {fee}</h2><a href='/wallet'>Add Money</a>"
+    if user['balance'] < fee: conn.close(); return f"<h2>Balance Low! Need {fee}</h2><a href='/wallet'>Add Money</a>"
     conn.execute("INSERT INTO joined (user_id,tournament_id,slot_no) VALUES (?,?,?)", (session['user_id'], tid, int(slot_no)))
-    if game_name and game_name!= user['username']:
-        conn.execute("UPDATE users SET username=? WHERE id=?", (game_name, session['user_id']))
+    if game_name and game_name!= user['username']: conn.execute("UPDATE users SET username=? WHERE id=?", (game_name, session['user_id']))
     conn.execute("UPDATE tournaments SET joined = joined + 1 WHERE id=?", (tid,))
     conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (fee, session['user_id']))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
     add_txn(session['user_id'], fee, "DEBIT", f"Joined Tournament #{tid} Slot {slot_no}")
     return redirect(f'/match/{tid}')
 
@@ -201,8 +196,7 @@ def daily_bonus():
         conn.close()
         return "<h2>Already Claimed Today! Come tomorrow 🎁</h2><a href='/'>Home</a>"
     conn.execute("UPDATE users SET balance=balance+5, last_bonus=? WHERE id=?", (today, session['user_id']))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
     add_txn(session['user_id'], 5, "BONUS", "Daily Login Bonus ₹5")
     return "<h2>₹5 Daily Bonus Added! 🎉</h2><a href='/'>Home</a>"
 
@@ -225,7 +219,6 @@ def register():
             conn.execute("INSERT INTO users (username,password,phone,balance,referral_code) VALUES (?,?,?,0,?)", (username,password,phone,ref_code))
             conn.commit()
             user = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
-            # Referral Bonus
             if 'ref_code' in session:
                 ref_user = conn.execute("SELECT id FROM users WHERE referral_code=?", (session['ref_code'],)).fetchone()
                 if ref_user and ref_user['id']!= user['id']:
@@ -253,12 +246,8 @@ def login():
         p = request.form.get('password') or ""
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE username=? AND password=?", (u.strip(),p.strip())).fetchone()
-        if not user:
-            user = conn.execute("SELECT * FROM users WHERE phone=? AND password=?", (u.strip(),p.strip())).fetchone()
-        if user:
-            session['user_id'] = user['id']
-            conn.close()
-            return redirect('/')
+        if not user: user = conn.execute("SELECT * FROM users WHERE phone=? AND password=?", (u.strip(),p.strip())).fetchone()
+        if user: session['user_id'] = user['id']; conn.close(); return redirect('/')
         conn.close()
         return "<h3>Wrong Password</h3><a href='/login'>Back</a>"
     return render_template('login.html')
@@ -272,25 +261,18 @@ def forgot():
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
         if not user: user = conn.execute("SELECT * FROM users WHERE phone=?", (u,)).fetchone()
-        if not user:
-            conn.close()
-            return "<h2>User Not Found</h2>"
-        conn.execute("UPDATE users SET password=? WHERE id=?", (new_pass, user['id']))
-        conn.commit()
-        conn.close()
+        if not user: conn.close(); return "<h2>User Not Found</h2>"
+        conn.execute("UPDATE users SET password=? WHERE id=?", (new_pass, user['id'])); conn.commit(); conn.close()
         return "<h2>Password Reset Done</h2><a href='/login'>Login</a>"
     return render_template('forgot.html')
 
 @app.route('/submit_result', methods=['POST'])
 def submit_result():
     if 'user_id' not in session: return redirect('/login')
-    mid = request.form.get('match_id')
-    kills = request.form.get('kills','0')
+    mid = request.form.get('match_id'); kills = request.form.get('kills','0')
     conn = get_db()
     ex = conn.execute("SELECT * FROM results WHERE match_id=? AND user_id=?", (mid, session['user_id'])).fetchone()
-    if ex:
-        conn.close()
-        return "<h2>Already Submitted</h2>"
+    if ex: conn.close(); return "<h2>Already Submitted</h2>"
     filename = ""
     if 'screenshot' in request.files:
         f = request.files['screenshot']
@@ -298,8 +280,7 @@ def submit_result():
             filename = secure_filename(f"{mid}_{session['user_id']}_{datetime.now().strftime('%H%M%S')}_{f.filename}")
             f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
     conn.execute("INSERT INTO results (match_id,user_id,kills,screenshot,status,time) VALUES (?,?,?,?, 'PENDING',?)", (mid, session['user_id'], kills, filename, datetime.now().strftime("%d/%m %H:%M")))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
     send_notify(f"🏆 <b>RESULT</b>\nUser {session['user_id']}\nMatch {mid}\nKills {kills}")
     return f"<h2>Submitted {kills} Kills</h2><a href='/'>Home</a>"
 
@@ -322,9 +303,7 @@ def wallet():
     if 'user_id' not in session: return redirect('/login')
     conn = get_db()
     if request.method == 'POST':
-        amount = request.form.get('amount')
-        utr = request.form.get('utr') or ""
-        upi_id = request.form.get('upi_id')
+        amount = request.form.get('amount'); utr = request.form.get('utr') or ""; upi_id = request.form.get('upi_id')
         if amount and utr:
             try:
                 conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(amount), utr, datetime.now().strftime("%d/%m %H:%M")))
@@ -352,6 +331,7 @@ def wallet():
 @nocache
 def admin():
     if 'user_id' not in session: return redirect('/login')
+    if session['user_id']!= ADMIN_USER_ID: return "<h2>⛔ Access Denied! Admin only</h2><a href='/'>Home</a>"
     conn = get_db()
     if request.method == 'POST':
         action = request.form.get('action')
@@ -420,7 +400,6 @@ def admin():
     pending_withdrawals = conn.execute("SELECT * FROM withdrawals WHERE status='PENDING' ORDER BY id DESC").fetchall()
     pending_results = conn.execute("SELECT results.*, users.username FROM results LEFT JOIN users ON results.user_id=users.id WHERE results.status='PENDING' ORDER BY results.id DESC").fetchall()
     all_results = conn.execute("SELECT results.*, users.username FROM results LEFT JOIN users ON results.user_id=users.id WHERE results.status!='PENDING' ORDER BY results.id DESC LIMIT 20").fetchall()
-    # Stats
     total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
     total_tour = conn.execute("SELECT COUNT(*) FROM tournaments").fetchone()[0]
     total_earning = conn.execute("SELECT SUM(fee * joined) FROM tournaments").fetchone()[0] or 0
@@ -463,12 +442,9 @@ def verify():
     if len(utr) < 6: return jsonify({"ok":False, "msg":"UTR short"})
     conn = get_db()
     dup = conn.execute("SELECT id FROM payments WHERE utr=?", (utr,)).fetchone()
-    if dup:
-        conn.close()
-        return jsonify({"ok":False, "msg":"UTR used"})
+    if dup: conn.close(); return jsonify({"ok":False, "msg":"UTR used"})
     conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(float(amt)), utr, datetime.now().strftime("%d/%m %H:%M")))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
     send_notify(f"💰 <b>NEW DEPOSIT</b>\nUser {session['user_id']}\n₹{amt}\nUTR {utr}")
     return jsonify({"ok":True})
 
