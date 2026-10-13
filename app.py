@@ -37,17 +37,27 @@ def index():
     conn.close()
     return render_template('index.html', tournaments=t, user=user, my_joined_ids=my_joined_ids)
 
+# --- FIXED LOGIN / REGISTER - NO MORE BAD REQUEST ---
 @app.route('/register', methods=['GET','POST'])
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method == 'POST':
-        u = request.form['username']; p = request.form['password']
+        # phone or username edi vachina tesukuntundi - Bad Request radu!
+        u = request.form.get('username') or request.form.get('phone') or ""
+        p = request.form.get('password') or ""
+        u = u.strip()
+        p = p.strip()
+
+        if not u or not p:
+            return "<h3>Phone/Username and Password kavali bro! <a href='/login'>Back</a></h3>"
+
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE username=? AND password=?", (u,p)).fetchone()
         if user:
             session['user_id'] = user['id']
             conn.close()
             return redirect('/')
+        # Lekapothe kotha user create
         conn.execute("INSERT INTO users (username,password,balance) VALUES (?,?,?)", (u,p,0))
         conn.commit()
         user = conn.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
@@ -108,13 +118,11 @@ def wallet():
     conn=get_db(); user=conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone(); conn.close()
     return render_template('wallet.html', user=user)
 
-# FINAL ADMIN - SUPPORTS ALL ACTIONS
 @app.route('/admin', methods=['GET','POST'])
 def admin():
     conn = get_db()
     if request.method == 'POST':
         action = request.form.get('action')
-        # CREATE TOURNAMENT - supports both add_tournament and create_match
         if action in ['add_tournament','create_match']:
             game = request.form.get('game')
             typ = request.form.get('type')
@@ -124,13 +132,10 @@ def admin():
             tim = request.form.get('time')
             per_kill = request.form.get('per_kill') or 0
             conn.execute("INSERT INTO tournaments (game,type,map,time,prize,fee,per_kill,total,status) VALUES (?,?,?,?,?,?,?,?,'UPCOMING')", (game, typ, 'Bermuda', tim, prize, fee, per_kill, total))
-
         elif action == 'set_room':
             conn.execute("UPDATE tournaments SET room_id=?, room_pass=?, status='LIVE' WHERE id=?", (request.form.get('room_id'), request.form.get('room_pass'), request.form.get('mid')))
-
         elif action == 'delete_tournament':
             conn.execute("DELETE FROM tournaments WHERE id=?", (request.form.get('tournament_id'),))
-
         elif action == 'approve_result':
             r = conn.execute("SELECT match_id,user_id,kills FROM results WHERE id=?", (request.form.get('result_id'),)).fetchone()
             if r:
@@ -139,22 +144,17 @@ def admin():
                 conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (total_win, r['user_id']))
                 conn.execute("UPDATE results SET status='APPROVED' WHERE id=?", (request.form.get('result_id'),))
                 conn.execute("UPDATE tournaments SET status='COMPLETED', winner_id=? WHERE id=?", (r['user_id'], r['match_id']))
-
         elif action == 'reject_result':
             conn.execute("UPDATE results SET status='REJECTED' WHERE id=?", (request.form.get('result_id'),))
-
         elif action == 'approve_payment':
             p = conn.execute("SELECT user_id,amount FROM payments WHERE id=?", (request.form.get('payment_id'),)).fetchone()
             if p:
                 conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (p['amount'], p['user_id']))
                 conn.execute("UPDATE payments SET status='APPROVED' WHERE id=?", (request.form.get('payment_id'),))
-
         elif action == 'reject_payment':
             conn.execute("UPDATE payments SET status='REJECTED' WHERE id=?", (request.form.get('payment_id'),))
-
         elif action == 'approve_withdrawal':
             conn.execute("UPDATE withdrawals SET status='APPROVED' WHERE id=?", (request.form.get('withdrawal_id'),))
-
         elif action == 'reject_withdrawal':
             w = conn.execute("SELECT user_id,amount FROM withdrawals WHERE id=?", (request.form.get('withdrawal_id'),)).fetchone()
             if w:
@@ -167,9 +167,7 @@ def admin():
     pending_withdrawals = conn.execute("SELECT * FROM withdrawals WHERE status='PENDING' ORDER BY id DESC").fetchall()
     pending_results = conn.execute("SELECT results.*, users.username FROM results LEFT JOIN users ON results.user_id=users.id WHERE results.status='PENDING' ORDER BY results.id DESC").fetchall()
     all_results = conn.execute("SELECT * FROM results ORDER BY id DESC LIMIT 30").fetchall()
-    # For old template compatibility
     results = all_results
-
     conn.close()
     return render_template('admin.html', matches=tournaments, tournaments=tournaments, pending_payments=pending_payments, pending_withdrawals=pending_withdrawals, pending_results=pending_results, all_results=all_results, results=results)
 
@@ -177,5 +175,10 @@ def admin():
 def logout():
     session.clear(); return redirect('/login')
 
+@app.route('/forgot')
+def forgot():
+    return "Contact Admin on WhatsApp to reset password!"
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
