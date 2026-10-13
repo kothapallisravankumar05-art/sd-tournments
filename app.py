@@ -173,6 +173,8 @@ def wallet():
     if 'user_id' not in session: return redirect('/login')
     conn=sqlite3.connect(DB); c=conn.cursor()
     c.execute("SELECT * FROM users WHERE id=?",(session['user_id'],)); u=c.fetchone()
+    if u is None:
+        session.clear(); return redirect('/login')
     c.execute("SELECT * FROM payments WHERE user_id=? ORDER BY id DESC",(session['user_id'],)); deposits=c.fetchall()
     c.execute("SELECT * FROM withdrawals WHERE user_id=? ORDER BY id DESC",(session['user_id'],)); withdraws=c.fetchall()
     conn.close()
