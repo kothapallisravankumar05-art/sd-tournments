@@ -134,6 +134,27 @@ def match_result(mid):
     conn.close()
     return render_template('match_result.html', t=t, results=final)
 
+# --- NEW: PLAYERS LIST FOR ADMIN - VALLAKE VELTHADI ANI PROOF ---
+@app.route('/match_players/<int:mid>')
+@nocache
+def match_players(mid):
+    if 'user_id' not in session: return redirect('/login')
+    conn = get_db()
+    t = conn.execute("SELECT * FROM tournaments WHERE id=?", (mid,)).fetchone()
+    players = conn.execute("SELECT users.username, users.id FROM joined LEFT JOIN users ON joined.user_id=users.id WHERE joined.tournament_id=?", (mid,)).fetchall()
+    conn.close()
+    html = f"<body style='background:#0a0a0a;color:#fff;font-family:Arial;padding:20px'><h2>🔥 Match {mid} - {t['game'] if t else ''} {t['type'] if t else ''}</h2><h3 style='color:#00ff88'>Joined Players: {len(players)} / {t['total'] if t else 0} - Vallake Room ID Velthadi!</h3><div style='margin-top:15px'>"
+    if t and t['room_id']:
+        html += f"<div style='background:#ff4444;padding:10px;border-radius:8px;margin-bottom:15px'><b>🔴 LIVE ROOM:</b> ID: {t['room_id']} | PASS: {t['room_pass']}</div>"
+    else:
+        html += "<div style='background:#333;padding:10px;border-radius:8px;margin-bottom:15px'>Room not set yet - UPCOMING</div>"
+    for p in players:
+        html += f"<div style='background:#1a1a1a;padding:10px;margin:5px 0;border-radius:8px;border-left:3px solid #00ff88'>👤 {p['username']} (User ID: {p['id']}) - <span style='color:#00ff88'>Room ID Chupistadi</span></div>"
+    if len(players)==0:
+        html += "<p style='color:#888'>Evaru join kaledu - Room ID evariki velladu</p>"
+    html += f"</div><br><a href='/admin' style='background:#00ff88;padding:12px 25px;color:#000;text-decoration:none;border-radius:10px;font-weight:900'>← Back to Admin</a></body>"
+    return html
+
 @app.route('/wallet', methods=['GET','POST'])
 @nocache
 def wallet():
