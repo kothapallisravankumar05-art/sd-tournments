@@ -7,6 +7,13 @@ app = Flask(__name__)
 app.secret_key = "sd_final_secure_2026"
 app.permanent_session_lifetime = timedelta(days=3650)
 
+@app.after_request
+def after_request(response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Expires"] = "0"
+    response.headers["Pragma"] = "no-cache"
+    return response
+
 def init_db():
     conn = sqlite3.connect(DB)
     c = conn.cursor()
