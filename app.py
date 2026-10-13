@@ -316,8 +316,40 @@ def admin():
             prize = request.form.get('prize'); total = request.form.get('total_slots') or request.form.get('total') or 10
             tim = request.form.get('time'); per_kill = request.form.get('per_kill') or 0
             conn.execute("INSERT INTO tournaments (game,type,map,time,prize,fee,per_kill,total,status) VALUES (?,?,?,?,?,?,?,?,'UPCOMING')", (game, typ, 'Bermuda', tim, prize, fee, per_kill, total))
-        elif action == 'set_room': conn.execute("UPDATE tournaments SET room_id=?, room_pass=?, status='LIVE' WHERE id=?", (request.form.get('room_id'), request.form.get('room_pass'), request.form.get('mid')))
-        elif action == 'delete_tournament': conn.execute("DELETE FROM tournaments WHERE id=?", (request.form.get('tournament_id'),))
+
+        elif action == 'set_room':
+            conn.execute("UPDATE tournaments SET room_id=?, room_pass=?, status='LIVE' WHERE id=?", (request.form.get('room_id'), request.form.get('room_pass'), request.form.get('mid')))
+
+        # ===== UPDATED DELETE WITH REFUND =====
+        elif action == 'delete_tournament':
+            tid = request.form.get('tournament_id')
+            if tid:
+                tour = conn.execute("SELECT fee FROM tournaments WHERE id=?", (tid,)).fetchone()
+                if tour:
+                    fee_amt = int(tour['fee'] or 0)
+                    # Get all joined users
+                    joined_users = conn.execute("SELECT user_id FROM joined WHERE tournament_id=?", (tid,)).fetchall()
+                    # Refund each user
+                    for ju in joined_users:
+                        conn.execute("UPDATE users SET balance = balance +? WHERE id=?", (fee_amt, ju['user_id']))
+                    # Delete joined records
+                    conn.execute("DELETE FROM joined WHERE tournament_id=?", (tid,))
+                    conn.execute("DELETE FROM results WHERE match_id=?", (tid,))
+                # Finally delete tournament
+                conn.execute("DELETE FROM tournaments WHERE id=?", (tid,))
+
+        # ===== NEW CANCEL WITH REFUND =====
+        elif action == 'cancel_tournament':
+            tid = request.form.get('tournament_id')
+            if tid:
+                tour = conn.execute("SELECT fee FROM tournaments WHERE id=?", (tid,)).fetchone()
+                if tour:
+                    fee_amt = int(tour['fee'] or 0)
+                    joined_users = conn.execute("SELECT user_id FROM joined WHERE tournament_id=?", (tid,)).fetchall()
+                    for ju in joined_users:
+                        conn.execute("UPDATE users SET balance = balance +? WHERE id=?", (fee_amt, ju['user_id']))
+                conn.execute("UPDATE tournaments SET status='CANCELLED' WHERE id=?", (tid,))
+
         elif action == 'approve_payment':
             pid = request.form.get('payment_id') or request.form.get('id')
             if pid:
