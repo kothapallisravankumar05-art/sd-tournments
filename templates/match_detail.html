@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Match Details - SD</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{background:#0f172a;color:#fff;min-height:100vh;padding:15px}
+.card{background:#1e293b;padding:20px;border-radius:15px;text-align:center;border:1px solid #00ff88}
+.btn{width:100%;padding:14px;border:none;border-radius:10px;font-weight:900;margin-top:10px;display:block;text-decoration:none;text-align:center}
+.join{background:#00ff88;color:#000}
+.joined{background:#00c851;color:#fff}
+.back{background:#2d3748;color:#fff}
+</style>
+</head>
+<body>
+<div class="card">
+<div style="font-size:60px">🏆</div>
+<div style="font-weight:900;font-size:22px">{{t.game}} - {{t.type}}</div>
+<div style="color:#00ff88;margin:10px 0">{{joined_count}}/{{t.total}} Joined | {{t.total - joined_count}} Left</div>
+<div style="background:#0f172a;padding:12px;border-radius:10px;text-align:left;font-size:13px;line-height:22px">
+<div>🗺 Map: <b>{{t.map}}</b></div>
+<div>⏰ Time: <b>{{t.time}}</b></div>
+<div>💰 Prize Pool: <b style="color:#00ff88">₹{{t.prize}}</b></div>
+<div>🎯 Per Kill: <b>₹{{t.per_kill}}</b></div>
+<div>💵 Entry Fee: <b>₹{{t.fee}}</b></div>
+{% if my_join %}<div>🎯 Your Slot: <b style="color:#ffde59">#{{my_join['slot_no']}}</b></div>{% endif %}
+</div>
+
+{% if my_join %}
+<button class="btn joined">✅ ALREADY JOINED - Slot #{{my_join['slot_no']}}</button>
+<a href="/" class="btn back">Go to Home - Room ID in ONGOING</a>
+{% else %}
+<a href="/slots/{{t.id}}" class="btn join">SELECT SLOT & JOIN - {{t.total - joined_count}} Left</a>
+{% endif %}
+<a href="/" class="btn back">← Back to Matches</a>
+</div>
+</body>
+</html>
