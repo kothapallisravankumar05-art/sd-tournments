@@ -1,5 +1,5 @@
-from flask import Flask, render_template, request, redirect, session, make_response
-import sqlite3, os
+from flask import Flask, render_template, request, redirect, session, make_response, jsonify
+import sqlite3, os, random
 from werkzeug.utils import secure_filename
 from datetime import datetime
 
@@ -10,6 +10,9 @@ UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# --- CHANGE THIS TO YOUR UPI ID BRO! ---
+MY_UPI_ID = "yourname@phonepe" # <-- Ikkada nee PhonePe/GPay UPI ID pettu!
+
 def get_db():
     conn = sqlite3.connect(DB, check_same_thread=False, timeout=20)
     conn.row_factory = sqlite3.Row
@@ -17,11 +20,11 @@ def get_db():
 
 # INIT TABLES
 conn = get_db()
-conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, password TEXT, balance INTEGER DEFAULT 0)")
+conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0)")
 conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING', winner_id TEXT)")
 conn.execute("CREATE TABLE IF NOT EXISTS joined (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, tournament_id INTEGER)")
 conn.execute("CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY AUTOINCREMENT, match_id INTEGER, user_id INTEGER, kills INTEGER, screenshot TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
-conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, utr TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
+conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
 conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
 conn.commit()
 conn.close()
@@ -56,30 +59,136 @@ def index():
 def health():
     return "OK", 200
 
+# --- MATCHES PAGE ---
+@app.route('/matches')
+@nocache
+def matches_page():
+    if 'user_id' not in session: return redirect('/login')
+    conn = get_db()
+    t = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
+    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    my_joined = conn.execute("SELECT tournament_id FROM joined WHERE user_id=?", (session['user_id'],)).fetchall()
+    my_joined_ids = [r[0] for r in my_joined]
+    conn.close()
+    return render_template('matches.html', tournaments=t, user=user, my_joined_ids=my_joined_ids, matches=t, joined=my_joined_ids)
+
+# --- ACCOUNT PAGE ---
+@app.route('/account')
+@nocache
+def account():
+    if 'user_id' not in session: return redirect('/login')
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    played = conn.execute("SELECT COUNT(*) FROM joined WHERE user_id=?", (session['user_id'],)).fetchone()[0]
+    killed = conn.execute("SELECT SUM(kills) FROM results WHERE user_id=?", (session['user_id'],)).fetchone()[0] or 0
+    won = conn.execute("SELECT SUM(kills) FROM results WHERE user_id=?", (session['user_id'],)).fetchone()[0] or 0
+    conn.close()
+    return render_template('account.html', user=user, played=played, killed=killed, won=won)
+
+# --- ADD MONEY UPI ---
+@app.route('/add_money')
+@nocache
+def add_money_page():
+    if 'user_id' not in session: return redirect('/login')
+    return render_template('add_money.html')
+
+@app.route('/get_upi_link')
+@nocache
+def get_upi_link():
+    if 'user_id' not in session: return jsonify({"ok":False, "msg":"Login chey bro"})
+    amount = request.args.get('amount','0')
+    try:
+        amt = int(float(amount))
+        if amt < 10: return jsonify({"ok":False, "msg":"Min 10rs bro"})
+    except:
+        return jsonify({"ok":False, "msg":"Amount correct ivvu bro"})
+    upi_link = f"upi://pay?pa={MY_UPI_ID}&pn=SD%20TOURNAMENT&am={amt}&cu=INR&tn=AddMoney_{session['user_id']}"
+    return jsonify({"ok":True, "upi_link": upi_link})
+
+@app.route('/verify_upi', methods=['POST'])
+@nocache
+def verify_upi():
+    if 'user_id' not in session: return jsonify({"ok":False, "msg":"Login chey bro"})
+    data = request.get_json() or {}
+    amount = data.get('amount')
+    utr = (data.get('utr') or "").strip()
+    if not utr or len(utr) < 6:
+        return jsonify({"ok":False, "msg":"Correct UTR pettu bro!"})
+    try: amt = int(float(amount))
+    except: return jsonify({"ok":False, "msg":"Amount error"})
+    conn = get_db()
+    dup = conn.execute("SELECT id FROM payments WHERE utr=?", (utr,)).fetchone()
+    if dup:
+        conn.close()
+        return jsonify({"ok":False, "msg":"❌ Ee UTR already vadaru bro!"})
+    conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], amt, utr, datetime.now().strftime("%d/%m %H:%M")))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok":True, "msg": f"✅ Request Pampinav bro! ₹{amt} Admin approve chestadu!"})
+
+# --- REGISTER & LOGIN (SEPARATE) ---
 @app.route('/register', methods=['GET','POST'])
+@nocache
+def register():
+    if 'user_id' in session: return redirect('/')
+    if request.method == 'POST':
+        phone = (request.form.get('phone') or "").strip()
+        username = (request.form.get('username') or "").strip()
+        password = (request.form.get('password') or "").strip()
+        if not username or not password:
+            return "<h3>Username & Password kavali bro! <a href='/register'>Back</a></h3>"
+        conn = get_db()
+        try:
+            conn.execute("INSERT INTO users (username,password,phone,balance) VALUES (?,?,?,0)", (username,password,phone))
+            conn.commit()
+            user = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+            session['user_id'] = user['id']
+            conn.close()
+            return redirect('/')
+        except:
+            conn.close()
+            return f"<body style='background:#111;color:#ff4444;text-align:center;padding:50px'><h2>❌ Username '{username}' already exists!</h2><a href='/register'>Try Again</a></body>"
+    return render_template('register.html')
+
 @app.route('/login', methods=['GET','POST'])
 @nocache
 def login():
-    if 'user_id' in session:
-        return redirect('/')
+    if 'user_id' in session: return redirect('/')
     if request.method == 'POST':
         u = (request.form.get('username') or request.form.get('phone') or "").strip()
         p = (request.form.get('password') or "").strip()
-        if not u or not p:
-            return "<h3>Phone/Username and Password kavali bro! <a href='/login'>Back</a></h3>"
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE username=? AND password=?", (u,p)).fetchone()
+        if not user:
+            user = conn.execute("SELECT * FROM users WHERE phone=? AND password=?", (u,p)).fetchone()
         if user:
             session['user_id'] = user['id']
             conn.close()
             return redirect('/')
-        conn.execute("INSERT INTO users (username,password,balance) VALUES (?,?,?)", (u,p,0))
-        conn.commit()
-        user = conn.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
-        session['user_id'] = user['id']
         conn.close()
-        return redirect('/')
+        return f"<body style='background:#111;color:#ff4444;text-align:center;padding:50px'><h3>❌ Wrong Username/Password bro!</h3><a href='/login'>Try Again</a> | <a href='/forgot'>Forgot?</a></body>"
     return render_template('login.html')
+
+@app.route('/forgot', methods=['GET','POST'])
+@nocache
+def forgot():
+    if request.method == 'POST':
+        u = (request.form.get('username') or request.form.get('phone') or "").strip()
+        new_pass = (request.form.get('new_password') or "").strip()
+        if not u or not new_pass:
+            return "<h3>Username & New Password kavali! <a href='/forgot'>Back</a></h3>"
+        conn = get_db()
+        user = conn.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
+        if not user:
+            user = conn.execute("SELECT * FROM users WHERE phone=?", (u,)).fetchone()
+        if not user:
+            conn.close()
+            return f"<body style='background:#111;color:#ff4444;text-align:center;padding:50px'><h2>❌ User Not Found!</h2><a href='/forgot'>Try Again</a></body>"
+        conn.execute("UPDATE users SET password=? WHERE id=?", (new_pass, user['id']))
+        conn.commit()
+        conn.close()
+        return f"<body style='background:#0a1628;color:#00ff88;text-align:center;padding:50px'><h2>✅ Password Reset Success!</h2><a href='/login' style='background:#00ff88;color:#000;padding:12px 25px;border-radius:10px;text-decoration:none'>Login Now</a></body>"
+    return render_template('forgot.html')
 
 @app.route('/join/<int:tid>', methods=['GET','POST'])
 def join(tid):
@@ -92,7 +201,7 @@ def join(tid):
         fee = int(tour['fee'] or 0)
         if user['balance'] < fee:
             conn.close()
-            return f"<body style='background:#111;color:#ff4444;text-align:center;padding:50px'><h2>❌ Balance Low!</h2><p>Fee: ₹{fee} | Your Balance: ₹{user['balance']}</p><a href='/wallet' style='background:#00ff88;padding:12px 20px;text-decoration:none;color:#000;border-radius:8px'>Add Money</a></body>"
+            return f"<body style='background:#111;color:#ff4444;text-align:center;padding:50px'><h2>❌ Balance Low!</h2><p>Fee: ₹{fee} | Balance: ₹{user['balance']}</p><a href='/wallet' style='background:#00ff88;padding:12px 20px;color:#000;text-decoration:none;border-radius:8px'>Add Money</a></body>"
         conn.execute("INSERT INTO joined (user_id,tournament_id) VALUES (?,?)", (session['user_id'], tid))
         conn.execute("UPDATE tournaments SET joined = joined + 1 WHERE id=?", (tid,))
         conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (fee, session['user_id']))
@@ -109,7 +218,7 @@ def submit_result():
     ex = conn.execute("SELECT * FROM results WHERE match_id=? AND user_id=?", (mid, session['user_id'])).fetchone()
     if ex:
         conn.close()
-        return "<body style='background:#111;color:#ff4444;text-align:center;padding:50px;font-family:Arial'><h2>❌ Already Submitted!</h2><br><a href='/' style='background:#00ff88;color:#000;padding:10px 20px;border-radius:8px;text-decoration:none'>Go Home</a></body>"
+        return "<body style='background:#111;color:#ff4444;text-align:center;padding:50px'><h2>❌ Already Submitted!</h2><a href='/'>Home</a></body>"
     filename = ""
     if 'screenshot' in request.files:
         f = request.files['screenshot']
@@ -119,7 +228,7 @@ def submit_result():
     conn.execute("INSERT INTO results (match_id,user_id,kills,screenshot,status,time) VALUES (?,?,?,?, 'PENDING',?)", (mid, session['user_id'], kills, filename, datetime.now().strftime("%d/%m %H:%M")))
     conn.commit()
     conn.close()
-    return "<body style='background:#111;color:#00ff88;text-align:center;padding:50px;font-family:Arial'><h2>✅ Submitted!</h2><p>Kills: "+kills+"</p><br><a href='/' style='background:#00ff88;color:#000;padding:10px 20px;border-radius:8px;text-decoration:none'>Go Home</a></body>"
+    return "<body style='background:#111;color:#00ff88;text-align:center;padding:50px'><h2>✅ Submitted!</h2><p>Kills: "+kills+"</p><a href='/'>Home</a></body>"
 
 @app.route('/match_result/<int:mid>')
 def match_result(mid):
@@ -134,7 +243,6 @@ def match_result(mid):
     conn.close()
     return render_template('match_result.html', t=t, results=final)
 
-# --- NEW: PLAYERS LIST FOR ADMIN - VALLAKE VELTHADI ANI PROOF ---
 @app.route('/match_players/<int:mid>')
 @nocache
 def match_players(mid):
@@ -143,16 +251,10 @@ def match_players(mid):
     t = conn.execute("SELECT * FROM tournaments WHERE id=?", (mid,)).fetchone()
     players = conn.execute("SELECT users.username, users.id FROM joined LEFT JOIN users ON joined.user_id=users.id WHERE joined.tournament_id=?", (mid,)).fetchall()
     conn.close()
-    html = f"<body style='background:#0a0a0a;color:#fff;font-family:Arial;padding:20px'><h2>🔥 Match {mid} - {t['game'] if t else ''} {t['type'] if t else ''}</h2><h3 style='color:#00ff88'>Joined Players: {len(players)} / {t['total'] if t else 0} - Vallake Room ID Velthadi!</h3><div style='margin-top:15px'>"
-    if t and t['room_id']:
-        html += f"<div style='background:#ff4444;padding:10px;border-radius:8px;margin-bottom:15px'><b>🔴 LIVE ROOM:</b> ID: {t['room_id']} | PASS: {t['room_pass']}</div>"
-    else:
-        html += "<div style='background:#333;padding:10px;border-radius:8px;margin-bottom:15px'>Room not set yet - UPCOMING</div>"
-    for p in players:
-        html += f"<div style='background:#1a1a1a;padding:10px;margin:5px 0;border-radius:8px;border-left:3px solid #00ff88'>👤 {p['username']} (User ID: {p['id']}) - <span style='color:#00ff88'>Room ID Chupistadi</span></div>"
-    if len(players)==0:
-        html += "<p style='color:#888'>Evaru join kaledu - Room ID evariki velladu</p>"
-    html += f"</div><br><a href='/admin' style='background:#00ff88;padding:12px 25px;color:#000;text-decoration:none;border-radius:10px;font-weight:900'>← Back to Admin</a></body>"
+    html = f"<body style='background:#0a0a0a;color:#fff;font-family:Arial;padding:20px'><h2>🔥 Match {mid} - {t['game'] if t else ''}</h2><h3 style='color:#00ff88'>Joined: {len(players)}/{t['total'] if t else 0} - Vallake Room ID Velthadi!</h3>"
+    if t and t['room_id']: html += f"<div style='background:#ff4444;padding:10px;border-radius:8px;margin:15px 0'><b>🔴 LIVE:</b> ID: {t['room_id']} | PASS: {t['room_pass']}</div>"
+    for p in players: html += f"<div style='background:#1a1a1a;padding:10px;margin:5px 0;border-radius:8px'>👤 {p['username']} - Room ID Vastadi</div>"
+    html += "<br><a href='/admin' style='background:#00ff88;padding:12px 25px;color:#000;text-decoration:none;border-radius:10px'>← Admin</a></body>"
     return html
 
 @app.route('/wallet', methods=['GET','POST'])
@@ -165,10 +267,12 @@ def wallet():
         utr = request.form.get('utr') or request.form.get('txn_id') or ""
         upi_id = request.form.get('upi_id')
         if amount and utr:
-            conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(amount), utr, datetime.now().strftime("%d/%m %H:%M")))
-            conn.commit()
+            try:
+                conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(amount), utr, datetime.now().strftime("%d/%m %H:%M")))
+                conn.commit()
+            except: pass
             conn.close()
-            return f"<body style='background:#0a1628;color:#00ff88;text-align:center;padding:50px;font-family:Arial'><h2>✅ UTR Submitted!</h2><p>₹{amount} - UTR:{utr}<br>Admin verify chesi add chestadu.</p><br><a href='/wallet' style='background:#00ff88;color:#000;padding:12px 25px;border-radius:10px;text-decoration:none;font-weight:900'>Back to Wallet</a></body>"
+            return redirect('/wallet')
         if amount and upi_id:
             user = conn.execute("SELECT balance FROM users WHERE id=?", (session['user_id'],)).fetchone()
             if user and user['balance'] >= int(amount) and int(amount) >= 200:
@@ -178,10 +282,6 @@ def wallet():
             conn.close()
             return redirect('/wallet')
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-    if not user:
-        session.clear()
-        conn.close()
-        return redirect('/login')
     payments = conn.execute("SELECT * FROM payments WHERE user_id=? ORDER BY id DESC", (session['user_id'],)).fetchall()
     withdrawals = conn.execute("SELECT * FROM withdrawals WHERE user_id=? ORDER BY id DESC", (session['user_id'],)).fetchall()
     conn.close()
@@ -242,10 +342,6 @@ def logout():
     resp = make_response(redirect('/login'))
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return resp
-
-@app.route('/forgot')
-def forgot():
-    return "Contact Admin on WhatsApp!"
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
