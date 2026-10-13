@@ -13,6 +13,7 @@ button{padding:8px 15px;border:none;border-radius:5px;cursor:pointer;font-weight
 .btn-red{background:#ff4444;color:#fff}
 .btn-blue{background:#008cff;color:#fff}
 .btn-gold{background:gold;color:#000}
+.btn-orange{background:orange;color:#000}
 h3{margin-top:0;color:#00ff88}
 .badge{font-size:11px;padding:3px 7px;border-radius:10px;font-weight:900}
 .badge-pending{background:orange;color:#000}
@@ -54,14 +55,15 @@ h3{margin-top:0;color:#00ff88}
 <p style="font-size:11px;color:#888;margin-top:8px;">Note: Room ID pedithe JOIN ayina vallake matrame kanipistadi. Vere vallaki kanipiyadu - 100% Secure!</p>
 </div>
 
-<!-- 3. ALL TOURNAMENTS - UPDATED -->
+<!-- 3. ALL TOURNAMENTS - UPDATED WITH REFUND -->
 <div class="card">
 <h3>📋 All Tournaments ({{matches|length}})</h3>
 {% for m in matches %}
 <div class="item">
-<span>ID: <b style="color:gold">{{m.id}}</b> | {{m.game}} {{m.type}} | Time: {{m.time}}<br>Joined: <b style="color:gold">{{m.joined}}/{{m.total}}</b> | Status: <b style="color:{% if m.status=='LIVE'%}#ff4444{% else %}#00ff88{% endif %}">{{m.status}}</b> | Room: <b style="color:#00ff88">{{m.room_id}} / {{m.room_pass}}</b></span>
-<div style="display:flex;gap:5px">
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red">DELETE</button></form>
+<span>ID: <b style="color:gold">{{m.id}}</b> | {{m.game}} {{m.type}} | Time: {{m.time}}<br>Joined: <b style="color:gold">{{m.joined}}/{{m.total}}</b> | Status: <b style="color:{% if m.status=='LIVE'%}#ff4444{% elif m.status=='CANCELLED'%}orange{% else %}#00ff88{% endif %}">{{m.status}}</b> | Room: <b style="color:#00ff88">{{m.room_id}} / {{m.room_pass}}</b> | Fee: ₹{{m.fee}}</span>
+<div style="display:flex;gap:5px;flex-wrap:wrap">
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="cancel_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-orange" onclick="return confirm('Cancel chesi andhariki ₹{{m.fee}} refund cheyala?')">CANCEL & REFUND</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red" onclick="return confirm('DELETE chesi andhariki ₹{{m.fee}} refund cheyala?')">DELETE & REFUND</button></form>
 </div>
 </div>
 {% endfor %}
