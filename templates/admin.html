@@ -6,17 +6,24 @@
 <style>
 body{background:#0a0a0a;color:#fff;font-family:Arial;padding:10px;margin:0}
 .card{background:#1a1a1a;padding:15px;border-radius:10px;margin-bottom:15px;border:1px solid #333}
-.item{background:#222;padding:10px;margin:8px 0;border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.item{background:#222;padding:12px;margin:8px 0;border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
 input,select{padding:10px;margin:5px;border-radius:5px;border:none;background:#333;color:#fff}
 button{padding:8px 15px;border:none;border-radius:5px;cursor:pointer;font-weight:bold}
 .btn-green{background:#00ff88;color:#000}
 .btn-red{background:#ff4444;color:#fff}
 .btn-blue{background:#008cff;color:#fff}
+.btn-gold{background:gold;color:#000}
 h3{margin-top:0;color:#00ff88}
+.badge{font-size:11px;padding:3px 7px;border-radius:10px;font-weight:900}
+.badge-pending{background:orange;color:#000}
+.badge-approved{background:#00ff88;color:#000}
+.badge-rejected{background:#ff4444;color:#fff}
+.result-item{background:#111;border:1px solid gold;padding:12px;border-radius:10px;margin:8px 0}
 </style>
 </head>
 <body>
 <h2 style="text-align:center">👑 SD TOURNAMENT - ADMIN PANEL</h2>
+<div style="text-align:center;margin-bottom:10px"><a href="/" style="color:#00ff88;text-decoration:none;font-weight:900;">← GO TO HOME</a></div>
 
 <!-- 1. ADD TOURNAMENT -->
 <div class="card">
@@ -28,14 +35,15 @@ h3{margin-top:0;color:#00ff88}
 <input name="entry_fee" type="number" placeholder="Entry Fee" required>
 <input name="prize" type="number" placeholder="Prize Pool" required>
 <input name="total_slots" type="number" placeholder="Total Slots" required>
+<input name="per_kill" type="number" placeholder="Per Kill Prize (0)">
 <input name="time" type="datetime-local" required>
 <button class="btn-green">CREATE TOURNAMENT</button>
 </form>
 </div>
 
 <!-- 2. MAKE LIVE -->
-<div class="card">
-<h3>🔴 Make Match LIVE (Room ID Pettali)</h3>
+<div class="card" style="border:1px solid #ff4444;">
+<h3 style="color:#ff4444;">🔴 Make Match LIVE (Room ID Pettali)</h3>
 <form method="POST">
 <input type="hidden" name="action" value="set_room">
 <input name="mid" type="number" placeholder="Match ID" required>
@@ -50,13 +58,48 @@ h3{margin-top:0;color:#00ff88}
 <h3>📋 All Tournaments ({{matches|length}})</h3>
 {% for m in matches %}
 <div class="item">
-<span>ID: <b>{{m.id}}</b> | {{m.game}} {{m.type}} | Time: {{m.time}} | Joined: {{m.joined}}/{{m.total}} | Room: <b style="color:#00ff88">{{m.room_id}} / {{m.room_pass}}</b></span>
+<span>ID: <b>{{m.id}}</b> | {{m.game}} {{m.type}} | Time: {{m.time}} | Joined: {{m.joined}}/{{m.total}} | Room: <b style="color:#00ff88">{{m.room_id}} / {{m.room_pass}}</b> | Status: {{m.status}}</span>
 <form method="POST"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red">DELETE</button></form>
 </div>
 {% endfor %}
 </div>
 
-<!-- 4. DEPOSIT APPROVAL -->
+<!-- 4. NEW - MATCH RESULTS VERIFICATION - ANTI-CHEAT -->
+<div class="card" style="border:2px solid gold;">
+<h3 style="color:gold;">🏆 Match Results Verification - Anti Cheat ({{pending_results|length}} Pending)</h3>
+<p style="font-size:12px;color:#888;">Player screenshot chusi kills verify chesi APPROVE kottali. Fake aithe REJECT.</p>
+{% if pending_results|length==0 %}<p style="color:#666">No pending results - Antha clear!</p>{% endif %}
+{% for r in pending_results %}
+<div class="result-item">
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+<div>
+ID: <b style="color:gold">{{r.id}}</b> | Match ID: <b>{{r.match_id}}</b> | User ID: <b style="color:#00ff88">{{r.user_id}}</b> ({{r.username}})<br>
+Kills: <b style="font-size:18px;color:gold;">{{r.kills}}</b> | Status: <span class="badge badge-pending">{{r.status}}</span> | Time: {{r.time}}<br>
+{% if r.screenshot %}
+<a href="/static/uploads/{{r.screenshot}}" target="_blank" style="color:#00ff88;font-weight:900;font-size:14px;">📸 VIEW SCREENSHOT PROOF</a>
+{% else %}
+<span style="color:red;">❌ No Screenshot!</span>
+{% endif %}
+</div>
+<div>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-green" style="padding:12px 20px;">✅ APPROVE + GIVE PRIZE</button></form><br><br>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="reject_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-red" style="padding:8px 15px;">❌ REJECT - FAKE</button></form>
+</div>
+</div>
+</div>
+{% endfor %}
+
+<h4 style="color:#888;margin-top:20px;">Approved/Rejected History</h4>
+{% for r in all_results %}
+{% if r.status != 'PENDING' %}
+<div class="item" style="opacity:0.6;">
+<span>ID:{{r.id}} Match:{{r.match_id}} User:{{r.user_id}} Kills:{{r.kills}} | <span class="badge {% if r.status=='APPROVED'%}badge-approved{% else %}badge-rejected{% endif %}">{{r.status}}</span></span>
+</div>
+{% endif %}
+{% endfor %}
+</div>
+
+<!-- 5. DEPOSIT APPROVAL -->
 <div class="card">
 <h3>💰 Pending Add Money Requests</h3>
 {% if pending_payments|length==0 %}<p style="color:#666">No pending payments</p>{% endif %}
@@ -71,7 +114,7 @@ h3{margin-top:0;color:#00ff88}
 {% endfor %}
 </div>
 
-<!-- 5. WITHDRAWAL APPROVAL -->
+<!-- 6. WITHDRAWAL APPROVAL -->
 <div class="card">
 <h3>💸 Pending Withdraw Requests</h3>
 {% if pending_withdrawals|length==0 %}<p style="color:#666">No pending withdrawals</p>{% endif %}
