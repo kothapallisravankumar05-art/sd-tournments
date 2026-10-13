@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, make_response, jsonify
+from flask import Flask, render_template, request, redirect, session, make_response, jsonify, send_from_directory
 import sqlite3
 import os
 from werkzeug.utils import secure_filename
@@ -9,13 +9,22 @@ app.secret_key = "sd_final_secret_2026_rocket"
 DB = "sd.db"
 UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs('static', exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 MY_UPI_ID = "yourname@phonepe"
+# --- CHANGE THIS AFTER RENDER LINK READY ---
+SITE_URL = "https://sd-tournament.onrender.com"
 
 def get_db():
     conn = sqlite3.connect(DB, check_same_thread=False, timeout=20)
     conn.row_factory = sqlite3.Row
+    # FAST RUN OPTIMIZATION
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
+        conn.execute("PRAGMA cache_size=-64000;")
+    except: pass
     return conn
 
 # --- INIT TABLES ---
@@ -28,8 +37,7 @@ conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOIN
 conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
 try:
     conn.execute("ALTER TABLE joined ADD COLUMN slot_no INTEGER DEFAULT 0")
-except:
-    pass
+except: pass
 conn.commit()
 conn.close()
 
@@ -42,6 +50,35 @@ def nocache(view):
         return resp
     wrapper.__name__ = view.__name__
     return wrapper
+
+# ========== PWA + SEO + GOOGLE SEARCH ROUTES ==========
+
+@app.route('/manifest.json')
+def manifest():
+    return send_from_directory('static', 'manifest.json')
+
+@app.route('/sw.js')
+def service_worker():
+    return send_from_directory('static', 'sw.js', mimetype='application/javascript')
+
+@app.route('/sitemap.xml')
+def sitemap():
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url><loc>{SITE_URL}/</loc><priority>1.0</priority></url>
+<url><loc>{SITE_URL}/matches</loc><priority>0.9</priority></url>
+<url><loc>{SITE_URL}/login</loc><priority>0.8</priority></url>
+<url><loc>{SITE_URL}/register</loc><priority>0.8</priority></url>
+<url><loc>{SITE_URL}/wallet</loc><priority>0.7</priority></url>
+</urlset>"""
+    return make_response(xml, 200, {'Content-Type': 'application/xml'})
+
+@app.route('/robots.txt')
+def robots():
+    txt = f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n"
+    return make_response(txt, 200, {'Content-Type': 'text/plain'})
+
+# ========== MAIN APP ROUTES ==========
 
 @app.route('/')
 @nocache
