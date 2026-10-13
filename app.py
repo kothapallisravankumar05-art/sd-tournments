@@ -255,7 +255,7 @@ def login():
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE username=? AND password=?", (u.strip(),p.strip())).fetchone()
         if not user: user = conn.execute("SELECT * FROM users WHERE phone=? AND password=?", (u.strip(),p.strip())).fetchone()
-        if user: session['user_id'] = user['id']; conn.close(); return redirect('/')
+        if user: session.permanent =True;session['user_id']=user['id']; conn.close(); return redirect('/')
         conn.close()
         return "<h3>Wrong Password</h3><a href='/login'>Back</a>"
     return render_template('login.html')
