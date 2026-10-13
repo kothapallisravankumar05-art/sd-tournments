@@ -5,6 +5,7 @@ from datetime import datetime, date
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "sd_final_secret_2026_rocket")
+app.config['PERMANENT_SESSION_LIFETIME']=timedelta(days=3650)
 DB = "sd.db"
 UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
