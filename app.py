@@ -17,7 +17,7 @@ SITE_URL = "https://sd-tournments.onrender.com"
 BOT_TOKEN = os.getenv("BOT_TOKEN", "PASTE_YOUR_BOT_TOKEN_HERE")
 ADMIN_CHAT_ID = os.getenv("CHAT_ID", "PASTE_YOUR_CHAT_ID_HERE")
 ADMIN_USER_ID = 19
-ADMIN_PASSWORD = "101210" # <-- PASSWORD IKKADA MARCHU BRO!
+ADMIN_PASSWORD = "AKHI19" # <-- PASSWORD IKKADA MARCHU BRO!
 
 def send_notify(msg):
     try:
