@@ -1,9 +1,7 @@
 from flask import Flask, render_template, request, redirect, session, make_response, jsonify, send_from_directory
-import sqlite3
-import os
-import requests
+import sqlite3, os, requests, random, string
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, date
 
 app = Flask(__name__)
 app.secret_key = "sd_final_secret_2026_rocket"
@@ -16,17 +14,14 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 MY_UPI_ID = "yourname@phonepe"
 SITE_URL = "https://sd-tournments.onrender.com"
 
-# ========== TELEGRAM NOTIFICATION CONFIG - IDI MARCHU ==========
-BOT_TOKEN = "PASTE_YOUR_BOT_TOKEN_HERE" # Ex: 1234567890:AAHxyz...
-ADMIN_CHAT_ID = "PASTE_YOUR_CHAT_ID_HERE" # Ex: 123456789
-
+BOT_TOKEN = "PASTE_YOUR_BOT_TOKEN_HERE"
+ADMIN_CHAT_ID = "PASTE_YOUR_CHAT_ID_HERE"
 def send_notify(msg):
     try:
-        if "PASTE" in BOT_TOKEN: return # Token set cheyaledu ante skip
+        if "PASTE" in BOT_TOKEN: return
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
         requests.post(url, json={"chat_id": ADMIN_CHAT_ID, "text": msg, "parse_mode": "HTML"}, timeout=5)
-    except Exception as e:
-        print(f"Notify failed: {e}")
+    except: pass
 
 def get_db():
     conn = sqlite3.connect(DB, check_same_thread=False, timeout=20)
@@ -34,18 +29,31 @@ def get_db():
     try:
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA synchronous=NORMAL;")
-        conn.execute("PRAGMA cache_size=-64000;")
     except: pass
     return conn
 
+def add_txn(user_id, amount, type_, desc):
+    try:
+        c = get_db()
+        c.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (user_id, amount, type_, desc, datetime.now().strftime("%d/%m %H:%M")))
+        c.commit()
+        c.close()
+    except: pass
+
+# --- DB SETUP ---
 conn = get_db()
-conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0)")
+conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0, last_bonus TEXT)")
 conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING', winner_id TEXT)")
 conn.execute("CREATE TABLE IF NOT EXISTS joined (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0)")
 conn.execute("CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY AUTOINCREMENT, match_id INTEGER, user_id INTEGER, kills INTEGER, screenshot TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
 conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
 conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
+conn.execute("CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
 try:
+    conn.execute("ALTER TABLE users ADD COLUMN referral_code TEXT")
+    conn.execute("ALTER TABLE users ADD COLUMN referred_by INTEGER DEFAULT 0")
+    conn.execute("ALTER TABLE users ADD COLUMN total_wins INTEGER DEFAULT 0")
+    conn.execute("ALTER TABLE users ADD COLUMN last_bonus TEXT")
     conn.execute("ALTER TABLE joined ADD COLUMN slot_no INTEGER DEFAULT 0")
 except: pass
 conn.commit()
@@ -62,33 +70,19 @@ def nocache(view):
     return wrapper
 
 @app.route('/google08d3e829b688619a.html')
-def google_verify():
-    return "google-site-verification: google08d3e829b688619a.html"
-
+def google_verify(): return "google-site-verification: google08d3e829b688619a.html"
 @app.route('/manifest.json')
-def manifest():
-    return send_from_directory('static', 'manifest.json')
-
+def manifest(): return send_from_directory('static', 'manifest.json')
 @app.route('/sw.js')
-def service_worker():
-    return send_from_directory('static', 'sw.js', mimetype='application/javascript')
-
+def service_worker(): return send_from_directory('static', 'sw.js', mimetype='application/javascript')
 @app.route('/sitemap.xml')
 def sitemap():
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-<url><loc>{SITE_URL}/</loc><priority>1.0</priority></url>
-<url><loc>{SITE_URL}/matches</loc><priority>0.9</priority></url>
-<url><loc>{SITE_URL}/login</loc><priority>0.8</priority></url>
-<url><loc>{SITE_URL}/register</loc><priority>0.8</priority></url>
-<url><loc>{SITE_URL}/wallet</loc><priority>0.7</priority></url>
-</urlset>"""
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>{SITE_URL}/</loc><priority>1.0</priority></url><url><loc>{SITE_URL}/matches</loc><priority>0.9</priority></url></urlset>"""
     return make_response(xml, 200, {'Content-Type': 'application/xml'})
-
 @app.route('/robots.txt')
-def robots():
-    txt = f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n"
-    return make_response(txt, 200, {'Content-Type': 'text/plain'})
+def robots(): return make_response(f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n", 200, {'Content-Type': 'text/plain'})
+@app.route('/health')
+def health(): return "OK", 200
 
 @app.route('/')
 @nocache
@@ -98,17 +92,11 @@ def index():
     t = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     if not user:
-        session.clear()
-        conn.close()
-        return redirect('/login')
+        session.clear(); conn.close(); return redirect('/login')
     my_joined = conn.execute("SELECT tournament_id FROM joined WHERE user_id=?", (session['user_id'],)).fetchall()
     my_joined_ids = [r[0] for r in my_joined]
     conn.close()
     return render_template('index.html', tournaments=t, user=user, my_joined_ids=my_joined_ids)
-
-@app.route('/health')
-def health():
-    return "OK", 200
 
 @app.route('/matches')
 @nocache
@@ -186,11 +174,42 @@ def final_join(tid):
     conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (fee, session['user_id']))
     conn.commit()
     conn.close()
+    add_txn(session['user_id'], fee, "DEBIT", f"Joined Tournament #{tid} Slot {slot_no}")
     return redirect(f'/match/{tid}')
 
 @app.route('/join/<int:tid>')
-def join(tid):
-    return redirect(f'/slots/{tid}')
+def join(tid): return redirect(f'/slots/{tid}')
+
+@app.route('/leaderboard')
+@nocache
+def leaderboard():
+    if 'user_id' not in session: return redirect('/login')
+    conn = get_db()
+    top = conn.execute("SELECT id, username, total_wins, balance FROM users ORDER BY total_wins DESC, balance DESC LIMIT 20").fetchall()
+    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    conn.close()
+    return render_template('leaderboard.html', top=top, user=user)
+
+@app.route('/daily_bonus')
+@nocache
+def daily_bonus():
+    if 'user_id' not in session: return redirect('/login')
+    conn = get_db()
+    user = conn.execute("SELECT last_bonus FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    today = str(date.today())
+    if user and user['last_bonus'] == today:
+        conn.close()
+        return "<h2>Already Claimed Today! Come tomorrow 🎁</h2><a href='/'>Home</a>"
+    conn.execute("UPDATE users SET balance=balance+5, last_bonus=? WHERE id=?", (today, session['user_id']))
+    conn.commit()
+    conn.close()
+    add_txn(session['user_id'], 5, "BONUS", "Daily Login Bonus ₹5")
+    return "<h2>₹5 Daily Bonus Added! 🎉</h2><a href='/'>Home</a>"
+
+@app.route('/refer/<code>')
+def referral_page(code):
+    session['ref_code'] = code
+    return redirect('/register')
 
 @app.route('/register', methods=['GET','POST'])
 @nocache
@@ -202,16 +221,27 @@ def register():
         phone = request.form.get('phone','').strip()
         conn = get_db()
         try:
-            conn.execute("INSERT INTO users (username,password,phone,balance) VALUES (?,?,?,0)", (username,password,phone))
+            ref_code = ''.join(random.choices(string.ascii_uppercase+string.digits, k=6))
+            conn.execute("INSERT INTO users (username,password,phone,balance,referral_code) VALUES (?,?,?,0,?)", (username,password,phone,ref_code))
             conn.commit()
             user = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+            # Referral Bonus
+            if 'ref_code' in session:
+                ref_user = conn.execute("SELECT id FROM users WHERE referral_code=?", (session['ref_code'],)).fetchone()
+                if ref_user and ref_user['id']!= user['id']:
+                    conn.execute("UPDATE users SET balance=balance+20 WHERE id=?", (ref_user['id'],))
+                    conn.execute("UPDATE users SET balance=balance+20, referred_by=? WHERE id=?", (ref_user['id'], user['id']))
+                    conn.commit()
+                    add_txn(ref_user['id'], 20, "REFERRAL", f"Referral bonus for {username}")
+                    add_txn(user['id'], 20, "REFERRAL", "Welcome Referral Bonus ₹20")
+                    send_notify(f"💸 <b>REFERRAL BONUS</b>\n{username} joined via {session['ref_code']}\nBoth got ₹20")
             session['user_id'] = user['id']
             conn.close()
-            send_notify(f"👤 <b>NEW USER REGISTERED</b>\nUsername: {username}\nPhone: {phone}")
+            send_notify(f"👤 <b>NEW USER</b>\n{username}\nPhone: {phone}")
             return redirect('/')
-        except:
+        except Exception as e:
             conn.close()
-            return "<h2>Username exists</h2><a href='/register'>Back</a>"
+            return f"<h2>Username exists {e}</h2><a href='/register'>Back</a>"
     return render_template('register.html')
 
 @app.route('/login', methods=['GET','POST'])
@@ -270,7 +300,7 @@ def submit_result():
     conn.execute("INSERT INTO results (match_id,user_id,kills,screenshot,status,time) VALUES (?,?,?,?, 'PENDING',?)", (mid, session['user_id'], kills, filename, datetime.now().strftime("%d/%m %H:%M")))
     conn.commit()
     conn.close()
-    send_notify(f"🏆 <b>NEW RESULT SUBMITTED</b>\nUser ID: {session['user_id']}\nMatch ID: {mid}\nKills: {kills}")
+    send_notify(f"🏆 <b>RESULT</b>\nUser {session['user_id']}\nMatch {mid}\nKills {kills}")
     return f"<h2>Submitted {kills} Kills</h2><a href='/'>Home</a>"
 
 @app.route('/match_result/<int:mid>')
@@ -299,7 +329,7 @@ def wallet():
             try:
                 conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(amount), utr, datetime.now().strftime("%d/%m %H:%M")))
                 conn.commit()
-                send_notify(f"💰 <b>DEPOSIT REQUEST (Wallet Page)</b>\nUser ID: {session['user_id']}\nAmount: ₹{amount}\nUTR: {utr}")
+                send_notify(f"💰 <b>DEPOSIT</b>\nUser {session['user_id']}\n₹{amount}\nUTR {utr}")
             except: pass
         if amount and upi_id:
             user = conn.execute("SELECT balance FROM users WHERE id=?", (session['user_id'],)).fetchone()
@@ -307,14 +337,16 @@ def wallet():
                 conn.execute("INSERT INTO withdrawals (user_id, amount, upi_id, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(amount), upi_id, datetime.now().strftime("%d/%m %H:%M")))
                 conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (int(amount), session['user_id']))
                 conn.commit()
-                send_notify(f"💸 <b>WITHDRAW REQUEST</b>\nUser ID: {session['user_id']}\nAmount: ₹{amount}\nUPI: {upi_id}")
+                add_txn(session['user_id'], int(amount), "DEBIT", f"Withdraw to {upi_id}")
+                send_notify(f"💸 <b>WITHDRAW</b>\nUser {session['user_id']}\n₹{amount}\nUPI {upi_id}")
         conn.close()
         return redirect('/wallet')
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     payments = conn.execute("SELECT * FROM payments WHERE user_id=? ORDER BY id DESC", (session['user_id'],)).fetchall()
     withdrawals = conn.execute("SELECT * FROM withdrawals WHERE user_id=? ORDER BY id DESC", (session['user_id'],)).fetchall()
+    txns = conn.execute("SELECT * FROM transactions WHERE user_id=? ORDER BY id DESC LIMIT 50", (session['user_id'],)).fetchall()
     conn.close()
-    return render_template('wallet.html', user=user, payments=payments, withdrawals=withdrawals, wallet=user['balance'])
+    return render_template('wallet.html', user=user, payments=payments, withdrawals=withdrawals, transactions=txns, wallet=user['balance'])
 
 @app.route('/admin', methods=['GET','POST'])
 @nocache
@@ -339,6 +371,7 @@ def admin():
                     joined_users = conn.execute("SELECT user_id FROM joined WHERE tournament_id=?", (tid,)).fetchall()
                     for ju in joined_users:
                         conn.execute("UPDATE users SET balance = balance +? WHERE id=?", (fee_amt, ju['user_id']))
+                        add_txn(ju['user_id'], fee_amt, "REFUND", f"Refund - Tournament #{tid} Deleted")
                     conn.execute("DELETE FROM joined WHERE tournament_id=?", (tid,))
                     conn.execute("DELETE FROM results WHERE match_id=?", (tid,))
                 conn.execute("DELETE FROM tournaments WHERE id=?", (tid,))
@@ -351,6 +384,7 @@ def admin():
                     joined_users = conn.execute("SELECT user_id FROM joined WHERE tournament_id=?", (tid,)).fetchall()
                     for ju in joined_users:
                         conn.execute("UPDATE users SET balance = balance +? WHERE id=?", (fee_amt, ju['user_id']))
+                        add_txn(ju['user_id'], fee_amt, "REFUND", f"Refund - Tournament #{tid} Cancelled")
                 conn.execute("UPDATE tournaments SET status='CANCELLED' WHERE id=?", (tid,))
         elif action == 'approve_payment':
             pid = request.form.get('payment_id') or request.form.get('id')
@@ -359,6 +393,7 @@ def admin():
                 if p:
                     conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (p['amount'], p['user_id']))
                     conn.execute("UPDATE payments SET status='APPROVED' WHERE id=?", (pid,))
+                    add_txn(p['user_id'], p['amount'], "CREDIT", f"Deposit Approved ₹{p['amount']}")
         elif action == 'reject_payment':
             pid = request.form.get('payment_id') or request.form.get('id')
             if pid: conn.execute("UPDATE payments SET status='REJECTED' WHERE id=?", (pid,))
@@ -368,14 +403,16 @@ def admin():
             if w:
                 conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (w['amount'], w['user_id']))
                 conn.execute("UPDATE withdrawals SET status='REJECTED' WHERE id=?", (request.form.get('withdrawal_id'),))
+                add_txn(w['user_id'], w['amount'], "REFUND", f"Withdrawal Rejected Refund ₹{w['amount']}")
         elif action == 'approve_result':
             r = conn.execute("SELECT match_id,user_id,kills FROM results WHERE id=?", (request.form.get('result_id'),)).fetchone()
             if r:
                 m = conn.execute("SELECT prize,per_kill FROM tournaments WHERE id=?", (r['match_id'],)).fetchone()
                 total_win = int(m['prize'] or 0) + (int(r['kills'] or 0)*int(m['per_kill'] or 0))
-                conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (total_win, r['user_id']))
+                conn.execute("UPDATE users SET balance=balance+?, total_wins=total_wins+1 WHERE id=?", (total_win, r['user_id']))
                 conn.execute("UPDATE results SET status='APPROVED' WHERE id=?", (request.form.get('result_id'),))
                 conn.execute("UPDATE tournaments SET status='COMPLETED', winner_id=? WHERE id=?", (r['user_id'], r['match_id']))
+                add_txn(r['user_id'], total_win, "WIN", f"Won Tournament #{r['match_id']} - {r['kills']} kills")
         elif action == 'reject_result': conn.execute("UPDATE results SET status='REJECTED' WHERE id=?", (request.form.get('result_id'),))
         conn.commit()
     tournaments = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
@@ -383,8 +420,12 @@ def admin():
     pending_withdrawals = conn.execute("SELECT * FROM withdrawals WHERE status='PENDING' ORDER BY id DESC").fetchall()
     pending_results = conn.execute("SELECT results.*, users.username FROM results LEFT JOIN users ON results.user_id=users.id WHERE results.status='PENDING' ORDER BY results.id DESC").fetchall()
     all_results = conn.execute("SELECT results.*, users.username FROM results LEFT JOIN users ON results.user_id=users.id WHERE results.status!='PENDING' ORDER BY results.id DESC LIMIT 20").fetchall()
+    # Stats
+    total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    total_tour = conn.execute("SELECT COUNT(*) FROM tournaments").fetchone()[0]
+    total_earning = conn.execute("SELECT SUM(fee * joined) FROM tournaments").fetchone()[0] or 0
     conn.close()
-    return render_template('admin.html', matches=tournaments, tournaments=tournaments, pending_payments=pending_payments, pending_withdrawals=pending_withdrawals, pending_results=pending_results, all_results=all_results)
+    return render_template('admin.html', matches=tournaments, tournaments=tournaments, pending_payments=pending_payments, pending_withdrawals=pending_withdrawals, pending_results=pending_results, all_results=all_results, total_users=total_users, total_tour=total_tour, total_earning=total_earning)
 
 @app.route('/account')
 @nocache
@@ -428,7 +469,7 @@ def verify():
     conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(float(amt)), utr, datetime.now().strftime("%d/%m %H:%M")))
     conn.commit()
     conn.close()
-    send_notify(f"💰 <b>NEW DEPOSIT</b>\nUser ID: {session['user_id']}\nAmount: ₹{amt}\nUTR: {utr}\nCheck Admin Panel!")
+    send_notify(f"💰 <b>NEW DEPOSIT</b>\nUser {session['user_id']}\n₹{amt}\nUTR {utr}")
     return jsonify({"ok":True})
 
 @app.route('/logout')
