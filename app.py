@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, session, make_response, jsonify, send_from_directory
 import sqlite3
 import os
+import requests
 from werkzeug.utils import secure_filename
 from datetime import datetime
 
@@ -13,8 +14,19 @@ os.makedirs('static', exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 MY_UPI_ID = "yourname@phonepe"
-# --- FIXED URL ---
 SITE_URL = "https://sd-tournments.onrender.com"
+
+# ========== TELEGRAM NOTIFICATION CONFIG - IDI MARCHU ==========
+BOT_TOKEN = "PASTE_YOUR_BOT_TOKEN_HERE" # Ex: 1234567890:AAHxyz...
+ADMIN_CHAT_ID = "PASTE_YOUR_CHAT_ID_HERE" # Ex: 123456789
+
+def send_notify(msg):
+    try:
+        if "PASTE" in BOT_TOKEN: return # Token set cheyaledu ante skip
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        requests.post(url, json={"chat_id": ADMIN_CHAT_ID, "text": msg, "parse_mode": "HTML"}, timeout=5)
+    except Exception as e:
+        print(f"Notify failed: {e}")
 
 def get_db():
     conn = sqlite3.connect(DB, check_same_thread=False, timeout=20)
@@ -49,12 +61,10 @@ def nocache(view):
     wrapper.__name__ = view.__name__
     return wrapper
 
-# ========== GOOGLE VERIFICATION - ADDED ==========
 @app.route('/google08d3e829b688619a.html')
 def google_verify():
     return "google-site-verification: google08d3e829b688619a.html"
 
-# ========== PWA + SEO ROUTES ==========
 @app.route('/manifest.json')
 def manifest():
     return send_from_directory('static', 'manifest.json')
@@ -80,7 +90,6 @@ def robots():
     txt = f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n"
     return make_response(txt, 200, {'Content-Type': 'text/plain'})
 
-# ========== MAIN ROUTES ==========
 @app.route('/')
 @nocache
 def index():
@@ -198,6 +207,7 @@ def register():
             user = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
             session['user_id'] = user['id']
             conn.close()
+            send_notify(f"👤 <b>NEW USER REGISTERED</b>\nUsername: {username}\nPhone: {phone}")
             return redirect('/')
         except:
             conn.close()
@@ -260,6 +270,7 @@ def submit_result():
     conn.execute("INSERT INTO results (match_id,user_id,kills,screenshot,status,time) VALUES (?,?,?,?, 'PENDING',?)", (mid, session['user_id'], kills, filename, datetime.now().strftime("%d/%m %H:%M")))
     conn.commit()
     conn.close()
+    send_notify(f"🏆 <b>NEW RESULT SUBMITTED</b>\nUser ID: {session['user_id']}\nMatch ID: {mid}\nKills: {kills}")
     return f"<h2>Submitted {kills} Kills</h2><a href='/'>Home</a>"
 
 @app.route('/match_result/<int:mid>')
@@ -288,6 +299,7 @@ def wallet():
             try:
                 conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(amount), utr, datetime.now().strftime("%d/%m %H:%M")))
                 conn.commit()
+                send_notify(f"💰 <b>DEPOSIT REQUEST (Wallet Page)</b>\nUser ID: {session['user_id']}\nAmount: ₹{amount}\nUTR: {utr}")
             except: pass
         if amount and upi_id:
             user = conn.execute("SELECT balance FROM users WHERE id=?", (session['user_id'],)).fetchone()
@@ -295,6 +307,7 @@ def wallet():
                 conn.execute("INSERT INTO withdrawals (user_id, amount, upi_id, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(amount), upi_id, datetime.now().strftime("%d/%m %H:%M")))
                 conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (int(amount), session['user_id']))
                 conn.commit()
+                send_notify(f"💸 <b>WITHDRAW REQUEST</b>\nUser ID: {session['user_id']}\nAmount: ₹{amount}\nUPI: {upi_id}")
         conn.close()
         return redirect('/wallet')
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
@@ -316,29 +329,19 @@ def admin():
             prize = request.form.get('prize'); total = request.form.get('total_slots') or request.form.get('total') or 10
             tim = request.form.get('time'); per_kill = request.form.get('per_kill') or 0
             conn.execute("INSERT INTO tournaments (game,type,map,time,prize,fee,per_kill,total,status) VALUES (?,?,?,?,?,?,?,?,'UPCOMING')", (game, typ, 'Bermuda', tim, prize, fee, per_kill, total))
-
-        elif action == 'set_room':
-            conn.execute("UPDATE tournaments SET room_id=?, room_pass=?, status='LIVE' WHERE id=?", (request.form.get('room_id'), request.form.get('room_pass'), request.form.get('mid')))
-
-        # ===== UPDATED DELETE WITH REFUND =====
+        elif action == 'set_room': conn.execute("UPDATE tournaments SET room_id=?, room_pass=?, status='LIVE' WHERE id=?", (request.form.get('room_id'), request.form.get('room_pass'), request.form.get('mid')))
         elif action == 'delete_tournament':
             tid = request.form.get('tournament_id')
             if tid:
                 tour = conn.execute("SELECT fee FROM tournaments WHERE id=?", (tid,)).fetchone()
                 if tour:
                     fee_amt = int(tour['fee'] or 0)
-                    # Get all joined users
                     joined_users = conn.execute("SELECT user_id FROM joined WHERE tournament_id=?", (tid,)).fetchall()
-                    # Refund each user
                     for ju in joined_users:
                         conn.execute("UPDATE users SET balance = balance +? WHERE id=?", (fee_amt, ju['user_id']))
-                    # Delete joined records
                     conn.execute("DELETE FROM joined WHERE tournament_id=?", (tid,))
                     conn.execute("DELETE FROM results WHERE match_id=?", (tid,))
-                # Finally delete tournament
                 conn.execute("DELETE FROM tournaments WHERE id=?", (tid,))
-
-        # ===== NEW CANCEL WITH REFUND =====
         elif action == 'cancel_tournament':
             tid = request.form.get('tournament_id')
             if tid:
@@ -349,7 +352,6 @@ def admin():
                     for ju in joined_users:
                         conn.execute("UPDATE users SET balance = balance +? WHERE id=?", (fee_amt, ju['user_id']))
                 conn.execute("UPDATE tournaments SET status='CANCELLED' WHERE id=?", (tid,))
-
         elif action == 'approve_payment':
             pid = request.form.get('payment_id') or request.form.get('id')
             if pid:
@@ -426,6 +428,7 @@ def verify():
     conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(float(amt)), utr, datetime.now().strftime("%d/%m %H:%M")))
     conn.commit()
     conn.close()
+    send_notify(f"💰 <b>NEW DEPOSIT</b>\nUser ID: {session['user_id']}\nAmount: ₹{amt}\nUTR: {utr}\nCheck Admin Panel!")
     return jsonify({"ok":True})
 
 @app.route('/logout')
