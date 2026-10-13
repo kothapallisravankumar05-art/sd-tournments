@@ -5,26 +5,23 @@
 body{background:#0f2f5f;padding-bottom:80px;}
 .top{background:#0a1931;color:white;padding:14px;text-align:center;font-weight:bold;}
 .card{background:#fff; color:#000; margin:12px; padding:15px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.3);}
-.live-banner{
-background:linear-gradient(90deg, #ff0000, #ff6a00);
-color:#fff; padding:10px; border-radius:8px; text-align:center;
-font-weight:bold; margin-bottom:10px; animation: blink 1s infinite;
-}
+.live-banner{background:linear-gradient(90deg, #ff0000, #ff6a00);color:#fff; padding:10px; border-radius:8px; text-align:center;font-weight:bold; margin-bottom:10px; animation: blink 1s infinite;}
 @keyframes blink { 0%{opacity:1} 50%{opacity:0.6} 100%{opacity:1} }
 .room-box{background:#000; color:#00ff88; padding:10px; border-radius:8px; border:1px dashed #00ff88; margin:8px 0;}
 .btn-copy{background:#00ff88; color:#000; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; cursor:pointer; margin-top:5px;}
-.alert-popup{
-position:fixed; top:20px; left:50%; transform:translateX(-50%);
-background:#00ff88; color:#000; padding:20px; border-radius:12px;
-font-weight:bold; z-index:9999; text-align:center; display:none;
-box-shadow:0 0 25px #00ff88; width:90%; max-width:350px;
-}
+.alert-popup{position:fixed; top:20px; left:50%; transform:translateX(-50%);background:#00ff88; color:#000; padding:20px; border-radius:12px;font-weight:bold; z-index:9999; text-align:center; display:none;box-shadow:0 0 25px #00ff88; width:90%; max-width:350px;}
 </style>
+<audio id="alertSound" src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" preload="auto"></audio>
 </head><body>
-
 <div class="top"><a href="/" style="color:white;text-decoration:none; float:left; margin-left:10px;">← Back</a> <b>My Matches</b></div>
-
 <div id="roomAlertPopup" class="alert-popup"></div>
+
+<script>
+let hasLiveRoom = false;
+{% for m in matches %}{% if m.room_id %}hasLiveRoom = true;{% endif %}{% endfor %}
+if(!hasLiveRoom){ setTimeout(()=>{ location.reload(); }, 20000); }
+else { setTimeout(()=>{ let a=document.getElementById('alertSound'); if(a) a.play().catch(()=>{}); if(navigator.vibrate) navigator.vibrate([500,200,500]); }, 1000); }
+</script>
 
 {% for m in matches %}
 <div class="card">
@@ -34,44 +31,31 @@ box-shadow:0 0 25px #00ff88; width:90%; max-width:350px;
 Room ID: <b style="font-size:20px; color:#fff;">{{ m.room_id }}</b><br>
 Password: <b style="font-size:18px; color:#fff;">{{ m.room_pass }}</b><br>
 <button class="btn-copy" onclick="copyRoom('{{ m.room_id }}')">📋 COPY ROOM ID</button>
-<button class="btn-copy" style="background:#ffcc00;" onclick="copyRoom('{{ m.room_pass }}')">📋 COPY PASSWORD</button>
+<button class="btn-copy" style="background:#ffcc00;" onclick="copyRoom('{{ m.room_pass }}')">📋 COPY PASS</button>
 </div>
 {% else %}
-<div style="background:#fff3cd; color:#856404; padding:8px; border-radius:6px; text-align:center; margin-bottom:8px;">
-⏳ Room ID will be shared 10 mins before match start
-</div>
+<div style="background:#fff3cd; color:#856404; padding:8px; border-radius:6px; text-align:center; margin-bottom:8px;">⏳ Room ID will be shared 10 mins before match</div>
 {% endif %}
-
 <b>{{ m.game }} | {{ m.mid }}</b><br>
 <small>Time: {{ m.time }}</small><br><br>
 Room ID: <b>{{ m.room_id }}</b><br>
 Password: <b>{{ m.room_pass }}</b><br>
 <p style="color:green">✅ Joined | Prize: ₹{{ m.prize }}</p>
 </div>
-
 <script>
-// Auto Popup Alert when Room is LIVE
 {% if m.room_id %}
 setTimeout(function(){
   let popup = document.getElementById('roomAlertPopup');
   popup.innerHTML = "🔔 ROOM ALERT!<br><br>Your Match <b>{{ m.game }}</b> is LIVE!<br><br>Room: <b>{{ m.room_id }}</b><br>Pass: <b>{{ m.room_pass }}</b><br><br>GO JOIN NOW!";
   popup.style.display = "block";
-  // Vibration for mobile
-  if(navigator.vibrate) navigator.vibrate(500);
   setTimeout(()=>{ popup.style.display="none"; }, 8000);
 }, 1000);
 {% endif %}
 </script>
-
 {% else %}
 <div style="text-align:center;margin-top:100px;color:white;">No matches joined yet<br><a href="/" style="color:#00ff88; font-weight:bold; text-decoration:none;">Join now</a></div>
 {% endfor %}
-
 <script>
-function copyRoom(text){
-  navigator.clipboard.writeText(text);
-  alert("Copied: " + text);
-}
+function copyRoom(text){ navigator.clipboard.writeText(text); alert("Copied: " + text); }
 </script>
-
 </body></html>
