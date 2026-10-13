@@ -79,7 +79,14 @@ def manifest(): return send_from_directory('static', 'manifest.json')
 def service_worker(): return send_from_directory('static', 'sw.js', mimetype='application/javascript')
 @app.route('/sitemap.xml')
 def sitemap():
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>{SITE_URL}/</loc><priority>1.0</priority></url></urlset>"""
+    xml = f'''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url><loc>{SITE_URL}/</loc><priority>1.0</priority><lastmod>{date.today()}</lastmod></url>
+<url><loc>{SITE_URL}/login</loc><priority>0.9</priority><lastmod>{date.today()}</lastmod></url>
+<url><loc>{SITE_URL}/register</loc><priority>0.9</priority><lastmod>{date.today()}</lastmod></url>
+<url><loc>{SITE_URL}/matches</loc><priority>0.8</priority><lastmod>{date.today()}</lastmod></url>
+<url><loc>{SITE_URL}/leaderboard</loc><priority>0.7</priority><lastmod>{date.today()}</lastmod></url>
+</urlset>'''
     return make_response(xml, 200, {'Content-Type': 'application/xml'})
 @app.route('/robots.txt')
 def robots(): return make_response(f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n", 200, {'Content-Type': 'text/plain'})
