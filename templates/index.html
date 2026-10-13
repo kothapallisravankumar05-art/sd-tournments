@@ -83,11 +83,10 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 <div class="details"><span>🗺 {{t.map}}</span><span>💰 ₹{{t.prize}}</span><span>🎯 ₹{{t.per_kill}}/Kill</span></div>
 {% if t.id in my_joined_ids %}
 <div class="room-box">
-<div style="font-weight:900;color:#ff4444;margin-bottom:5px">🔑 ROOM DETAILS:</div>
+<div style="font-weight:900;color:#ff4444;margin-bottom:5px">🔑 ROOM DETAILS (Nee Match Ke!):</div>
 <div>ID: <b style="font-size:18px">{{t.room_id}}</b> <button onclick="copyText('{{t.room_id}}')" style="background:#00ff88;border:none;padding:3px 7px;border-radius:4px;font-size:10px;margin-left:6px;font-weight:900">COPY</button></div>
 <div style="margin-top:4px">PASS: <b style="font-size:18px">{{t.room_pass}}</b> <button onclick="copyText('{{t.room_pass}}')" style="background:#ffcc00;border:none;padding:3px 7px;border-radius:4px;font-size:10px;margin-left:6px;font-weight:900">COPY</button></div>
 </div>
-
 <div class="submit-box">
 <div style="font-weight:900;color:gold;margin-bottom:6px;font-size:13px">📤 SUBMIT RESULT (Anti-Cheat)</div>
 <form action="/submit_result" method="POST" enctype="multipart/form-data">
@@ -96,11 +95,10 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 <input type="file" name="screenshot" accept="image/*" required style="width:100%;padding:6px;background:#222;color:#fff;border-radius:6px;margin-bottom:6px;">
 <button type="submit" style="width:100%;background:gold;color:#000;padding:10px;font-weight:900;border-radius:6px;border:none;">SUBMIT WITH SCREENSHOT</button>
 </form>
-<p style="font-size:10px;color:#888;margin-top:5px;">⚠️ Fake kills pedite screenshot lo telisipoddi. Admin REJECT chestadu. Screenshot lo Kills kanipinchali!</p>
+<p style="font-size:10px;color:#888;margin-top:5px;">⚠️ Fake kills pedite screenshot lo telisipoddi. Admin REJECT chestadu.</p>
 </div>
-
 {% else %}
-<button class="btn btn-dis">ROOM LOCKED - NOT JOINED</button>
+<button class="btn btn-dis">🔒 ROOM LOCKED - YOU DID NOT JOIN THIS MATCH (Vallake Velthadi!)</button>
 {% endif %}
 </div>
 </div>
