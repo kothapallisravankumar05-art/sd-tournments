@@ -221,28 +221,37 @@ def register():
         username = request.form.get('username','').strip()
         password = request.form.get('password','').strip()
         phone = request.form.get('phone','').strip()
+        if not username or not password:
+            return "<h2>Username & Password required</h2><a href='/register'>Back</a>"
         conn = get_db()
         try:
-            ref_code = ''.join(random.choices(string.ascii_uppercase+string.digits, k=6))
+            ref_code = ''.join(random.choices(string.ascii_uppercase+string.digits, k=5))
             conn.execute("INSERT INTO users (username,password,phone,balance,referral_code) VALUES (?,?,?,0,?)", (username,password,phone,ref_code))
             conn.commit()
             user = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
-            if 'ref_code' in session:
+            
+            if 'ref_code' in session and session['ref_code']:
                 ref_user = conn.execute("SELECT id FROM users WHERE referral_code=?", (session['ref_code'],)).fetchone()
-                if ref_user and ref_user['id']!= user['id']:
+                if ref_user and ref_user['id'] != user['id']:
                     conn.execute("UPDATE users SET balance=balance+20 WHERE id=?", (ref_user['id'],))
                     conn.execute("UPDATE users SET balance=balance+20, referred_by=? WHERE id=?", (ref_user['id'], user['id']))
                     conn.commit()
-                    add_txn(ref_user['id'], 20, "REFERRAL", f"Referral bonus for {username}")
-                    add_txn(user['id'], 20, "REFERRAL", "Welcome Referral Bonus ₹20")
-                    send_notify(f"💸 <b>REFERRAL BONUS</b>\n{username} joined via {session['ref_code']}\nBoth got ₹20")
-            session.permanent=True;session['user_id'] =...
+                    try:
+                        add_txn(ref_user['id'], 20, "REFERRAL", f"Referral bonus for {username}")
+                        add_txn(user['id'], 20, "REFERRAL", "Welcome Referral Bonus ₹20")
+                        send_notify(f"🎁 <b>REFERRAL BONUS</b>\n{username} joined via {session['ref_code']}\nBoth got ₹20")
+                    except: pass
+            
+            session.permanent = True
+            session['user_id'] = user['id']
             conn.close()
-            send_notify(f"👤 <b>NEW USER</b>\n{username}\nPhone: {phone}")
+            try: send_notify(f"👤 <b>NEW USER</b>\n{username}\nPhone: {phone}")
+            except: pass
             return redirect('/')
         except Exception as e:
-            conn.close()
-            return f"<h2>Username exists {e}</h2><a href='/register'>Back</a>"
+            try: conn.close()
+            except: pass
+            return f"<h2>Username exists or Error: {e}</h2><a href='/register'>Back</a>"
     return render_template('register.html')
 
 @app.route('/login', methods=['GET','POST'])
