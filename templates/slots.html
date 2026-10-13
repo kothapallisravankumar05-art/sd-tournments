@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Select Position - SD</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{background:#0f172a;color:#fff;min-height:100vh;padding-bottom:80px}
+.top{background:#0f172a;padding:15px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #1e293b;position:sticky;top:0;z-index:10}
+.green-head{background:#00ff88;color:#000;text-align:center;padding:14px;font-weight:900;letter-spacing:1px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:15px}
+.slot{background:#1e293b;border:2px solid #334155;border-radius:10px;padding:14px;text-align:center;font-weight:900;cursor:pointer;transition:0.2s}
+.slot.taken{background:#0f172a;border-style:dashed;opacity:0.4;color:#475569;cursor:not-allowed}
+.slot.selected{background:#00ff88;color:#000;border-color:#00ff88;box-shadow:0 0 10px #00ff88}
+.joinbtn{position:fixed;bottom:0;left:0;width:100%;background:#00ff88;color:#000;padding:18px;border:none;font-weight:900;font-size:18px;letter-spacing:1px}
+.info{margin:15px;background:#1e293b;border-radius:10px;padding:12px;display:flex;justify-content:space-between;font-size:12px;color:#94a3b8}
+</style>
+</head>
+<body>
+
+<div class="top">
+<a href="/match/{{t.id}}" style="color:#fff;text-decoration:none;font-size:22px">←</a>
+<b>Select Position - Match #{{t.id}}</b>
+</div>
+
+<div class="green-head">SELECT MATCH POSITION</div>
+
+<div class="info">
+<div>💚 Available</div>
+<div style="display:flex;gap:10px"><span style="color:#00ff88">■ Selected</span> <span style="color:#475569">■ Taken</span></div>
+<div>{{t.total - taken_slots|length}} Left / {{t.total}}</div>
+</div>
+
+<form method="GET" action="/confirm_join/{{t.id}}" id="slotForm">
+<div class="grid">
+{% for i in range(1, t.total+1) %}
+<label class="slot {% if i in taken_slots %}taken{% endif %}" id="s{{i}}" onclick="selectSlot({{i}})">
+{{i}}
+<input type="checkbox" value="{{i}}" style="display:none" {% if i in taken_slots %}disabled{% endif %}>
+</label>
+{% endfor %}
+</div>
+
+<input type="hidden" name="slot_no" id="slotInput" required>
+<button class="joinbtn" type="submit" id="joinBtn" disabled style="opacity:0.5">SELECT A SLOT</button>
+</form>
+
+<script>
+let sel=null;
+function selectSlot(n){
+ if(document.getElementById('s'+n).classList.contains('taken')) return;
+ document.querySelectorAll('.slot').forEach(e=>e.classList.remove('selected'));
+ document.getElementById('s'+n).classList.add('selected');
+ document.getElementById('slotInput').value=n;
+ document.getElementById('joinBtn').disabled=false;
+ document.getElementById('joinBtn').style.opacity=1;
+ document.getElementById('joinBtn').innerText='JOIN NOW - Slot #'+n;
+}
+</script>
+
+</body>
+</html>
