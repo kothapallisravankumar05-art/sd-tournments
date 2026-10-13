@@ -3,11 +3,20 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SD TOURNAMENTS</title>
+
+<!-- APP ICON & PWA SETUP - ADDED -->
+<link rel="manifest" href="/static/manifest.json">
+<link rel="icon" type="image/png" href="/static/icon.png">
+<link rel="apple-touch-icon" href="/static/icon.png">
+<meta name="theme-color" content="#00ff88">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SD TOURNAMENTS">
+
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
 body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('https://wallpapercave.com/wp/wp10551227.jpg'); background-size:cover; background-attachment:fixed; background-position:center; color:#fff;min-height:100vh}
 .header{background:rgba(30,41,59,0.95);padding:12px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10;flex-wrap:wrap;gap:8px}
-.logo{font-weight:900;color:#00ff88;font-size:16px}
+.logo{font-weight:900;color:#00ff88;font-size:16px;display:flex;align-items:center;gap:8px}
 .wallet{ background:#00ff88;color:#000;padding:6px 12px;border-radius:20px;font-weight:900;text-decoration:none;font-size:13px}
 .top-actions{display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-top:8px}
 .action-btn{flex:1;text-align:center;padding:8px 5px;border-radius:20px;font-weight:900;font-size:11px;text-decoration:none;display:block}
@@ -46,7 +55,7 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 <body>
 <div class="header">
 <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
-<div class="logo">🔥 SD TOURNAMENTS</div>
+<div class="logo"><img src="/static/icon.png" style="width:32px;height:32px;border-radius:50%;border:2px solid #00ff88"> 🔥 SD TOURNAMENTS</div>
 <div>
 <a class="wallet" href="/wallet">₹ {{user.balance}} | Wallet</a>
 <a href="/logout" style="color:#ff4444;text-decoration:none;margin-left:10px;font-size:13px">Logout</a>
