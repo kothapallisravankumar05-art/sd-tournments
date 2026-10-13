@@ -11,7 +11,7 @@ body{background:#0f172a;color:white;padding-bottom:80px;min-height:100vh}
 .card.live{border:2px solid #ff4444}
 .row{display:flex;justify-content:space-between;font-size:12px;color:gray;margin-top:8px}
 .pool{color:#5a00ff;font-weight:900}
-.btn{width:100%;padding:12px;border:none;border-radius:10px;font-weight:900;margin-top:10px;cursor:pointer}
+.btn{width:100%;padding:12px;border:none;border-radius:10px;font-weight:900;margin-top:10px;cursor:pointer;text-decoration:none;display:block;text-align:center}
 .join{background:#ffde59;color:black}
 .joined{background:#00c851;color:white}
 .nav{position:fixed;bottom:0;left:0;right:0;background:#1e293b;display:flex;justify-content:space-around;padding:12px 0;z-index:20}
@@ -22,6 +22,10 @@ body{background:#0f172a;color:white;padding-bottom:80px;min-height:100vh}
 .tab{flex:1;text-align:center;padding:10px;border-radius:8px;font-weight:800;font-size:12px;cursor:pointer;color:#9ca3af}
 .tab.active{background:#ffde59;color:#000}
 .section{display:none}.section.active{display:block}
+.slots{display:flex;gap:4px;flex-wrap:wrap;margin:10px 0}
+.s{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900}
+.s.j{background:#00c851;color:#fff}
+.s.l{background:#e5e7eb;color:#9ca3af;border:1px dashed #9ca3af}
 </style>
 </head>
 <body>
@@ -43,9 +47,18 @@ body{background:#0f172a;color:white;padding-bottom:80px;min-height:100vh}
 <div class="card">
 <div style="display:flex;justify-content:space-between"><b>{{ t.game }} - {{ t.type }}</b><span style="background:#e0e7ff;color:#5a00ff;padding:4px 10px;border-radius:12px;font-size:11px">{{ t.map }}</span></div>
 <div style="font-size:12px;color:gray;margin:5px 0">⏰ {{ t.time }} | 💰 ₹{{ t.prize }} | 🎯 ₹{{ t.per_kill }}/Kill</div>
-<div class="row"><span>POOL<br><b class="pool">₹{{ t.prize }}</b></span><span>JOINED<br><b>{{ t.joined }}/{{ t.total }}</b></span><span>FEE<br><b>₹{{ t.fee }}</b></span></div>
+<div class="row"><span>POOL<br><b class="pool">₹{{ t.prize }}</b></span><span>JOINED<br><b>{{ t.joined }}/{{ t.total }}</b></span><span>FEE<br><b>₹{{ t.fee }}</b></span><span style="color:#ff9900"><b>{{ t.total - t.joined }} Left</b></span></div>
+
+<!-- SLOT VISUAL ADDED -->
+<div class="slots">
+{% for i in range(1, t.total+1) %}
+<div class="s {% if i <= t.joined %}j{% else %}l{% endif %}">{{i}}</div>
+{% endfor %}
+</div>
+<div style="font-size:10px;color:#888">■ Joined ■ Available - {{t.total - t.joined}} spots remaining</div>
+
 <div style="background:#eee;height:6px;border-radius:10px;margin-top:10px"><div style="background:#5a00ff;height:6px;border-radius:10px;width:{{ (t.joined*100/t.total) if t.total>0 else 0 }}%"></div></div>
-{% if t.id in my_joined_ids %}<button class="btn joined">✅ JOINED</button>{% else %}<a href="/join/{{ t.id }}" style="text-decoration:none"><button class="btn join">JOIN NOW - ₹{{ t.fee }}</button></a>{% endif %}
+{% if t.id in my_joined_ids %}<button class="btn joined">✅ JOINED - Slot Booked</button>{% else %}<a href="/slots/{{ t.id }}" style="text-decoration:none"><button class="btn join">JOIN NOW - ₹{{ t.fee }} | {{ t.total - t.joined }} Left</button></a>{% endif %}
 </div>
 {% endif %}
 {% endfor %}
