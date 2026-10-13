@@ -6,9 +6,12 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
 body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('https://wallpapercave.com/wp/wp10551227.jpg'); background-size:cover; background-attachment:fixed; background-position:center; color:#fff;min-height:100vh}
-.header{background:rgba(30,41,59,0.95);padding:15px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
-.logo{font-weight:900;color:#00ff88;font-size:18px}
+.header{background:rgba(30,41,59,0.95);padding:12px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10;flex-wrap:wrap;gap:8px}
+.logo{font-weight:900;color:#00ff88;font-size:16px}
 .wallet{ background:#00ff88;color:#000;padding:6px 12px;border-radius:20px;font-weight:900;text-decoration:none;font-size:13px}
+.top-actions{display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-top:8px}
+.action-btn{flex:1;text-align:center;padding:8px 5px;border-radius:20px;font-weight:900;font-size:11px;text-decoration:none;display:block}
+.btn-gold{background:gold;color:#000}.btn-green2{background:#00ff88;color:#000}.btn-blue2{background:#00d4ff;color:#000}.btn-pink{background:#ff00ff;color:#fff}
 .tabs{display:flex;background:rgba(17,24,39,0.9);padding:5px;margin:10px;border-radius:12px;gap:5px}
 .tab{flex:1;text-align:center;padding:12px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;color:#9ca3af}
 .tab.active{background:#00ff88;color:#000}
@@ -42,10 +45,19 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 </head>
 <body>
 <div class="header">
+<div style="display:flex;justify-content:space-between;align-items:center;width:100%">
 <div class="logo">🔥 SD TOURNAMENTS</div>
 <div>
 <a class="wallet" href="/wallet">₹ {{user.balance}} | Wallet</a>
 <a href="/logout" style="color:#ff4444;text-decoration:none;margin-left:10px;font-size:13px">Logout</a>
+</div>
+</div>
+<!-- NEW ACTION BUTTONS -->
+<div class="top-actions">
+<a href="/leaderboard" class="action-btn btn-gold">🏆 LEADERBOARD</a>
+<a href="/daily_bonus" class="action-btn btn-green2">🎁 DAILY ₹5</a>
+<a href="/wallet" class="action-btn btn-pink">💸 REFER ₹20</a>
+<a href="/account" class="action-btn btn-blue2">👤 ACCOUNT</a>
 </div>
 </div>
 
@@ -59,14 +71,13 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 
 <div id="upcoming" class="section active">
 {% for t in tournaments %}
-{% if not t.room_id and t.status!= 'COMPLETED' %}
+{% if not t.room_id and t.status!= 'COMPLETED' and t.status!='CANCELLED' %}
 <div class="card">
 <div style="padding:15px">
 <div class="card-top"><span class="badge up">UPCOMING</span><span style="font-size:11px;color:#00ff88">{{t.joined}}/{{t.total}} Joined | <span style="color:#facc15">{{t.total - t.joined}} Left</span></span></div>
 <div class="title">{{t.game}} - {{t.type}}</div>
 <div class="details"><span>🗓 {{t.time}}</span><span>🗺 {{t.map}}</span><span>💰 ₹{{t.prize}}</span><span>🎯 ₹{{t.per_kill}}/Kill</span></div>
 
-<!-- REMAINING SLOTS VISUAL - USER KI ARDAM AVUDDI -->
 <div class="slots">
 {% for i in range(1, t.total+1) %}
 <div class="slot-mini {% if i <= t.joined %}joined{% else %}left{% endif %}">{{i}}</div>
@@ -82,11 +93,16 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 </div>
 {% endif %}
 {% endfor %}
+{% for t in tournaments %}{% if t.status=='CANCELLED'%}
+<div class="card" style="border-left-color:#ff4444;opacity:0.6">
+<div style="padding:15px"><span class="badge" style="background:#ff4444;color:#fff">CANCELLED - REFUNDED</span> <div class="title" style="text-decoration:line-through">{{t.game}} - {{t.type}} - REFUNDED</div></div>
+</div>
+{% endif %}{% endfor %}
 </div>
 
 <div id="ongoing" class="section">
 {% for t in tournaments %}
-{% if t.room_id and t.status!= 'COMPLETED' %}
+{% if t.room_id and t.status!= 'COMPLETED' and t.status!='CANCELLED' %}
 <div class="card ongoing">
 <div class="live-banner">🔴 LIVE NOW - ROOM ID READY - JOIN FAST!</div>
 <div style="padding:15px">
@@ -109,7 +125,7 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 </form>
 </div>
 {% else %}
-<button class="btn btn-dis">🔒 ROOM LOCKED - YOU DID NOT JOIN (Vallake Velthadi!)</button>
+<button class="btn btn-dis">🔒 ROOM LOCKED - YOU DID NOT JOIN</button>
 {% endif %}
 </div>
 </div>
