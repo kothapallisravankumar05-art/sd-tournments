@@ -14,14 +14,14 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 .tab.active{background:#00ff88;color:#000}
 .section{display:none;padding:10px}
 .section.active{display:block}
-.card{background:rgba(30,41,59,0.95);margin-bottom:12px;border-radius:15px;padding:15px;border-left:4px solid #00ff88}
+.card{background:rgba(30,41,59,0.95);margin-bottom:12px;border-radius:15px;padding:0;overflow:hidden;border-left:4px solid #00ff88}
 .card.ongoing{border-left-color:#ff4444}
-.card.result{border-left-color:#888}
+.card.result{border-left-color:gold}
 .card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .badge{font-size:10px;padding:4px 8px;border-radius:20px;font-weight:900}
 .badge.up{background:#00ff8833;color:#00ff88}
-.badge.on{background:#ff444433;color:#ff4444}
-.badge.re{background:#8883;color:#888}
+.badge.on{background:#ff444433;color:#ff4444;animation:blink 1s infinite}
+.badge.re{background:gold;color:#000}
 .title{font-weight:900;font-size:16px;margin:5px 0}
 .details{font-size:12px;color:#9ca3af;display:flex;gap:12px;margin:8px 0;flex-wrap:wrap}
 .btn{width:100%;padding:12px;border:none;border-radius:10px;font-weight:900;margin-top:8px;cursor:pointer}
@@ -29,7 +29,12 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 .btn-room{background:#ff4444;color:#fff}
 .btn-dis{background:#2d3748;color:#666}
 .room-box{background:#0006;padding:10px;border-radius:10px;margin-top:10px;border:1px dashed #ff4444}
+.live-banner{background:linear-gradient(90deg,#ff0000,#ff9900);color:#fff;padding:7px;text-align:center;font-weight:900;font-size:12px;animation:blink 1s infinite;letter-spacing:0.5px}
+@keyframes blink{0%{opacity:1}50%{opacity:0.5}100%{opacity:1}}
+.alert-popup{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#00ff88;color:#000;padding:15px 20px;border-radius:12px;font-weight:900;z-index:9999;text-align:center;display:none;box-shadow:0 0 25px #00ff88;width:90%;max-width:360px}
+.submit-box{margin-top:12px;background:#111;padding:12px;border-radius:10px;border:1px solid #333}
 </style>
+<audio id="alertSound" src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" preload="auto"></audio>
 </head>
 <body>
 <div class="header">
@@ -40,16 +45,19 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 </div>
 </div>
 
+<div id="liveAlert" class="alert-popup"></div>
+
 <div class="tabs">
 <div class="tab active" onclick="showTab('upcoming', this)">UPCOMING</div>
-<div class="tab" onclick="showTab('ongoing', this)">ONGOING</div>
+<div class="tab" onclick="showTab('ongoing', this)">ONGOING 🔴</div>
 <div class="tab" onclick="showTab('results', this)">RESULTS</div>
 </div>
 
 <div id="upcoming" class="section active">
 {% for t in tournaments %}
-{% if not t.room_id %}
+{% if not t.room_id and t.status!= 'COMPLETED' %}
 <div class="card">
+<div style="padding:15px">
 <div class="card-top"><span class="badge up">UPCOMING</span><span style="font-size:11px;color:#9ca3af">{{t.total}} Spots | {{t.joined}} Joined</span></div>
 <div class="title">{{t.game}} - {{t.type}}</div>
 <div class="details"><span>🗓 {{t.time}}</span><span>🗺 {{t.map}}</span><span>💰 ₹{{t.prize}}</span><span>🎯 ₹{{t.per_kill}}/Kill</span></div>
@@ -59,29 +67,62 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 <a href="/join/{{t.id}}"><button class="btn btn-join">JOIN NOW - ₹{{t.fee}}</button></a>
 {% endif %}
 </div>
+</div>
 {% endif %}
 {% endfor %}
 </div>
 
 <div id="ongoing" class="section">
 {% for t in tournaments %}
-{% if t.room_id %}
+{% if t.room_id and t.status!= 'COMPLETED' %}
 <div class="card ongoing">
+<div class="live-banner">🔴 LIVE NOW - ROOM ID READY - JOIN FAST!</div>
+<div style="padding:15px">
 <div class="card-top"><span class="badge on">● LIVE</span><span style="font-size:11px;color:#ff4444">{{t.time}}</span></div>
 <div class="title">{{t.game}} - {{t.type}}</div>
-<div class="details"><span>🗺 {{t.map}}</span><span>💰 ₹{{t.prize}}</span></div>
+<div class="details"><span>🗺 {{t.map}}</span><span>💰 ₹{{t.prize}}</span><span>🎯 ₹{{t.per_kill}}/Kill</span></div>
 {% if t.id in my_joined_ids %}
-<div class="room-box"><div style="font-weight:900;color:#ff4444;margin-bottom:5px">🔑 ROOM DETAILS:</div><div>ID: <b>{{t.room_id}}</b></div><div>PASS: <b>{{t.room_pass}}</b></div></div>
+<div class="room-box">
+<div style="font-weight:900;color:#ff4444;margin-bottom:5px">🔑 ROOM DETAILS:</div>
+<div>ID: <b style="font-size:18px">{{t.room_id}}</b> <button onclick="copyText('{{t.room_id}}')" style="background:#00ff88;border:none;padding:3px 7px;border-radius:4px;font-size:10px;margin-left:6px;font-weight:900">COPY</button></div>
+<div style="margin-top:4px">PASS: <b style="font-size:18px">{{t.room_pass}}</b> <button onclick="copyText('{{t.room_pass}}')" style="background:#ffcc00;border:none;padding:3px 7px;border-radius:4px;font-size:10px;margin-left:6px;font-weight:900">COPY</button></div>
+</div>
+
+<div class="submit-box">
+<div style="font-weight:900;color:gold;margin-bottom:6px;font-size:13px">📤 SUBMIT RESULT (Anti-Cheat)</div>
+<form action="/submit_result" method="POST" enctype="multipart/form-data">
+<input type="hidden" name="match_id" value="{{t.id}}">
+<input type="number" name="kills" placeholder="Your Kills (Ex: 5)" required style="width:100%;padding:9px;border-radius:6px;border:none;margin-bottom:6px;">
+<input type="file" name="screenshot" accept="image/*" required style="width:100%;padding:6px;background:#222;color:#fff;border-radius:6px;margin-bottom:6px;">
+<button type="submit" style="width:100%;background:gold;color:#000;padding:10px;font-weight:900;border-radius:6px;border:none;">SUBMIT WITH SCREENSHOT</button>
+</form>
+<p style="font-size:10px;color:#888;margin-top:5px;">⚠️ Fake kills pedite screenshot lo telisipoddi. Admin REJECT chestadu. Screenshot lo Kills kanipinchali!</p>
+</div>
+
 {% else %}
-<button class="btn btn-dis">ROOM LOCKED</button>
+<button class="btn btn-dis">ROOM LOCKED - NOT JOINED</button>
 {% endif %}
+</div>
 </div>
 {% endif %}
 {% endfor %}
 </div>
 
 <div id="results" class="section">
+{% for t in tournaments %}
+{% if t.status == 'COMPLETED' %}
+<div class="card result">
+<div style="padding:15px">
+<div class="card-top"><span class="badge re">🏆 COMPLETED</span><span style="font-size:11px;color:gold">Winner ID: {{t.winner_id}}</span></div>
+<div class="title">{{t.game}} - {{t.type}}</div>
+<div class="details"><span>🗓 {{t.time}}</span><span>💰 ₹{{t.prize}} Prize Distributed</span></div>
+<a href="/match_result/{{t.id}}"><button class="btn" style="background:gold;color:#000;">VIEW FULL RESULT TABLE 📊</button></a>
+</div>
+</div>
+{% endif %}
+{% else %}
 <div style="text-align:center;padding:40px;color:#aaa">🏁 Results Coming Soon!</div>
+{% endfor %}
 </div>
 
 <script>
@@ -90,6 +131,22 @@ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
 document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
 el.classList.add('active');
 document.getElementById(name).classList.add('active');
+}
+function copyText(txt){ navigator.clipboard.writeText(txt); alert("Copied: "+txt); }
+let hasLive = false;
+{% for t in tournaments %}{% if t.room_id and t.status!= 'COMPLETED' and t.id in my_joined_ids %}hasLive = true;{% endif %}{% endfor %}
+if(hasLive){
+  setTimeout(()=>{
+    let a=document.getElementById('alertSound'); if(a) a.play().catch(()=>{});
+    if(navigator.vibrate) navigator.vibrate([400,200,400]);
+    let pop=document.getElementById('liveAlert');
+    pop.innerHTML="🔔 YOUR MATCH IS LIVE NOW!<br>ONGOING lo Room ID chudu!";
+    pop.style.display="block";
+    showTab('ongoing', document.querySelectorAll('.tab')[1]);
+    setTimeout(()=>{pop.style.display="none"},6000);
+  },800);
+} else {
+  setInterval(()=>{ const active=document.querySelector('.tab.active'); if(active && (active.innerText.includes('UPCOMING')||active.innerText.includes('ONGOING'))) location.reload(); }, 25000);
 }
 </script>
 </body>
