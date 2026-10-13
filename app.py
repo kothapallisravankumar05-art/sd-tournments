@@ -16,8 +16,8 @@ SITE_URL = "https://sd-tournments.onrender.com"
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "PASTE_YOUR_BOT_TOKEN_HERE")
 ADMIN_CHAT_ID = os.getenv("CHAT_ID", "PASTE_YOUR_CHAT_ID_HERE")
-ADMIN_USER_ID = 19
-ADMIN_PASSWORD = "AKHI19" # <-- PASSWORD IKKADA MARCHU BRO!
+ADMIN_USER_ID = 1 # <-- ID 19 nunchi 1 ki marchesa bro! Nee first account ID 1!
+ADMIN_PASSWORD = "AKHI19"
 
 def send_notify(msg):
     try:
@@ -327,26 +327,44 @@ def wallet():
     conn.close()
     return render_template('wallet.html', user=user, payments=payments, withdrawals=withdrawals, transactions=txns, wallet=user['balance'])
 
+@app.route('/myid')
+@nocache
+def myid():
+    if 'user_id' not in session: return redirect('/login')
+    return f"""
+    <body style="background:#0a1628;color:#fff;font-family:Arial;text-align:center;padding:40px">
+    <h1 style="color:gold">NEE ID = {session['user_id']}</h1>
+    <p>Idhi ADMIN_USER_ID lo pettu bro!</p>
+    <a href="/admin" style="color:#00ff88">Admin ki vellu</a> | <a href="/" style="color:#fff">Home</a>
+    </body>
+    """
+
 @app.route('/admin', methods=['GET','POST'])
 @nocache
 def admin():
     if 'user_id' not in session: return redirect('/login')
     if session['user_id']!= ADMIN_USER_ID:
-        return "<h2>⛔ Access Denied! Only ID 19 can access</h2><a href='/'>Home</a>"
+        return f"""
+        <body style="background:#0a1628;color:#fff;font-family:Arial;text-align:center;padding:40px">
+        <h2 style="color:#ff4444">⛔ Access Denied!</h2>
+        <p>Your ID: {session['user_id']} | Required ID: {ADMIN_USER_ID}</p>
+        <p style="color:gold">app.py lo ADMIN_USER_ID = {session['user_id']} ani marchu!</p>
+        <a href="/myid" style="color:#00ff88">Check My ID</a> | <a href="/">Home</a>
+        </body>
+        """
 
-    # PASSWORD CHECK
     if session.get('admin_unlocked')!= True:
         if request.method == 'POST' and request.form.get('admin_pass_input'):
             if request.form.get('admin_pass_input') == ADMIN_PASSWORD:
                 session['admin_unlocked'] = True
             else:
-                return """<body style="background:#0a1628;color:#fff;font-family:Arial;text-align:center;padding:60px"><h2 style="color:#ff4444">❌ Wrong Password!</h2><a href="/admin" style="color:#00ff88">Try Again</a></body>"""
+                return """<body style="background:#0a1628;color:#fff;font-family:Arial;text-align:center;padding:60px"><h2 style="color:#ff4444">❌ Wrong Password AKHI19 kaadu!</h2><a href="/admin" style="color:#00ff88">Try Again</a></body>"""
         else:
-            return """
+            return f"""
             <body style="background:#0a1628;color:#fff;font-family:Arial;text-align:center;padding:40px">
             <div style="background:#162435;padding:30px;border-radius:15px;max-width:350px;margin:0 auto;border:1px solid gold">
-            <h2 style="color:gold">🔒 ADMIN LOGIN</h2><p style="color:#888;font-size:13px">ID 19 - Enter Password</p>
-            <form method="POST"><input type="password" name="admin_pass_input" placeholder="Enter Password 101210" style="width:100%;padding:14px;border-radius:10px;border:none;margin:15px 0;box-sizing:border-box" required>
+            <h2 style="color:gold">🔒 ADMIN LOGIN</h2><p style="color:#888;font-size:13px">ID {ADMIN_USER_ID} - Enter Password</p>
+            <form method="POST"><input type="password" name="admin_pass_input" placeholder="Password AKHI19" style="width:100%;padding:14px;border-radius:10px;border:none;margin:15px 0;box-sizing:border-box" required>
             <button type="submit" style="width:100%;background:gold;color:#000;padding:12px;border:none;border-radius:10px;font-weight:900;cursor:pointer">UNLOCK ADMIN</button></form></div></body>"""
 
     conn = get_db()
@@ -412,16 +430,25 @@ def admin():
                 add_txn(r['user_id'], total_win, "WIN", f"Won Tournament #{r['match_id']} - {r['kills']} kills")
         elif action == 'reject_result': conn.execute("UPDATE results SET status='REJECTED' WHERE id=?", (request.form.get('result_id'),))
         conn.commit()
-    tournaments = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
-    pending_payments = conn.execute("SELECT * FROM payments WHERE status='PENDING' ORDER BY id DESC").fetchall()
-    pending_withdrawals = conn.execute("SELECT * FROM withdrawals WHERE status='PENDING' ORDER BY id DESC").fetchall()
-    pending_results = conn.execute("SELECT results.*, users.username FROM results LEFT JOIN users ON results.user_id=users.id WHERE results.status='PENDING' ORDER BY results.id DESC").fetchall()
-    all_results = conn.execute("SELECT results.*, users.username FROM results LEFT JOIN users ON results.user_id=users.id WHERE results.status!='PENDING' ORDER BY results.id DESC LIMIT 20").fetchall()
-    total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-    total_tour = conn.execute("SELECT COUNT(*) FROM tournaments").fetchone()[0]
-    total_earning = conn.execute("SELECT SUM(fee * joined) FROM tournaments").fetchone()[0] or 0
-    conn.close()
-    return render_template('admin.html', matches=tournaments, tournaments=tournaments, pending_payments=pending_payments, pending_withdrawals=pending_withdrawals, pending_results=pending_results, all_results=all_results, total_users=total_users, total_tour=total_tour, total_earning=total_earning)
+    try:
+        tournaments = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
+        pending_payments = conn.execute("SELECT * FROM payments WHERE status='PENDING' ORDER BY id DESC").fetchall()
+        pending_withdrawals = conn.execute("SELECT * FROM withdrawals WHERE status='PENDING' ORDER BY id DESC").fetchall()
+        pending_results = conn.execute("SELECT results.*, users.username FROM results LEFT JOIN users ON results.user_id=users.id WHERE results.status='PENDING' ORDER BY results.id DESC").fetchall()
+        all_results = conn.execute("SELECT results.*, users.username FROM results LEFT JOIN users ON results.user_id=users.id WHERE results.status!='PENDING' ORDER BY results.id DESC LIMIT 20").fetchall()
+        total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        total_tour = conn.execute("SELECT COUNT(*) FROM tournaments").fetchone()[0]
+        total_earning = conn.execute("SELECT SUM(fee * joined) FROM tournaments").fetchone()[0] or 0
+        conn.close()
+        return render_template('admin.html', matches=tournaments, tournaments=tournaments, pending_payments=pending_payments, pending_withdrawals=pending_withdrawals, pending_results=pending_results, all_results=all_results, total_users=total_users, total_tour=total_tour, total_earning=total_earning)
+    except:
+        # Fallback if admin.html missing
+        tournaments = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
+        conn.close()
+        html = "<body style='background:#0a1628;color:#fff;font-family:Arial;padding:20px'><h1 style='color:gold'>👑 ADMIN - AKHI19</h1>"
+        html += "<div style='background:#162435;padding:20px;border-radius:10px'><h3>Create</h3><form method='POST'><input type='hidden' name='action' value='create_match'><input name='game' placeholder='Game' required style='padding:10px;margin:5px'><input name='type' placeholder='Type' style='padding:10px;margin:5px'><input name='prize' placeholder='Prize' style='padding:10px;margin:5px'><input name='fee' placeholder='Fee' style='padding:10px;margin:5px'><input name='total' placeholder='Slots' style='padding:10px;margin:5px'><button style='background:gold;padding:10px'>CREATE</button></form></div>"
+        for t in tournaments: html += f"<div style='background:#1a2a40;padding:10px;margin:5px'>ID {t['id']} - {t['game']} ₹{t['prize']}</div>"
+        return html + "</body>"
 
 @app.route('/account')
 @nocache
