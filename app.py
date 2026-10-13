@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, session
 import sqlite3, os
 from werkzeug.utils import secure_filename
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = "sd_secret_2024"
@@ -14,12 +15,14 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-# INIT
+# INIT ALL TABLES
 conn = get_db()
 conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, password TEXT, balance INTEGER DEFAULT 0)")
-conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT, time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING', winner_id TEXT)")
+conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING', winner_id TEXT)")
 conn.execute("CREATE TABLE IF NOT EXISTS joined (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, tournament_id INTEGER)")
-conn.execute("CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY AUTOINCREMENT, match_id INTEGER, user_id INTEGER, kills INTEGER, screenshot TEXT, status TEXT DEFAULT 'PENDING')")
+conn.execute("CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY AUTOINCREMENT, match_id INTEGER, user_id INTEGER, kills INTEGER, screenshot TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
+conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, utr TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
+conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
 conn.commit()
 conn.close()
 
@@ -73,17 +76,17 @@ def submit_result():
     ex = conn.execute("SELECT * FROM results WHERE match_id=? AND user_id=?", (mid, session['user_id'])).fetchone()
     if ex:
         conn.close()
-        return "<h2 style='color:red;text-align:center;padding:50px'>❌ Already Submitted! Wait for admin.</h2><a href='/'>Home</a>"
+        return "<body style='background:#111;color:#ff4444;text-align:center;padding:50px;font-family:Arial'><h2>❌ Already Submitted!</h2><p>Admin verification lo undi. Wait chey.</p><br><a href='/' style='background:#00ff88;color:#000;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:900'>Go Home</a></body>"
     filename = ""
     if 'screenshot' in request.files:
         f = request.files['screenshot']
         if f.filename:
-            filename = secure_filename(f"{mid}_{session['user_id']}_{f.filename}")
+            filename = secure_filename(f"{mid}_{session['user_id']}_{datetime.now().strftime('%H%M%S')}_{f.filename}")
             f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-    conn.execute("INSERT INTO results (match_id,user_id,kills,screenshot,status) VALUES (?,?,?,?, 'PENDING')", (mid, session['user_id'], kills, filename))
+    conn.execute("INSERT INTO results (match_id,user_id,kills,screenshot,status,time) VALUES (?,?,?,?, 'PENDING',?)", (mid, session['user_id'], kills, filename, datetime.now().strftime("%d/%m %H:%M")))
     conn.commit()
     conn.close()
-    return "<body style='background:#111;color:#00ff88;text-align:center;padding:50px;font-family:Arial'><h2>✅ Submitted with Screenshot!</h2><p>Kills: "+kills+"</p><a href='/' style='background:#00ff88;color:#000;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:900'>Go Home</a></body>"
+    return "<body style='background:#111;color:#00ff88;text-align:center;padding:50px;font-family:Arial'><h2>✅ Submitted with Screenshot!</h2><p>Kills: "+kills+"<br>Admin verify chesi prize istadu.</p><br><a href='/' style='background:#00ff88;color:#000;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:900'>Go Home</a></body>"
 
 @app.route('/match_result/<int:mid>')
 def match_result(mid):
@@ -93,7 +96,7 @@ def match_result(mid):
     final=[]
     for r in results:
         u = conn.execute("SELECT username FROM users WHERE id=?", (r['user_id'],)).fetchone()
-        prize = (int(t['prize']) if t else 0) + (int(r['kills'])*int(t['per_kill'] or 0))
+        prize = (int(t['prize']) if t and t['prize'] else 0) + (int(r['kills'])*int(t['per_kill'] or 0) if t else 0)
         final.append({'player_name': u['username'] if u else f"User {r['user_id']}", 'kills': r['kills'], 'winning': prize})
     conn.close()
     return render_template('match_result.html', t=t, results=final)
@@ -104,15 +107,29 @@ def wallet():
     conn=get_db(); user=conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone(); conn.close()
     return render_template('wallet.html', user=user)
 
+# FINAL ADMIN - SUPPORTS ALL ACTIONS
 @app.route('/admin', methods=['GET','POST'])
 def admin():
     conn = get_db()
     if request.method == 'POST':
         action = request.form.get('action')
-        if action == 'create_match':
-            conn.execute("INSERT INTO tournaments (game,type,map,time,prize,fee,per_kill,total,status) VALUES (?,?,?,?,?,?,?,?,'UPCOMING')", (request.form.get('game'), request.form.get('type'), request.form.get('map'), request.form.get('time'), request.form.get('prize'), request.form.get('fee'), request.form.get('per_kill',0), request.form.get('total',10)))
+        # CREATE TOURNAMENT - supports both add_tournament and create_match
+        if action in ['add_tournament','create_match']:
+            game = request.form.get('game')
+            typ = request.form.get('type')
+            fee = request.form.get('entry_fee') or request.form.get('fee') or 0
+            prize = request.form.get('prize')
+            total = request.form.get('total_slots') or request.form.get('total') or 10
+            tim = request.form.get('time')
+            per_kill = request.form.get('per_kill') or 0
+            conn.execute("INSERT INTO tournaments (game,type,map,time,prize,fee,per_kill,total,status) VALUES (?,?,?,?,?,?,?,?,'UPCOMING')", (game, typ, 'Bermuda', tim, prize, fee, per_kill, total))
+
         elif action == 'set_room':
             conn.execute("UPDATE tournaments SET room_id=?, room_pass=?, status='LIVE' WHERE id=?", (request.form.get('room_id'), request.form.get('room_pass'), request.form.get('mid')))
+
+        elif action == 'delete_tournament':
+            conn.execute("DELETE FROM tournaments WHERE id=?", (request.form.get('tournament_id'),))
+
         elif action == 'approve_result':
             r = conn.execute("SELECT match_id,user_id,kills FROM results WHERE id=?", (request.form.get('result_id'),)).fetchone()
             if r:
@@ -121,13 +138,39 @@ def admin():
                 conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (total_win, r['user_id']))
                 conn.execute("UPDATE results SET status='APPROVED' WHERE id=?", (request.form.get('result_id'),))
                 conn.execute("UPDATE tournaments SET status='COMPLETED', winner_id=? WHERE id=?", (r['user_id'], r['match_id']))
+
         elif action == 'reject_result':
             conn.execute("UPDATE results SET status='REJECTED' WHERE id=?", (request.form.get('result_id'),))
+
+        elif action == 'approve_payment':
+            p = conn.execute("SELECT user_id,amount FROM payments WHERE id=?", (request.form.get('payment_id'),)).fetchone()
+            if p:
+                conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (p['amount'], p['user_id']))
+                conn.execute("UPDATE payments SET status='APPROVED' WHERE id=?", (request.form.get('payment_id'),))
+
+        elif action == 'reject_payment':
+            conn.execute("UPDATE payments SET status='REJECTED' WHERE id=?", (request.form.get('payment_id'),))
+
+        elif action == 'approve_withdrawal':
+            conn.execute("UPDATE withdrawals SET status='APPROVED' WHERE id=?", (request.form.get('withdrawal_id'),))
+
+        elif action == 'reject_withdrawal':
+            w = conn.execute("SELECT user_id,amount FROM withdrawals WHERE id=?", (request.form.get('withdrawal_id'),)).fetchone()
+            if w:
+                conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (w['amount'], w['user_id']))
+                conn.execute("UPDATE withdrawals SET status='REJECTED' WHERE id=?", (request.form.get('withdrawal_id'),))
         conn.commit()
+
     tournaments = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
-    results = conn.execute("SELECT * FROM results ORDER BY id DESC").fetchall()
+    pending_payments = conn.execute("SELECT * FROM payments WHERE status='PENDING' ORDER BY id DESC").fetchall()
+    pending_withdrawals = conn.execute("SELECT * FROM withdrawals WHERE status='PENDING' ORDER BY id DESC").fetchall()
+    pending_results = conn.execute("SELECT results.*, users.username FROM results LEFT JOIN users ON results.user_id=users.id WHERE results.status='PENDING' ORDER BY results.id DESC").fetchall()
+    all_results = conn.execute("SELECT * FROM results ORDER BY id DESC LIMIT 30").fetchall()
+    # For old template compatibility
+    results = all_results
+
     conn.close()
-    return render_template('admin.html', tournaments=tournaments, results=results)
+    return render_template('admin.html', matches=tournaments, tournaments=tournaments, pending_payments=pending_payments, pending_withdrawals=pending_withdrawals, pending_results=pending_results, all_results=all_results, results=results)
 
 @app.route('/logout')
 def logout():
