@@ -523,19 +523,19 @@ def get_upi():
 @app.route('/verify_upi', methods=['POST'])
 @nocache
 def verify():
-    if 'user_id' not in session: return jsonify({"ok":False, "msg":"Login ledu"})
+    if 'user_id' not in session: return jsonify({"ok":False, "msg":"Login Require"})
     data = request.get_json() or {}
     utr = (data.get('utr') or "").strip().upper()
     amt = data.get('amount')
-    if len(utr) < 6: return jsonify({"ok":False, "msg":"UTR short - 12 digit pettu"})
+    if len(utr) < 6: return jsonify({"ok":False, "msg":"UTR short - ENTER 12 digit "})
     conn = get_db()
     dup = conn.execute("SELECT id, user_id FROM payments WHERE utr=?", (utr,)).fetchone()
     if dup:
         conn.close()
         if int(dup['user_id']) == session['user_id']:
-            return jsonify({"ok":False, "msg":"Ee UTR ni nuvve mundhu pampav - Duplicate!"})
+            return jsonify({"ok":False, "msg":"UTR IS USED - Duplicate!"})
         else:
-            return jsonify({"ok":False, "msg":"Fake UTR! Ee UTR inkokaru vadaru"})
+            return jsonify({"ok":False, "msg":"UTR Is Used Try Again! "})
     try:
         conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(float(amt)), utr, datetime.now().strftime("%d/%m %H:%M")))
         conn.commit()
@@ -544,7 +544,7 @@ def verify():
         conn.close()
         return jsonify({"ok":False, "msg":f"Error: {e}"})
     conn.close()
-    return jsonify({"ok":True, "msg":"UTR Submitted - Admin approve chestadu"})
+    return jsonify({"ok":True, "msg":"UTR Submitted - Wait For Approval!"})
 
 @app.route('/logout')
 def logout():
