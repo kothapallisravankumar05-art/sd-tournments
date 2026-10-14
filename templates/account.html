@@ -1,18 +1,66 @@
 <!DOCTYPE html>
 <html>
-<head><meta name="viewport" content="width=device-width, initial-scale=1">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Account - SD TOURNAMENT</title>
-<style>*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}body{background:#e5e5e5;min-height:100vh}.top{background:#0a1931;color:white;padding:20px;text-align:center}.stats{background:#1e2a4a;color:white;display:flex;justify-content:space-around;padding:16px;border-radius:12px;margin:-25px 15px 15px 15px;text-align:center;box-shadow:0 5px 15px #0005}.menu{margin:10px 15px;background:white;border-radius:10px;padding:15px;display:flex;justify-content:space-between;color:#000;text-decoration:none;font-weight:600}</style>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{background:#e5e5e5;min-height:100vh}
+.top{background:#0a1931;color:white;padding:20px;text-align:center}
+.stats{background:#1e2a4a;color:white;display:flex;justify-content:space-around;padding:16px;border-radius:12px;margin:-25px 15px 15px 15px;text-align:center;box-shadow:0 5px 15px #0005}
+.menu{margin:10px 15px;background:white;border-radius:10px;padding:15px;display:flex;justify-content:space-between;color:#000;text-decoration:none;font-weight:600;align-items:center}
+.refer-box{margin:15px;background:white;border-radius:12px;padding:15px;border:2px dashed #0a1931}
+.refer-input{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;margin:10px 0;font-size:12px;background:#f5f5f5}
+.btn-copy{background:#0a1931;color:white;border:none;padding:10px 20px;border-radius:8px;font-weight:800;cursor:pointer;width:100%}
+.btn-wa{background:#25D366;color:white;border:none;padding:10px 20px;border-radius:8px;font-weight:800;cursor:pointer;width:100%;margin-top:8px}
+</style>
 </head>
 <body>
-<div class="top"><br><h2>Welcome Back,<br>{{ user.username }}</h2><p style="font-size:13px;color:#aaa">ID: {{ user.id }} | 📱 {{ user.phone }}</p><br><br></div>
-<div class="stats"><div><b style="font-size:20px;color:gold">{{ played }}</b><br><small>Matches Played</small></div><div><b style="font-size:20px;color:#00ff88">{{ killed }}</b><br><small>Total Killed</small></div><div><b style="font-size:20px;color:gold">💰 {{ won }}</b><br><small>Amount Won</small></div></div>
+<div class="top"><br><h2>Welcome Back,<br>{{ user.username }}</h2><p style="font-size:13px;color:#aaa">ID: {{ user.id }} | 📱 {{ user.phone }} | Code: {{ user.referral_code }}</p><br><br></div>
+
+<div class="stats">
+<div><b style="font-size:20px;color:gold">{{ played }}</b><br><small>Matches Played</small></div>
+<div><b style="font-size:20px;color:#00ff88">{{ killed or 0 }}</b><br><small>Total Killed</small></div>
+<div><b style="font-size:20px;color:gold">💰 {{ won or 0 }}</b><br><small>Amount Won</small></div>
+</div>
+
+<!-- ✅ NEW REFERRAL BOX -->
+<div class="refer-box">
+<h3 style="text-align:center">🎁 Invite & Earn Rs 20</h3>
+<p style="font-size:12px;color:#666;text-align:center;margin:5px 0">Share your link - You & Friend both get Rs 20!</p>
+
+<label style="font-size:12px;font-weight:700">Your Refer Code:</label>
+<input class="refer-input" value="{{ user.referral_code }}" readonly style="text-align:center;font-weight:900;font-size:16px;letter-spacing:2px" id="codeInput">
+
+<label style="font-size:12px;font-weight:700">Your Refer Link:</label>
+<input class="refer-input" value="{{ site_url }}/refer/{{ user.referral_code }}" readonly id="linkInput">
+
+<button class="btn-copy" onclick="copyLink()">📋 COPY LINK</button>
+<button class="btn-wa" onclick="shareWA()">🟢 SHARE ON WHATSAPP</button>
+<p id="copied" style="text-align:center;color:green;font-size:12px;display:none;margin-top:8px">✅ Copied!</p>
+</div>
 
 <a href="/wallet" style="text-decoration:none"><div class="menu">💼 My Wallet - ₹{{ user.balance }} <span>></span></div></a>
 <a href="/matches" style="text-decoration:none"><div class="menu">🎮 My Matches <span>></span></div></a>
-<div class="menu" onclick="alert('Stats: Played {{ played }}, Kills {{ killed }}, Won ₹{{ won }}')">📊 My Statistics <span>></span></div>
+<div class="menu" onclick="alert('Stats: Played {{ played }}, Kills {{ killed or 0 }}, Won ₹{{ won or 0 }}')">📊 My Statistics <span>></span></div>
 
 <br><a href="/" style="display:block;text-align:center;background:#0a1931;color:white;padding:12px 20px;border-radius:20px;margin:15px;text-decoration:none;font-weight:900">⬅ Back to Play</a>
 <a href="/logout" style="display:block;text-align:center;color:#ff4444;margin:10px;text-decoration:none">Logout</a>
+
+<script>
+function copyLink(){
+  var copyText = document.getElementById("linkInput");
+  copyText.select();
+  copyText.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(copyText.value);
+  document.getElementById("copied").style.display="block";
+  setTimeout(()=>{document.getElementById("copied").style.display="none"},2000);
+}
+function shareWA(){
+  var link = document.getElementById("linkInput").value;
+  var msg = "🔥 Join SD TOURNAMENT & Win Cash! Use my link: " + link + " - Get Rs 20 Bonus Instant!";
+  window.open("https://wa.me/?text="+encodeURIComponent(msg), "_blank");
+}
+</script>
 </body>
 </html>
