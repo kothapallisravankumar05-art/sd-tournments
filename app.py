@@ -1,20 +1,26 @@
 from flask import Flask, render_template, request, redirect, session, make_response, jsonify, send_from_directory
-import sqlite3, os, requests, random, string
+import os, requests, random, string, sqlite3
 from werkzeug.utils import secure_filename
-from datetime import datetime, date,timedelta
+from datetime import datetime, date, timedelta
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+IS_POSTGRES = bool(DATABASE_URL and DATABASE_URL.startswith("postgres"))
+
+if IS_POSTGRES:
+    import psycopg2
+    import psycopg2.extras
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "sd_final_secret_2026_rocket")
 app.config['PERMANENT_SESSION_LIFETIME']=timedelta(days=3650)
 
-# ===== FIX: PERSISTENT DB FOR RENDER DISK =====
 if os.path.isdir("/data"):
     BASE_DIR = "/data"
-    DB = os.path.join(BASE_DIR, "sd.db")
+    DB_FILE = os.path.join(BASE_DIR, "sd.db")
     UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 else:
     BASE_DIR = "."
-    DB = "sd.db"
+    DB_FILE = "sd.db"
     UPLOAD_FOLDER = 'static/uploads'
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -23,7 +29,6 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 MY_UPI_ID = os.getenv("UPI_ID", "yourname@phonepe")
 SITE_URL = "https://sd-tournments.onrender.com"
-
 BOT_TOKEN = os.getenv("BOT_TOKEN", "PASTE_YOUR_BOT_TOKEN_HERE")
 ADMIN_CHAT_ID = os.getenv("CHAT_ID", "PASTE_YOUR_CHAT_ID_HERE")
 ADMIN_USER_ID = 1
@@ -36,14 +41,40 @@ def send_notify(msg):
         requests.post(url, json={"chat_id": ADMIN_CHAT_ID, "text": msg, "parse_mode": "HTML"}, timeout=5)
     except: pass
 
+class PGWrapper:
+    def __init__(self, conn):
+        self.conn = conn
+        self.last_cur = None
+    def execute(self, query, params=()):
+        q = query.replace("?", "%s")
+        if q.strip().upper().startswith("PRAGMA"):
+            class Dummy:
+                def fetchone(self): return None
+                def fetchall(self): return []
+            return Dummy()
+        cur = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(q, params)
+        self.last_cur = cur
+        return cur
+    def commit(self): self.conn.commit()
+    def close(self):
+        try:
+            if self.last_cur: self.last_cur.close()
+        except: pass
+        self.conn.close()
+
 def get_db():
-    conn = sqlite3.connect(DB, check_same_thread=False, timeout=20)
-    conn.row_factory = sqlite3.Row
-    try:
-        conn.execute("PRAGMA journal_mode=WAL;")
-        conn.execute("PRAGMA synchronous=NORMAL;")
-    except: pass
-    return conn
+    if IS_POSTGRES:
+        pg_conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        return PGWrapper(pg_conn)
+    else:
+        conn = sqlite3.connect(DB_FILE, check_same_thread=False, timeout=20)
+        conn.row_factory = sqlite3.Row
+        try:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute("PRAGMA synchronous=NORMAL;")
+        except: pass
+        return conn
 
 def add_txn(user_id, amount, type_, desc):
     try:
