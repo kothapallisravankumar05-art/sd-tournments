@@ -62,19 +62,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-    // UNREGISTER OLD SW & REGISTER NEW ONE - FIXES TAB ISSUE
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for(let registration of registrations) {
-          registration.unregister();
-        }
-      });
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js?v=2')
-        .then(reg => console.log('New SW registered'))
-        .catch(err => console.log('SW failed'));
-      });
-    }
+    console.log("SD App Loaded")
     </script>
 
     <script>
