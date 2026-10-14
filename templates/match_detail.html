@@ -41,12 +41,12 @@ body{background:#0f172a;color:#fff;min-height:100vh;padding:15px}
 <h4 style="color:gold;text-align:center;margin-bottom:10px">📤 Submit Result</h4>
 <form action="/submit_result" method="POST" enctype="multipart/form-data">
 <input type="hidden" name="match_id" value="{{t.id}}">
-<input name="kills" type="number" class="input-box" placeholder="Kills Entha? (0-30)" min="0" max="30" required>
+<input name="kills" type="number" class="input-box" placeholder="KILLS (0-30)" min="0" max="30" required>
 <label style="color:#aaa;font-size:12px">Screenshot Proof (Compulsory):</label>
 <input type="file" name="screenshot" accept="image/*" required class="file-box">
 <button type="submit" class="btn submit">SUBMIT KILLS + SCREENSHOT</button>
 </form>
-<p style="color:#666;font-size:11px;text-align:center;margin-top:8px">* Fake screenshot pedithe ban avuthav!</p>
+<p style="color:#666;font-size:11px;text-align:center;margin-top:8px">* If You Upload Fake Screenshot Reward Amount Not Be Credited!</p>
 </div>
 {% endif %}
 
