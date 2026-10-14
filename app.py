@@ -53,7 +53,7 @@ class PGWrapper:
                 def fetchone(self): return None
                 def fetchall(self): return []
             return Dummy()
-        cur = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         cur.execute(q, params)
         self.last_cur = cur
         return cur
