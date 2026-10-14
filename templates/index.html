@@ -7,7 +7,7 @@
 <link rel="manifest" href="/static/manifest.json">
 <link rel="icon" type="image/png" href="/static/icon.png">
 <link rel="apple-touch-icon" href="/static/icon.png">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#ff6600">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SD TOURNAMENTS">
 
@@ -180,5 +180,16 @@ if(hasLive){
   setInterval(()=>{ const active=document.querySelector('.tab.active'); if(active && (active.innerText.includes('UPCOMING')||active.innerText.includes('ONGOING'))) location.reload(); }, 25000);
 }
 </script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/static/sw.js')
+     .then(function(reg){ console.log('SD App Ready!'); })
+     .catch(function(err){ console.log('SW fail', err); });
+  });
+}
+</script>
+
 </body>
 </html>
