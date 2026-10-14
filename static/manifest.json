@@ -1,13 +1,22 @@
 {
   "name": "SD TOURNAMENTS",
-  "short_name": "SD TOURNAMENT",
+  "short_name": "SD TOURNAMENTS",
+  "description": "Free Fire Tournaments - Win Cash Prizes",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#00ff88",
+  "background_color": "#000000",
+  "theme_color": "#ff6600",
+  "orientation": "portrait",
   "icons": [
-    {"src": "/static/icon-512.png","sizes": "512x512","type": "image/png"},
-    {"src": "/static/icon-192.png","sizes": "192x192","type": "image/png"}
+    {
+      "src": "/static/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
-    }
+  ]
 }
