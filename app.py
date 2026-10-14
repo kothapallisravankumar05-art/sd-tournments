@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, session, make_response, jsonify, send_from_directory
-import os, requests, random, string, sqlite3
+import os, requests, random, string, sqlite3, traceback
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime, date, timedelta
@@ -35,17 +35,10 @@ ADMIN_CHAT_ID = os.getenv("CHAT_ID", "PASTE_YOUR_CHAT_ID_HERE")
 ADMIN_USER_ID = 1
 ADMIN_PASSWORD = "NANI19"
 
-def send_notify(msg):
-    try:
-        if "PASTE" in BOT_TOKEN or not BOT_TOKEN: return
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        requests.post(url, json={"chat_id": ADMIN_CHAT_ID, "text": msg, "parse_mode": "HTML"}, timeout=5)
-    except: pass
-
+# --- PG WRAPPER FIXED ---
 class PGWrapper:
     def __init__(self, conn):
         self.conn = conn
-        self.last_cur = None
     def execute(self, query, params=()):
         q = query.replace("?", "%s")
         if q.strip().upper().startswith("PRAGMA"):
@@ -55,33 +48,23 @@ class PGWrapper:
                 def __getitem__(self, i): return 0
             return Dummy()
         cur = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        try:
-            cur.execute(q, params)
-        except Exception as e:
-            print(f"SQL Error: {e} | Query: {q} | Params: {params}")
-            raise e
-        self.last_cur = cur
+        cur.execute(q, params)
         return cur
-    def commit(self):
-        self.conn.commit()
-    def close(self):
-        try:
-            if self.last_cur: self.last_cur.close()
+    def commit(self): self.conn.commit()
+    def rollback(self):
+        try: self.conn.rollback()
         except: pass
-        try:
-            self.conn.close()
+    def close(self):
+        try: self.conn.close()
         except: pass
 
 def get_db():
     if IS_POSTGRES:
-        pg_conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        return PGWrapper(pg_conn)
+        return PGWrapper(psycopg2.connect(DATABASE_URL, sslmode='require'))
     else:
         conn = sqlite3.connect(DB_FILE, check_same_thread=False, timeout=20)
         conn.row_factory = sqlite3.Row
-        try:
-            conn.execute("PRAGMA journal_mode=WAL;")
-            conn.execute("PRAGMA synchronous=NORMAL;")
+        try: conn.execute("PRAGMA journal_mode=WAL;")
         except: pass
         return conn
 
@@ -91,11 +74,9 @@ def add_txn(user_id, amount, type_, desc):
         c.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (user_id, amount, type_, desc, datetime.now().strftime("%d/%m %H:%M")))
         c.commit()
         c.close()
-    except Exception as e:
-        print(f"add_txn error: {e}")
+    except: pass
 
 def init_db():
-    print(f"INIT DB - IS_POSTGRES: {IS_POSTGRES} - DB_URL exists: {bool(DATABASE_URL)}")
     conn = get_db()
     try:
         if IS_POSTGRES:
@@ -106,6 +87,20 @@ def init_db():
             conn.execute("CREATE TABLE IF NOT EXISTS payments (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
+            conn.commit()
+            # SAFE ALTERS - NO ERROR
+            for q in [
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER DEFAULT 0",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS total_wins INTEGER DEFAULT 0",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_bonus TEXT",
+                "ALTER TABLE joined ADD COLUMN IF NOT EXISTS slot_no INTEGER DEFAULT 0"
+            ]:
+                try:
+                    conn.execute(q)
+                    conn.commit()
+                except:
+                    conn.rollback()
         else:
             conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0, last_bonus TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING', winner_id TEXT)")
@@ -114,13 +109,17 @@ def init_db():
             conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
-        for q in ["ALTER TABLE users ADD COLUMN referral_code TEXT","ALTER TABLE users ADD COLUMN referred_by INTEGER DEFAULT 0","ALTER TABLE users ADD COLUMN total_wins INTEGER DEFAULT 0","ALTER TABLE users ADD COLUMN last_bonus TEXT","ALTER TABLE joined ADD COLUMN slot_no INTEGER DEFAULT 0"]:
-            try: conn.execute(q)
-            except: pass
-        conn.commit()
-        print("✅ ALL TABLES CREATED SUCCESSFULLY")
+            conn.commit()
+            for q in ["ALTER TABLE users ADD COLUMN referral_code TEXT","ALTER TABLE users ADD COLUMN referred_by INTEGER DEFAULT 0","ALTER TABLE users ADD COLUMN total_wins INTEGER DEFAULT 0","ALTER TABLE users ADD COLUMN last_bonus TEXT","ALTER TABLE joined ADD COLUMN slot_no INTEGER DEFAULT 0"]:
+                try: conn.execute(q)
+                except: pass
+            conn.commit()
+        print("✅ ALL TABLES READY - NO ERRORS")
     except Exception as e:
-        print(f"❌ init_db FAILED: {e}")
+        print(f"❌ init_db error: {e}")
+        traceback.print_exc()
+        try: conn.rollback()
+        except: pass
     finally:
         conn.close()
 
@@ -136,6 +135,13 @@ def nocache(view):
     wrapper.__name__ = view.__name__
     return wrapper
 
+# --- SHOW REAL ERROR IN BROWSER ---
+@app.errorhandler(500)
+def handle_500(e):
+    tb = traceback.format_exc()
+    print(tb)
+    return f"<h2>500 Error - Check Logs</h2><pre>{tb}</pre><p>Error: {e}</p>", 500
+
 @app.route('/google08d3e829b688619a.html')
 def google_verify(): return "google-site-verification: google08d3e829b688619a.html"
 @app.route('/manifest.json')
@@ -144,7 +150,6 @@ def manifest(): return send_from_directory('static', 'manifest.json')
 def service_worker(): return send_from_directory('static', 'sw.js', mimetype='application/javascript')
 @app.route('/sitemap.xml')
 def sitemap():
-    today = str(date.today())
     xml_content = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>' + SITE_URL + '/</loc></url></urlset>'
     return make_response(xml_content, 200, {'Content-Type': 'application/xml'})
 @app.route('/robots.txt')
