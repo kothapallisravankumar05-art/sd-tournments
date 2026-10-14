@@ -7,10 +7,13 @@
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
 body{background:#0f172a;color:#fff;min-height:100vh;padding:15px}
 .card{background:#1e293b;padding:20px;border-radius:15px;text-align:center;border:1px solid #00ff88}
-.btn{width:100%;padding:14px;border:none;border-radius:10px;font-weight:900;margin-top:10px;display:block;text-decoration:none;text-align:center}
+.btn{width:100%;padding:14px;border:none;border-radius:10px;font-weight:900;margin-top:10px;display:block;text-decoration:none;text-align:center;cursor:pointer}
 .join{background:#00ff88;color:#000}
 .joined{background:#00c851;color:#fff}
 .back{background:#2d3748;color:#fff}
+.submit{background:gold;color:#000}
+.input-box{padding:14px;border-radius:10px;border:none;width:100%;margin:8px 0;box-sizing:border-box;font-size:15px}
+.file-box{background:#0f172a;color:#fff;padding:10px;border:1px dashed #555;border-radius:10px;width:100%;box-sizing:border-box}
 </style>
 </head>
 <body>
@@ -25,15 +28,35 @@ body{background:#0f172a;color:#fff;min-height:100vh;padding:15px}
 <div>🎯 Per Kill: <b>₹{{t.per_kill}}</b></div>
 <div>💵 Entry Fee: <b>₹{{t.fee}}</b></div>
 {% if my_join %}<div>🎯 Your Slot: <b style="color:#ffde59">#{{my_join['slot_no']}}</b></div>{% endif %}
+{% if t.room_id %}<div style="margin-top:8px;border-top:1px solid #334155;padding-top:8px">🔑 Room ID: <b style="color:#00ff88">{{t.room_id}}</b><br>🔒 Pass: <b>{{t.room_pass}}</b></div>{% endif %}
+<div>📌 Status: <b style="color:gold">{{t.status}}</b></div>
 </div>
 
 {% if my_join %}
 <button class="btn joined">✅ ALREADY JOINED - Slot #{{my_join['slot_no']}}</button>
-<a href="/" class="btn back">Go to Home - Room ID in ONGOING</a>
+
+<!-- ✅ SCREENSHOT UPLOAD - ADDED HERE -->
+{% if t.status == 'LIVE' or t.status == 'UPCOMING' or t.status == 'COMPLETED' %}
+<div style="background:#0f172a;margin-top:15px;padding:15px;border-radius:12px;border:1px dashed gold;text-align:left">
+<h4 style="color:gold;text-align:center;margin-bottom:10px">📤 Submit Result</h4>
+<form action="/submit_result" method="POST" enctype="multipart/form-data">
+<input type="hidden" name="match_id" value="{{t.id}}">
+<input name="kills" type="number" class="input-box" placeholder="Kills Entha? (0-30)" min="0" max="30" required>
+<label style="color:#aaa;font-size:12px">Screenshot Proof (Compulsory):</label>
+<input type="file" name="screenshot" accept="image/*" required class="file-box">
+<button type="submit" class="btn submit">SUBMIT KILLS + SCREENSHOT</button>
+</form>
+<p style="color:#666;font-size:11px;text-align:center;margin-top:8px">* Fake screenshot pedithe ban avuthav!</p>
+</div>
+{% endif %}
+
+<a href="/" class="btn back">Go to Home</a>
 {% else %}
 <a href="/slots/{{t.id}}" class="btn join">SELECT SLOT & JOIN - {{t.total - joined_count}} Left</a>
 {% endif %}
+
 <a href="/" class="btn back">← Back to Matches</a>
+<a href="/match_result/{{t.id}}" class="btn back" style="color:gold">🏆 View Results</a>
 </div>
 </body>
 </html>
