@@ -72,11 +72,28 @@ a { text-decoration: none; }
     margin-top:4px;
     user-select:none;
 }
+.refer-banner{
+    background: linear-gradient(135deg,#0a1931,#1e3a8a);
+    color:white;
+    padding:12px;
+    border-radius:10px;
+    font-size:13px;
+    margin-bottom:15px;
+    border:1px solid gold;
+}
 </style>
 </head>
 <body>
 <div class="box">
     <h2>📝 REGISTER</h2>
+
+    {% if ref_code %}
+    <div class="refer-banner">
+        🎉 <b>Referral Applied!</b><br>
+        Code: <b style="color:gold;letter-spacing:2px">{{ ref_code }}</b><br>
+        <small>You & your friend get Rs 20 Bonus!</small>
+    </div>
+    {% endif %}
 
     {% if error %}
     <div class="error">⚠️ {{ error }}</div>
@@ -90,7 +107,11 @@ a { text-decoration: none; }
         <button type="submit" id="regBtn">REGISTER</button>
     </form>
 
-    <span class="small">🎁 Referral bonus ₹20 - Join Link Using Refer Id ₹20!</span>
+    {% if ref_code %}
+    <span class="small">✅ Using Refer Code {{ ref_code }} - You will get ₹20 Bonus after register!</span>
+    {% else %}
+    <span class="small">🎁 Referral bonus ₹20 - Join using Friend's Refer Link to get ₹20!</span>
+    {% endif %}
 
     <br>
     <a href="/login" style="color:#111827; font-weight:bold;">Already have account? Login</a>
