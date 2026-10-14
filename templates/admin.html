@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SD TOURNAMENT - Admin</title>
 <style>
-body{background:#0a0a0a;color:#fff;font-family:Arial;padding:10px;margin:0}
+body{background:#0a0a0a;color:#fff;font-family:Arial;padding:10px;margin:0;padding-top: env(safe-area-inset-top);}
 .card{background:#1a1a1a;padding:15px;border-radius:10px;margin-bottom:15px;border:1px solid #333}
 .item{background:#222;padding:12px;margin:8px 0;border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
 input,select{padding:10px;margin:5px;border-radius:5px;border:none;background:#333;color:#fff}
@@ -20,11 +20,23 @@ h3{margin-top:0;color:#00ff88}
 .badge-approved{background:#00ff88;color:#000}
 .badge-rejected{background:#ff4444;color:#fff}
 .result-item{background:#111;border:1px solid gold;padding:12px;border-radius:10px;margin:8px 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:15px}
+.stat-box{background:linear-gradient(135deg,#1a1a1a,#222);padding:15px;border-radius:10px;text-align:center;border:1px solid #333}
+.stat-box h2{margin:5px 0;color:gold}
+#adminLogo{cursor:pointer;user-select:none}
 </style>
 </head>
 <body>
-<h2 style="text-align:center">👑 SD TOURNAMENT - ADMIN PANEL</h2>
+<h2 style="text-align:center" id="adminLogo">👑 SD TOURNAMENT - ADMIN PANEL</h2>
 <div style="text-align:center;margin-bottom:10px"><a href="/" style="color:#00ff88;text-decoration:none;font-weight:900;">← GO TO HOME</a> | <a href="/logout" style="color:#ff4444;text-decoration:none;">LOGOUT</a></div>
+
+<!-- NEW: STATS DASHBOARD -->
+<div class="stats">
+<div class="stat-box"><small>TOTAL TOURNAMENTS</small><h2>{{matches|length}}</h2></div>
+<div class="stat-box"><small>PENDING RESULTS</small><h2 style="color:orange">{{pending_results|length}}</h2></div>
+<div class="stat-box"><small>PENDING PAYMENTS</small><h2 style="color:#00ff88">₹{{pending_payments|length}}</h2></div>
+<div class="stat-box"><small>PENDING WITHDRAW</small><h2 style="color:#008cff">{{pending_withdrawals|length}}</h2></div>
+</div>
 
 <!-- 1. ADD TOURNAMENT -->
 <div class="card">
@@ -55,7 +67,7 @@ h3{margin-top:0;color:#00ff88}
 <p style="font-size:11px;color:#888;margin-top:8px;">Note: Room ID pedithe JOIN ayina vallake matrame kanipistadi. Vere vallaki kanipiyadu - 100% Secure!</p>
 </div>
 
-<!-- 3. ALL TOURNAMENTS - UPDATED WITH REFUND -->
+<!-- 3. ALL TOURNAMENTS -->
 <div class="card">
 <h3>📋 All Tournaments ({{matches|length}})</h3>
 {% for m in matches %}
@@ -69,7 +81,7 @@ h3{margin-top:0;color:#00ff88}
 {% endfor %}
 </div>
 
-<!-- 4. MATCH RESULTS VERIFICATION -->
+<!-- 4. MATCH RESULTS -->
 <div class="card" style="border:2px solid gold;">
 <h3 style="color:gold;">🏆 Match Results Verification - Anti Cheat ({{pending_results|length}} Pending)</h3>
 <p style="font-size:12px;color:#888;">Player screenshot chusi kills verify chesi APPROVE kottali. Fake aithe REJECT.</p>
@@ -93,17 +105,9 @@ Kills: <b style="font-size:18px;color:gold;">{{r.kills}}</b> | Status: <span cla
 </div>
 </div>
 {% endfor %}
-{% if all_results is defined %}
-<h4 style="color:#888;margin-top:20px;">Approved/Rejected History (Last 20)</h4>
-{% for r in all_results %}
-<div class="item" style="opacity:0.6;">
-<span>ID:{{r.id}} Match:{{r.match_id}} User:{{r.user_id}} ({{r.username}}) Kills:{{r.kills}} | <span class="badge {% if r.status=='APPROVED'%}badge-approved{% else %}badge-rejected{% endif %}">{{r.status}}</span></span>
-</div>
-{% endfor %}
-{% endif %}
 </div>
 
-<!-- 5. DEPOSIT APPROVAL -->
+<!-- 5. DEPOSIT -->
 <div class="card" style="border:1px solid #00ff88;">
 <h3>💰 Pending Add Money Requests ({{pending_payments|length}})</h3>
 {% if pending_payments|length==0 %}<p style="color:#666">No pending payments</p>{% endif %}
@@ -118,7 +122,7 @@ Kills: <b style="font-size:18px;color:gold;">{{r.kills}}</b> | Status: <span cla
 {% endfor %}
 </div>
 
-<!-- 6. WITHDRAWAL APPROVAL -->
+<!-- 6. WITHDRAWAL -->
 <div class="card" style="border:1px solid #008cff;">
 <h3>💸 Pending Withdraw Requests ({{pending_withdrawals|length}})</h3>
 {% if pending_withdrawals|length==0 %}<p style="color:#666">No pending withdrawals</p>{% endif %}
@@ -133,5 +137,12 @@ Kills: <b style="font-size:18px;color:gold;">{{r.kills}}</b> | Status: <span cla
 {% endfor %}
 </div>
 
+<script>
+let c=0; let t;
+document.getElementById('adminLogo').addEventListener('click',()=>{
+ c++; clearTimeout(t); t=setTimeout(()=>c=0,3000);
+ if(c>=5){ c=0; if(navigator.vibrate) navigator.vibrate(100); window.location.href='/'; }
+});
+</script>
 </body>
 </html>
