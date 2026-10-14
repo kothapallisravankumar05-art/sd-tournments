@@ -88,7 +88,6 @@ def init_db():
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
             conn.commit()
-            # SAFE ALTERS - NO ERROR
             for q in [
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT",
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER DEFAULT 0",
@@ -109,10 +108,6 @@ def init_db():
             conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
-            conn.commit()
-            for q in ["ALTER TABLE users ADD COLUMN referral_code TEXT","ALTER TABLE users ADD COLUMN referred_by INTEGER DEFAULT 0","ALTER TABLE users ADD COLUMN total_wins INTEGER DEFAULT 0","ALTER TABLE users ADD COLUMN last_bonus TEXT","ALTER TABLE joined ADD COLUMN slot_no INTEGER DEFAULT 0"]:
-                try: conn.execute(q)
-                except: pass
             conn.commit()
         print("✅ ALL TABLES READY - NO ERRORS")
     except Exception as e:
@@ -135,7 +130,6 @@ def nocache(view):
     wrapper.__name__ = view.__name__
     return wrapper
 
-# --- SHOW REAL ERROR IN BROWSER ---
 @app.errorhandler(500)
 def handle_500(e):
     tb = traceback.format_exc()
@@ -411,6 +405,8 @@ def admin():
                 if p and p['status'] == 'PENDING':
                     conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (p['amount'], p['user_id']))
                     conn.execute("UPDATE payments SET status='APPROVED' WHERE id=?", (pid,))
+                    conn.commit()
+                    add_txn(p['user_id'], p['amount'], "CREDIT", f"Deposit Approved - {p['amount']}")
         elif action == 'reject_payment':
             pid = request.form.get('payment_id') or request.form.get('id')
             if pid: conn.execute("UPDATE payments SET status='REJECTED' WHERE id=?", (pid,))
@@ -420,6 +416,8 @@ def admin():
             if w:
                 conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (w['amount'], w['user_id']))
                 conn.execute("UPDATE withdrawals SET status='REJECTED' WHERE id=?", (request.form.get('withdrawal_id'),))
+                conn.commit()
+                add_txn(w['user_id'], w['amount'], "CREDIT", f"Withdrawal Rejected - Refund {w['amount']}")
         conn.commit()
     tournaments = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
     pending_payments = conn.execute("SELECT * FROM payments WHERE status='PENDING' ORDER BY id DESC").fetchall()
@@ -460,16 +458,91 @@ def verify():
     data = request.get_json() or {}
     utr = (data.get('utr') or "").strip().upper()
     amt = data.get('amount')
-    if len(utr) < 6: return jsonify({"ok":False, "msg":"UTR short"})
+    if len(utr) < 6: return jsonify({"ok":False, "msg":"UTR short - min 6 chars"})
     conn = get_db()
     dup = conn.execute("SELECT id, user_id FROM payments WHERE utr=?", (utr,)).fetchone()
-    if dup: conn.close(); return jsonify({"ok":False, "msg":"UTR IS USED!"})
+    if dup: conn.close(); return jsonify({"ok":False, "msg":"UTR IS USED! Kotha UTR veyy bro!"})
     try:
         conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(float(amt)), utr, datetime.now().strftime("%d/%m %H:%M")))
         conn.commit()
     except Exception as e: conn.close(); return jsonify({"ok":False, "msg":f"Error: {e}"})
     conn.close()
-    return jsonify({"ok":True, "msg":"UTR Submitted!"})
+    return jsonify({"ok":True, "msg":"UTR Submitted! Admin approve chesaka balance add avutadi."})
+
+# --- NEW WITHDRAWAL ROUTES - FIXED ---
+@app.route('/request_withdrawal', methods=['POST'])
+@app.route('/withdraw', methods=['POST'])
+@app.route('/withdrawal', methods=['POST'])
+@nocache
+def request_withdrawal():
+    if 'user_id' not in session:
+        return jsonify({"ok":False, "msg":"Login required"}) if request.is_json else redirect('/login')
+
+    if request.is_json:
+        data = request.get_json() or {}
+        amount = data.get('amount')
+        upi_id = data.get('upi_id') or data.get('upi') or data.get('upiId')
+    else:
+        amount = request.form.get('amount') or request.form.get('Amount') or request.form.get('amount_min_200')
+        upi_id = request.form.get('upi_id') or request.form.get('upi') or request.form.get('Your UPI ID') or request.form.get('your_upi_id') or request.form.get('upiId')
+        # wallet.html lo name lekapote second input teesuko
+        if not upi_id:
+            for key in request.form.keys():
+                if 'upi' in key.lower():
+                    upi_id = request.form.get(key)
+                    break
+
+    try:
+        amount = int(float(str(amount).strip()))
+    except:
+        msg = "Valid amount enter chey bro!"
+        return jsonify({"ok":False, "msg":msg}) if request.is_json else f"<h3>{msg}</h3><a href='/wallet'>Back</a>"
+
+    if not upi_id or len(str(upi_id).strip()) < 5:
+        msg = "Valid UPI ID enter chey bro! ex: 9396@ybl"
+        return jsonify({"ok":False, "msg":msg}) if request.is_json else f"<h3>{msg}</h3><a href='/wallet'>Back</a>"
+
+    if amount < 200:
+        msg = "Minimum Withdrawal Rs 200 bro!"
+        return jsonify({"ok":False, "msg":msg}) if request.is_json else f"<h3>{msg}</h3><a href='/wallet'>Back</a>"
+
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    if not user:
+        conn.close()
+        return redirect('/login')
+
+    bal = int(user['balance'] or 0)
+    if bal < amount:
+        conn.close()
+        msg = f"Balance low! Nee balance Rs {bal} only"
+        return jsonify({"ok":False, "msg":msg}) if request.is_json else f"<h3>{msg}</h3><a href='/wallet'>Back</a>"
+
+    try:
+        conn.execute("INSERT INTO withdrawals (user_id, amount, upi_id, status, time) VALUES (?,?,?,'PENDING',?)",
+                     (session['user_id'], amount, str(upi_id).strip(), datetime.now().strftime("%d/%m %H:%M")))
+        conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (amount, session['user_id']))
+        conn.commit()
+        conn.close()
+        add_txn(session['user_id'], amount, "WITHDRAW", f"Withdrawal Request {amount} to {upi_id}")
+
+        if request.is_json:
+            return jsonify({"ok":True, "msg":"Withdrawal Request Sent! Admin will approve soon."})
+        else:
+            return redirect('/wallet')
+    except Exception as e:
+        try: conn.rollback()
+        except: pass
+        try: conn.close()
+        except: pass
+        traceback.print_exc()
+        msg = f"Error: {e}"
+        return jsonify({"ok":False, "msg":msg}) if request.is_json else f"<h3>{msg}</h3><a href='/wallet'>Back</a>"
+
+@app.route('/deposit', methods=['POST'])
+@nocache
+def deposit_old():
+    return redirect('/add_money')
 
 @app.route('/logout')
 def logout():
