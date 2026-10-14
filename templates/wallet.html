@@ -18,19 +18,11 @@ input:focus{box-shadow:0 0 8px #00ff88}
 .badge-PENDING{background:orange;color:#000}.badge-APPROVED{background:#00ff88;color:#000}.badge-REJECTED{background:#ff4444;color:#fff}
 .badge-CREDIT{background:#00ff88;color:#000}.badge-DEBIT{background:#ff4444;color:#fff}.badge-WIN{background:gold;color:#000}.badge-BONUS{background:#00d4ff;color:#000}.badge-REFERRAL{background:#ff00ff;color:#fff}.badge-REFUND{background:orange;color:#000}
 .refer-box{background:linear-gradient(135deg,#1a0033,#6600ff);border:1px solid #ff00ff}
-.bonus-box{background:linear-gradient(135deg,#001a00,#00ff88);border:1px solid #00ff88;color:#000}
 </style>
 </head>
 <body>
 <a href="/" style="color:#00d4ff;text-decoration:none;font-weight:bold">← Back to Tournaments</a>
 <h2>💰 Wallet - ₹{{ user['balance'] if user else 0 }}</h2>
-
-<!-- DAILY BONUS -->
-<div class="card bonus-box" style="text-align:center">
-<h3 style="margin:0;color:#000">🎁 DAILY BONUS</h3>
-<p style="margin:5px 0;color:#000;font-size:13px">Roju login ki ₹5 FREE!</p>
-<a href="/daily_bonus" style="display:block;background:#000;color:#00ff88;padding:12px;border-radius:10px;text-decoration:none;font-weight:900;margin-top:10px">CLAIM ₹5 NOW</a>
-</div>
 
 <!-- REFERRAL -->
 <div class="card refer-box">
