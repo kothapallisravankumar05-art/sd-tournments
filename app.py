@@ -168,7 +168,8 @@ def handle_500(e):
     return f"<h2>500 Error</h2><pre>{tb}</pre>", 500
 
 @app.route('/health')
-def health(): return "OK", 200
+def health(): 
+    return "OK", 200
 
 @app.route('/')
 @nocache
