@@ -27,7 +27,7 @@ input:focus{box-shadow:0 0 8px #00ff88}
 <!-- REFERRAL -->
 <div class="card refer-box">
 <h3 style="margin:0">💸 REFER & EARN ₹20</h3>
-<p style="font-size:12px;color:#ccc;margin:5px 0">Friend ni invite chey - iddariki ₹20!</p>
+<p style="font-size:12px;color:#ccc;margin:5px 0">Invite Your Friend Earn Upto-  ₹20!</p>
 <div style="background:#000;padding:10px;border-radius:8px;margin:10px 0;display:flex;justify-content:space-between;align-items:center">
 <span id="refLink" style="font-size:11px;word-break:break-all">https://sd-tournments.onrender.com/refer/{{ user['referral_code'] if user and user['referral_code'] else 'XXXXXX' }}</span>
 <button onclick="copyRef()" style="background:gold;border:none;padding:6px 10px;border-radius:6px;font-weight:900;cursor:pointer">COPY</button>
@@ -44,12 +44,12 @@ input:focus{box-shadow:0 0 8px #00ff88}
 <div id="qrBox" class="qr-box">
 <h3>Scan & Pay ₹<span id="qrAmt">50</span></h3>
 <img id="mainQR" src="" style="width:220px;height:220px;border-radius:12px">
-<p style="font-size:13px;margin-top:10px">PhonePe / GPay lo scan chey</p>
+<p style="font-size:13px;margin-top:10px">PhonePe / GPay </p>
 <button class="btn btn-blue" onclick="showUTR()">I HAVE PAID - ENTER UTR</button>
 </div>
 
 <div id="utrBox" class="utr-box card" style="display:none">
-<h3>12 Digit UTR Enter Chey</h3>
+<h3>Enter 12 Digit UTR</h3>
 <form method="POST" action="/wallet">
 <input type="hidden" name="amount" id="finalAmt" value="50">
 <input type="text" name="utr" maxlength="12" minlength="12" pattern="[0-9]{12}" required placeholder="12 Digit UTR - Ex: 123456789012">
@@ -117,11 +117,11 @@ function showUTR(){
 function copyRef(){
     let link = document.getElementById('refLink').innerText;
     navigator.clipboard.writeText(link);
-    alert("Referral link copied! Share chey bro 🔥");
+    alert("Referral link copied! Share To Your Friends");
 }
 function shareRef(){
     let link = document.getElementById('refLink').innerText;
-    let text = "🔥 SD Tournaments lo join ayi ₹20 FREE bonus techuko! Free Fire tournaments aadi geluvu! "+link;
+    let text = "🔥 SD Tournaments lo join&get ₹20 FREE bonus ! Free Fire tournaments play earn more! "+link;
     window.open("https://wa.me/?text="+encodeURIComponent(text), "_blank");
 }
 </script>
