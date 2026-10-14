@@ -6,7 +6,7 @@
 </head>
 <body style="background:#0a1628;color:white;font-family:sans-serif;text-align:center;padding:20px">
 <h2 style="color:gold">💰 Add Money</h2>
-<p style="color:#888;font-size:13px">Min ₹10 - UTR unique undali</p>
+<p style="color:#888;font-size:13px">Min ₹10 - UTR Require</p>
 <input type="number" id="amt" placeholder="Amount Ex: 100" style="padding:15px;width:85%;border-radius:10px;border:none;font-size:18px;text-align:center;max-width:350px"><br><br>
 <button onclick="payUPI()" style="background:#00ff88;color:black;padding:15px 50px;border:none;border-radius:12px;font-size:20px;font-weight:bold;cursor:pointer">PAY WITH UPI</button>
 <div id="box" style="margin-top:25px"></div>
@@ -28,7 +28,7 @@ function payUPI(){
 function verify(){
  let u=document.getElementById('utr').value.trim().toUpperCase();
  let a=document.getElementById('amt').value;
- if(u.length<10){alert("Correct 12 digit UTR pettu bro");return}
+ if(u.length<10){alert("Correct 12 digit UTR ");return}
  document.getElementById('box').innerHTML="<p style='color:gold'>Verifying...</p>";
  fetch('/verify_upi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:a,utr:u})})
  .then(r=>r.json()).then(d=>{
@@ -36,7 +36,6 @@ function verify(){
    if(d.ok){
      location.href='/wallet';
    } else {
-     // Fake UTR ayite malla try cheyaniki box chupinchu
      payUPI();
      setTimeout(()=>{
        let inp = document.getElementById('utr');
@@ -44,7 +43,7 @@ function verify(){
      },500);
    }
  })
- .catch(()=>alert("Network Error - Malla try chey"));
+ .catch(()=>alert("Network Error - try Again"));
 }
 </script>
 <br><br>
