@@ -17,6 +17,7 @@ input:focus{box-shadow:0 0 8px #00ff88}
 .badge{padding:3px 8px;border-radius:12px;font-size:11px;font-weight:bold}
 .badge-PENDING{background:orange;color:#000}.badge-APPROVED{background:#00ff88;color:#000}.badge-REJECTED{background:#ff4444;color:#fff}
 .badge-CREDIT{background:#00ff88;color:#000}.badge-DEBIT{background:#ff4444;color:#fff}.badge-WIN{background:gold;color:#000}.badge-BONUS{background:#00d4ff;color:#000}.badge-REFERRAL{background:#ff00ff;color:#fff}.badge-REFUND{background:orange;color:#000}
+.badge-WITHDRAW{background:#ffaa00;color:#000}
 .refer-box{background:linear-gradient(135deg,#1a0033,#6600ff);border:1px solid #ff00ff}
 </style>
 </head>
@@ -29,7 +30,7 @@ input:focus{box-shadow:0 0 8px #00ff88}
 <h3 style="margin:0">💸 REFER & EARN ₹20</h3>
 <p style="font-size:12px;color:#ccc;margin:5px 0">Invite Your Friend Earn Upto-  ₹20!</p>
 <div style="background:#000;padding:10px;border-radius:8px;margin:10px 0;display:flex;justify-content:space-between;align-items:center">
-<span id="refLink" style="font-size:11px;word-break:break-all">https://sd-tournments.onrender.com/refer/{{ user['referral_code'] if user and user['referral_code'] else 'XXXXXX' }}</span>
+<span id="refLink" style="font-size:11px;word-break:break-all">https://sd-tourmments.onrender.com/refer/{{ user['referral_code'] if user and user['referral_code'] else 'XXXXXX' }}</span>
 <button onclick="copyRef()" style="background:gold;border:none;padding:6px 10px;border-radius:6px;font-weight:900;cursor:pointer">COPY</button>
 </div>
 <button onclick="shareRef()" class="btn btn-gold" style="padding:10px;font-size:14px">SHARE ON WHATSAPP</button>
@@ -44,29 +45,30 @@ input:focus{box-shadow:0 0 8px #00ff88}
 <div id="qrBox" class="qr-box">
 <h3>Scan & Pay ₹<span id="qrAmt">50</span></h3>
 <img id="mainQR" src="" style="width:220px;height:220px;border-radius:12px">
-<p style="font-size:13px;margin-top:10px">PhonePe / GPay </p>
+<p style="font-size:13px;margin-top:10px">PhonePe / GPay - 9550043870@ibl</p>
 <button class="btn btn-blue" onclick="showUTR()">I HAVE PAID - ENTER UTR</button>
 </div>
 
+<!-- DEPOSIT FIXED - NOW USES JS FETCH TO /verify_upi -->
 <div id="utrBox" class="utr-box card" style="display:none">
 <h3>Enter 12 Digit UTR</h3>
-<form method="POST" action="/wallet">
-<input type="hidden" name="amount" id="finalAmt" value="50">
-<input type="text" name="utr" maxlength="12" minlength="12" pattern="[0-9]{12}" required placeholder="12 Digit UTR - Ex: 123456789012">
-<button type="submit" class="btn btn-green">SUBMIT TO ADMIN</button>
-</form>
+<input type="hidden" id="finalAmt" value="50">
+<input type="text" id="utrInput" maxlength="12" minlength="6" placeholder="UTR - Ex: 123456789012">
+<button type="button" class="btn btn-green" onclick="submitUTR()">SUBMIT TO ADMIN</button>
+<p id="utrMsg" style="font-size:13px;margin-top:10px"></p>
 </div>
 
+<!-- WITHDRAWAL FIXED - ACTION CORRECT -->
 <div class="card">
 <h3>💸 Withdraw (Min ₹200)</h3>
-<form method="POST" action="/wallet">
+<form method="POST" action="/request_withdrawal">
 <input type="number" name="amount" min="200" max="{{ user['balance'] if user else 0 }}" required placeholder="Amount Min 200">
 <input type="text" name="upi_id" required placeholder="Your UPI ID - Ex: 9396@ybl">
 <button type="submit" class="btn btn-orange">REQUEST WITHDRAWAL</button>
 </form>
 </div>
 
-<!-- TRANSACTION HISTORY - NEW -->
+<!-- TRANSACTION HISTORY -->
 <div class="card" style="border:1px solid gold">
 <h3>📜 Transaction History</h3>
 {% if transactions %}
@@ -114,6 +116,27 @@ function showUTR(){
     document.getElementById('utrBox').style.display = 'block';
     window.scrollTo(0, document.getElementById('utrBox').offsetTop);
 }
+async function submitUTR(){
+    let utr = document.getElementById('utrInput').value.trim();
+    let amt = document.getElementById('finalAmt').value;
+    if(utr.length < 6){ alert("Valid UTR enter chey bro!"); return; }
+    document.getElementById('utrMsg').innerText = "Submitting...";
+    try{
+        let res = await fetch('/verify_upi', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({utr: utr, amount: amt})
+        });
+        let data = await res.json();
+        document.getElementById('utrMsg').innerText = data.msg;
+        document.getElementById('utrMsg').style.color = data.ok ? '#00ff88' : '#ff4444';
+        if(data.ok){
+            setTimeout(()=>{ window.location.href='/wallet'; }, 1500);
+        }
+    }catch(e){
+        document.getElementById('utrMsg').innerText = "Error: "+e;
+    }
+}
 function copyRef(){
     let link = document.getElementById('refLink').innerText;
     navigator.clipboard.writeText(link);
@@ -121,7 +144,7 @@ function copyRef(){
 }
 function shareRef(){
     let link = document.getElementById('refLink').innerText;
-    let text = "🔥 SD Tournaments lo join&get ₹20 FREE bonus ! Free Fire tournaments play earn more! "+link;
+    let text = "🔥 SD Tournaments lo join & get ₹20 FREE bonus ! Free Fire tournaments play earn more! "+link;
     window.open("https://wa.me/?text="+encodeURIComponent(text), "_blank");
 }
 </script>
