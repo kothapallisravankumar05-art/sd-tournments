@@ -264,7 +264,7 @@ def register():
         password = request.form.get('password','').strip()
         phone = request.form.get('phone','').strip()
         if not username or not password:
-            return render_template('register.html', error="Username & Password required bro!")
+            return render_template('register.html', error="Username & Password required!")
         conn = get_db()
         try:
             ref_code = ''.join(random.choices(string.ascii_uppercase+string.digits, k=5))
@@ -297,7 +297,7 @@ def login():
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
         if not user: user = conn.execute("SELECT * FROM users WHERE phone=?", (u,)).fetchone()
-        if not user: conn.close(); return render_template('login.html', error="Account ledu bro!")
+        if not user: conn.close(); return render_template('login.html', error="Account Not Found!")
         if user['password']!= p:
             try:
                 if not check_password_hash(user['password'], p):
@@ -320,7 +320,7 @@ def forgot():
         if not user: user = conn.execute("SELECT * FROM users WHERE phone=?", (u,)).fetchone()
         if not user: conn.close(); return render_template('forgot.html', error="User Not Found bro!")
         conn.execute("UPDATE users SET password=? WHERE id=?", (new_pass, user['id'])); conn.commit(); conn.close()
-        return render_template('login.html', error="Password Reset Done! Login chey bro!")
+        return render_template('login.html', error="Password Reset Done!Go To Login !")
     return render_template('forgot.html')
 
 @app.route('/submit_result', methods=['POST'])
@@ -496,7 +496,7 @@ def verify():
         add_txn(session['user_id'], int(float(amt)), "CREDIT", f"Deposit Request {amt} - {utr}")
     except Exception as e: conn.close(); return jsonify({"ok":False, "msg":f"Error: {e}"})
     conn.close()
-    return jsonify({"ok":True, "msg":"UTR Submitted! Admin approve chesaka balance add avutadi."})
+    return jsonify({"ok":True, "msg":"UTR Submitted! Approval Process."})
 
 @app.route('/request_withdrawal', methods=['POST'])
 @app.route('/withdraw', methods=['POST'])
@@ -522,7 +522,7 @@ def request_withdrawal():
     if not upi_id or len(str(upi_id).strip()) < 5:
         return jsonify({"ok":False, "msg":"Valid UPI ID"}) if request.is_json else "<h3>Valid UPI ID</h3><a href='/wallet'>Back</a>"
     if amount < 200:
-        return jsonify({"ok":False, "msg":"Min 200"}) if request.is_json else "<h3>Min 200</h3><a href='/wallet'>Back</a>"
+        return jsonify({"ok":False, "msg":"Min 200"}) if request.is_json else "<h3>Min 300</h3><a href='/wallet'>Back</a>"
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     if not user: conn.close(); return redirect('/login')
