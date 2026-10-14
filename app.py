@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, session, make_response, jsonify, send_from_directory
 import os, requests, random, string, sqlite3
 from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime, date, timedelta
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -247,7 +248,7 @@ def register():
         password = request.form.get('password','').strip()
         phone = request.form.get('phone','').strip()
         if not username or not password:
-            return "<h2>Username & Password required</h2><a href='/register'>Back</a>"
+            return render_template('register.html', error="Username & Password required bro!")
         conn = get_db()
         try:
             ref_code = ''.join(random.choices(string.ascii_uppercase+string.digits, k=5))
@@ -276,22 +277,53 @@ def register():
         except Exception as e:
             try: conn.close()
             except: pass
-            return f"<h2>Username exists or Error: {e}</h2><a href='/register'>Back</a>"
+            return render_template('register.html', error=f"Username exists bro! {e}")
     return render_template('register.html')
 
+# --- FIXED LOGIN - WHITE THEME + NO BACK BUG ---
 @app.route('/login', methods=['GET','POST'])
 @nocache
 def login():
-    if 'user_id' in session: return redirect('/')
+    if 'user_id' in session:
+        return redirect('/')
     if request.method == 'POST':
-        u = request.form.get('username') or request.form.get('phone') or ""
-        p = request.form.get('password') or ""
+        u = (request.form.get('username') or request.form.get('phone') or "").strip()
+        p = (request.form.get('password') or "").strip()
+
+        if not u or not p:
+            return render_template('login.html', error="Phone & Password pettu bro!")
+
         conn = get_db()
-        user = conn.execute("SELECT * FROM users WHERE username=? AND password=?", (u.strip(),p.strip())).fetchone()
-        if not user: user = conn.execute("SELECT * FROM users WHERE phone=? AND password=?", (u.strip(),p.strip())).fetchone()
-        if user: session.permanent =True;session['user_id']=user['id']; conn.close(); return redirect('/')
+        # Try username first, then phone
+        user = conn.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
+        if not user:
+            user = conn.execute("SELECT * FROM users WHERE phone=?", (u,)).fetchone()
+
+        if not user:
+            conn.close()
+            return render_template('login.html', error="Account ledu bro! Create chey!")
+
+        # Password check - supports plain + hashed
+        stored = user['password']
+        ok = False
+        if stored == p:
+            ok = True
+        else:
+            try:
+                if check_password_hash(stored, p):
+                    ok = True
+            except:
+                ok = False
+
+        if not ok:
+            conn.close()
+            return render_template('login.html', error="Wrong Password bro! Malla try chey!")
+
+        session.permanent = True
+        session['user_id'] = user['id']
         conn.close()
-        return "<h3>Wrong Password</h3><a href='/login'>Back</a>"
+        return redirect('/')
+
     return render_template('login.html')
 
 @app.route('/forgot', methods=['GET','POST'])
@@ -303,9 +335,9 @@ def forgot():
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
         if not user: user = conn.execute("SELECT * FROM users WHERE phone=?", (u,)).fetchone()
-        if not user: conn.close(); return "<h2>User Not Found</h2>"
+        if not user: conn.close(); return render_template('forgot.html', error="User Not Found bro!")
         conn.execute("UPDATE users SET password=? WHERE id=?", (new_pass, user['id'])); conn.commit(); conn.close()
-        return "<h2>Password Reset Done</h2><a href='/login'>Login</a>"
+        return render_template('login.html', error="Password Reset Done! Login chey bro!")
     return render_template('forgot.html')
 
 @app.route('/submit_result', methods=['POST'])
@@ -377,10 +409,10 @@ def wallet():
 def myid():
     if 'user_id' not in session: return redirect('/login')
     return f"""
-    <body style="background:#0a1628;color:#fff;font-family:Arial;text-align:center;padding:40px">
-    <h1 style="color:gold">NEE ID = {session['user_id']}</h1>
+    <body style="background:#fff;color:#111;font-family:Arial;text-align:center;padding:40px">
+    <h1 style="color:#111">NEE ID = {session['user_id']}</h1>
     <p>Idhi ADMIN_USER_ID lo pettu bro!</p>
-    <a href="/admin" style="color:#00ff88">Admin ki vellu</a> | <a href="/" style="color:#fff">Home</a>
+    <a href="/admin" style="color:#111">Admin ki vellu</a> | <a href="/" style="color:#111">Home</a>
     </body>
     """
 
@@ -390,11 +422,11 @@ def admin():
     if 'user_id' not in session: return redirect('/login')
     if session['user_id']!= ADMIN_USER_ID:
         return f"""
-        <body style="background:#0a1628;color:#fff;font-family:Arial;text-align:center;padding:40px">
-        <h2 style="color:#ff4444">⛔ Access Denied!</h2>
+        <body style="background:#fff;color:#111;font-family:Arial;text-align:center;padding:40px">
+        <h2 style="color:#ef4444">⛔ Access Denied!</h2>
         <p>Your ID: {session['user_id']} | Required ID: {ADMIN_USER_ID}</p>
-        <p style="color:gold">app.py lo ADMIN_USER_ID = {session['user_id']} ani marchu!</p>
-        <a href="/myid" style="color:#00ff88">Check My ID</a> | <a href="/">Home</a>
+        <p style="color:#111">app.py lo ADMIN_USER_ID = {session['user_id']} ani marchu!</p>
+        <a href="/myid" style="color:#111">Check My ID</a> | <a href="/">Home</a>
         </body>
         """
 
@@ -403,14 +435,14 @@ def admin():
             if request.form.get('admin_pass_input') == ADMIN_PASSWORD:
                 session['admin_unlocked'] = True
             else:
-                return """<body style="background:#0a1628;color:#fff;font-family:Arial;text-align:center;padding:60px"><h2 style="color:#ff4444">❌ Wrong Password NANI19 kaadu!</h2><a href="/admin" style="color:#00ff88">Try Again</a></body>"""
+                return """<body style="background:#fff;color:#111;font-family:Arial;text-align:center;padding:60px"><h2 style="color:#ef4444">❌ Wrong Password NANI19 kaadu!</h2><a href="/admin" style="color:#111">Try Again</a></body>"""
         else:
             return f"""
-            <body style="background:#0a1628;color:#fff;font-family:Arial;text-align:center;padding:40px">
-            <div style="background:#162435;padding:30px;border-radius:15px;max-width:350px;margin:0 auto;border:1px solid gold">
-            <h2 style="color:gold">🔒 ADMIN LOGIN</h2><p style="color:#888;font-size:13px">ID {ADMIN_USER_ID} - Enter Password</p>
-            <form method="POST"><input type="password" name="admin_pass_input" placeholder="Password NANI19" style="width:100%;padding:14px;border-radius:10px;border:none;margin:15px 0;box-sizing:border-box" required>
-            <button type="submit" style="width:100%;background:gold;color:#000;padding:12px;border:none;border-radius:10px;font-weight:900;cursor:pointer">UNLOCK ADMIN</button></form></div></body>"""
+            <body style="background:#fff;color:#111;font-family:Arial;text-align:center;padding:40px">
+            <div style="background:#f9fafb;padding:30px;border-radius:15px;max-width:350px;margin:0 auto;border:1px solid #e5e7eb">
+            <h2 style="color:#111">🔒 ADMIN LOGIN</h2><p style="color:#888;font-size:13px">ID {ADMIN_USER_ID} - Enter Password</p>
+            <form method="POST"><input type="password" name="admin_pass_input" placeholder="Password NANI19" style="width:100%;padding:14px;border-radius:10px;border:1px solid #e5e7eb;margin:15px 0;box-sizing:border-box" required>
+            <button type="submit" style="width:100%;background:#111827;color:#fff;padding:12px;border:none;border-radius:10px;font-weight:900;cursor:pointer">UNLOCK ADMIN</button></form></div></body>"""
 
     conn = get_db()
     if request.method == 'POST':
@@ -489,9 +521,9 @@ def admin():
     except:
         tournaments = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
         conn.close()
-        html = "<body style='background:#0a1628;color:#fff;font-family:Arial;padding:20px'><h1 style='color:gold'>👑 ADMIN</h1>"
-        html += "<div style='background:#162435;padding:20px;border-radius:10px'><h3>Create</h3><form method='POST'><input type='hidden' name='action' value='create_match'><input name='game' placeholder='Game' required style='padding:10px;margin:5px'><input name='type' placeholder='Type' style='padding:10px;margin:5px'><input name='prize' placeholder='Prize' style='padding:10px;margin:5px'><input name='fee' placeholder='Fee' style='padding:10px;margin:5px'><input name='total' placeholder='Slots' style='padding:10px;margin:5px'><button style='background:gold;padding:10px'>CREATE</button></form></div>"
-        for t in tournaments: html += f"<div style='background:#1a2a40;padding:10px;margin:5px'>ID {t['id']} - {t['game']} ₹{t['prize']}</div>"
+        html = "<body style='background:#fff;color:#111;font-family:Arial;padding:20px'><h1 style='color:#111'>👑 ADMIN</h1>"
+        html += "<div style='background:#f9fafb;padding:20px;border-radius:10px'><h3>Create</h3><form method='POST'><input type='hidden' name='action' value='create_match'><input name='game' placeholder='Game' required style='padding:10px;margin:5px'><input name='type' placeholder='Type' style='padding:10px;margin:5px'><input name='prize' placeholder='Prize' style='padding:10px;margin:5px'><input name='fee' placeholder='Fee' style='padding:10px;margin:5px'><input name='total' placeholder='Slots' style='padding:10px;margin:5px'><button style='background:#111;padding:10px;color:#fff'>CREATE</button></form></div>"
+        for t in tournaments: html += f"<div style='background:#f3f4f6;padding:10px;margin:5px'>ID {t['id']} - {t['game']} ₹{t['prize']}</div>"
         return html + "</body>"
 
 @app.route('/account')
@@ -551,6 +583,8 @@ def logout():
     session.clear()
     resp = make_response(redirect('/login'))
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
     return resp
 
 if __name__ == '__main__':
