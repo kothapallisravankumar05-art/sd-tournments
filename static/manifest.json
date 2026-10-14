@@ -1,21 +1,48 @@
 {
-  "name": "SD TOURNAMENTS",
+  "name": "SD TOURNAMENTS - Esports Battle",
   "short_name": "SD TOURNAMENTS",
-  "start_url": "/",
+  "description": "Daily Free Fire & BGMI Tournaments - Win Cash Prizes",
+  "start_url": "/?pwa=1",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
   "background_color": "#000000",
   "theme_color": "#000000",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
+  "categories": ["games", "esports", "entertainment"],
   "icons": [
     {
       "src": "/static/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/static/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "My Tournaments",
+      "url": "/my-tournaments",
+      "description": "View joined tournaments"
+    },
+    {
+      "name": "Wallet",
+      "url": "/wallet",
+      "description": "Check wallet balance"
+    }
+  ],
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+  }
 }
