@@ -4,64 +4,62 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SD TOURNAMENTS</title>
 
-<!-- APP ICON & PWA SETUP - ADDED -->
 <link rel="manifest" href="/static/manifest.json">
 <link rel="icon" type="image/png" href="/static/icon.png">
 <link rel="apple-touch-icon" href="/static/icon.png">
-<meta name="theme-color" content="#00ff88">
+<meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SD TOURNAMENTS">
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
-body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('https://wallpapercave.com/wp/wp10551227.jpg'); background-size:cover; background-attachment:fixed; background-position:center; color:#fff;min-height:100vh}
-.header{background:rgba(30,41,59,0.95);padding:12px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10;flex-wrap:wrap;gap:8px}
-.logo{font-weight:900;color:#00ff88;font-size:16px;display:flex;align-items:center;gap:8px}
-.wallet{ background:#00ff88;color:#000;padding:6px 12px;border-radius:20px;font-weight:900;text-decoration:none;font-size:13px}
+body{background:#ffffff!important; color:#111827; min-height:100vh}
+.header{background:#ffffff;padding:12px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10;flex-wrap:wrap;gap:8px;border-bottom:1px solid #e5e7eb;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.logo{font-weight:900;color:#111827;font-size:16px;display:flex;align-items:center;gap:8px}
+.wallet{ background:#111827;color:#fff;padding:6px 12px;border-radius:20px;font-weight:900;text-decoration:none;font-size:13px}
 .top-actions{display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-top:8px}
 .action-btn{flex:1;text-align:center;padding:8px 5px;border-radius:20px;font-weight:900;font-size:11px;text-decoration:none;display:block}
-.btn-gold{background:gold;color:#000}.btn-green2{background:#00ff88;color:#000}.btn-blue2{background:#00d4ff;color:#000}.btn-pink{background:#ff00ff;color:#fff}
-.tabs{display:flex;background:rgba(17,24,39,0.9);padding:5px;margin:10px;border-radius:12px;gap:5px}
-.tab{flex:1;text-align:center;padding:12px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;color:#9ca3af}
-.tab.active{background:#00ff88;color:#000}
-.section{display:none;padding:10px}
+.btn-gold{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}.btn-green2{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}.btn-blue2{background:#dbeafe;color:#1e40af;border:1px solid #93c5fd}.btn-pink{background:#fce7f3;color:#9d174d;border:1px solid #f9a8d4}
+.tabs{display:flex;background:#f3f4f6;padding:5px;margin:10px;border-radius:12px;gap:5px}
+.tab{flex:1;text-align:center;padding:12px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;color:#6b7280}
+.tab.active{background:#111827;color:#fff}
+.section{display:none;padding:10px;background:#ffffff}
 .section.active{display:block}
-.card{background:rgba(30,41,59,0.95);margin-bottom:12px;border-radius:15px;padding:0;overflow:hidden;border-left:4px solid #00ff88}
-.card.ongoing{border-left-color:#ff4444}
-.card.result{border-left-color:gold}
+.card{background:#ffffff;margin-bottom:12px;border-radius:16px;padding:0;overflow:hidden;border:1px solid #e5e7eb;box-shadow:0 1px 6px rgba(0,0,0,0.06)}
+.card.ongoing{border-left:4px solid #ff4444;border-left-color:#ff4444}
+.card.result{border-left:4px solid #f59e0b}
 .card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .badge{font-size:10px;padding:4px 8px;border-radius:20px;font-weight:900}
-.badge.up{background:#00ff8833;color:#00ff88}
-.badge.on{background:#ff444433;color:#ff4444;animation:blink 1s infinite}
-.badge.re{background:gold;color:#000}
-.title{font-weight:900;font-size:16px;margin:5px 0}
-.details{font-size:12px;color:#9ca3af;display:flex;gap:12px;margin:8px 0;flex-wrap:wrap}
+.badge.up{background:#d1fae5;color:#065f46}
+.badge.on{background:#fee2e2;color:#dc2626;animation:blink 1s infinite}
+.badge.re{background:#fef3c7;color:#92400e}
+.title{font-weight:900;font-size:16px;margin:5px 0;color:#111827}
+.details{font-size:12px;color:#6b7280;display:flex;gap:12px;margin:8px 0;flex-wrap:wrap}
 .btn{width:100%;padding:12px;border:none;border-radius:10px;font-weight:900;margin-top:8px;cursor:pointer;text-decoration:none;display:block;text-align:center}
-.btn-join{background:#00ff88;color:#000}
-.btn-room{background:#ff4444;color:#fff}
-.btn-dis{background:#2d3748;color:#666}
-.room-box{background:#0006;padding:10px;border-radius:10px;margin-top:10px;border:1px dashed #ff4444}
+.btn-join{background:#111827;color:#fff}
+.btn-room{background:#ef4444;color:#fff}
+.btn-dis{background:#f3f4f6;color:#9ca3af;border:1px solid #e5e7eb}
+.room-box{background:#fef2f2;padding:10px;border-radius:10px;margin-top:10px;border:1px dashed #ef4444}
 .live-banner{background:linear-gradient(90deg,#ff0000,#ff9900);color:#fff;padding:7px;text-align:center;font-weight:900;font-size:12px;animation:blink 1s infinite;letter-spacing:0.5px}
 .slots{display:flex;gap:5px;flex-wrap:wrap;margin:10px 0}
 .slot-mini{width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900}
-.slot-mini.joined{background:#00ff88;color:#000}
-.slot-mini.left{background:#2d3748;color:#64748b;border:1px dashed #4a5568}
+.slot-mini.joined{background:#111827;color:#fff}
+.slot-mini.left{background:#f3f4f6;color:#9ca3af;border:1px dashed #d1d5db}
 @keyframes blink{0%{opacity:1}50%{opacity:0.5}100%{opacity:1}}
-.alert-popup{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#00ff88;color:#000;padding:15px 20px;border-radius:12px;font-weight:900;z-index:9999;text-align:center;display:none;box-shadow:0 0 25px #00ff88;width:90%;max-width:360px}
-.submit-box{margin-top:12px;background:#111;padding:12px;border-radius:10px;border:1px solid #333}
+.alert-popup{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:15px 20px;border-radius:12px;font-weight:900;z-index:9999;text-align:center;display:none;box-shadow:0 4px 20px rgba(0,0,0,0.2);width:90%;max-width:360px}
+.submit-box{margin-top:12px;background:#f9fafb;padding:12px;border-radius:10px;border:1px solid #e5e7eb}
 </style>
 <audio id="alertSound" src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" preload="auto"></audio>
 </head>
 <body>
 <div class="header">
 <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
-<div class="logo"><img src="/static/icon.png" style="width:32px;height:32px;border-radius:50%;border:2px solid #00ff88"> 🔥 SD TOURNAMENTS</div>
+<div class="logo"><img src="/static/icon.png" style="width:32px;height:32px;border-radius:50%;border:2px solid #111827"> 🔥 SD TOURNAMENTS</div>
 <div>
 <a class="wallet" href="/wallet">₹ {{user.balance}} | Wallet</a>
-<a href="/logout" style="color:#ff4444;text-decoration:none;margin-left:10px;font-size:13px">Logout</a>
+<a href="/logout" style="color:#ef4444;text-decoration:none;margin-left:10px;font-size:13px">Logout</a>
 </div>
 </div>
-<!-- ACTION BUTTONS - DAILY REMOVED -->
 <div class="top-actions">
 <a href="/leaderboard" class="action-btn btn-gold">🏆 LEADERBOARD</a>
 <a href="/wallet" class="action-btn btn-pink">💸 REFER ₹20</a>
@@ -82,7 +80,7 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 {% if not t.room_id and t.status!= 'COMPLETED' and t.status!='CANCELLED' %}
 <div class="card">
 <div style="padding:15px">
-<div class="card-top"><span class="badge up">UPCOMING</span><span style="font-size:11px;color:#00ff88">{{t.joined}}/{{t.total}} Joined | <span style="color:#facc15">{{t.total - t.joined}} Left</span></span></div>
+<div class="card-top"><span class="badge up">UPCOMING</span><span style="font-size:11px;color:#065f46">{{t.joined}}/{{t.total}} Joined | <span style="color:#d97706">{{t.total - t.joined}} Left</span></span></div>
 <div class="title">{{t.game}} - {{t.type}}</div>
 <div class="details"><span>🗓 {{t.time}}</span><span>🗺 {{t.map}}</span><span>💰 ₹{{t.prize}}</span><span>🎯 ₹{{t.per_kill}}/Kill</span></div>
 
@@ -102,8 +100,8 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 {% endif %}
 {% endfor %}
 {% for t in tournaments %}{% if t.status=='CANCELLED'%}
-<div class="card" style="border-left-color:#ff4444;opacity:0.6">
-<div style="padding:15px"><span class="badge" style="background:#ff4444;color:#fff">CANCELLED - REFUNDED</span> <div class="title" style="text-decoration:line-through">{{t.game}} - {{t.type}} - REFUNDED</div></div>
+<div class="card" style="opacity:0.6">
+<div style="padding:15px"><span class="badge" style="background:#fee2e2;color:#dc2626">CANCELLED - REFUNDED</span> <div class="title" style="text-decoration:line-through">{{t.game}} - {{t.type}} - REFUNDED</div></div>
 </div>
 {% endif %}{% endfor %}
 </div>
@@ -114,22 +112,22 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 <div class="card ongoing">
 <div class="live-banner">🔴 LIVE NOW - ROOM ID READY - JOIN FAST!</div>
 <div style="padding:15px">
-<div class="card-top"><span class="badge on">● LIVE</span><span style="font-size:11px;color:#ff4444">{{t.time}}</span></div>
+<div class="card-top"><span class="badge on">● LIVE</span><span style="font-size:11px;color:#dc2626">{{t.time}}</span></div>
 <div class="title">{{t.game}} - {{t.type}}</div>
 <div class="details"><span>🗺 {{t.map}}</span><span>💰 ₹{{t.prize}}</span><span>🎯 ₹{{t.per_kill}}/Kill</span></div>
 {% if t.id in my_joined_ids %}
 <div class="room-box">
-<div style="font-weight:900;color:#ff4444;margin-bottom:5px">🔑 ROOM DETAILS (Nee Match Ke!):</div>
-<div>ID: <b style="font-size:18px">{{t.room_id}}</b> <button onclick="copyText('{{t.room_id}}')" style="background:#00ff88;border:none;padding:3px 7px;border-radius:4px;font-size:10px;margin-left:6px;font-weight:900">COPY</button></div>
-<div style="margin-top:4px">PASS: <b style="font-size:18px">{{t.room_pass}}</b> <button onclick="copyText('{{t.room_pass}}')" style="background:#ffcc00;border:none;padding:3px 7px;border-radius:4px;font-size:10px;margin-left:6px;font-weight:900">COPY</button></div>
+<div style="font-weight:900;color:#dc2626;margin-bottom:5px">🔑 ROOM DETAILS (Nee Match Ke!):</div>
+<div>ID: <b style="font-size:18px">{{t.room_id}}</b> <button onclick="copyText('{{t.room_id}}')" style="background:#111827;color:#fff;border:none;padding:3px 7px;border-radius:4px;font-size:10px;margin-left:6px;font-weight:900">COPY</button></div>
+<div style="margin-top:4px">PASS: <b style="font-size:18px">{{t.room_pass}}</b> <button onclick="copyText('{{t.room_pass}}')" style="background:#f59e0b;color:#000;border:none;padding:3px 7px;border-radius:4px;font-size:10px;margin-left:6px;font-weight:900">COPY</button></div>
 </div>
 <div class="submit-box">
-<div style="font-weight:900;color:gold;margin-bottom:6px;font-size:13px">📤 SUBMIT RESULT</div>
+<div style="font-weight:900;color:#92400e;margin-bottom:6px;font-size:13px">📤 SUBMIT RESULT</div>
 <form action="/submit_result" method="POST" enctype="multipart/form-data">
 <input type="hidden" name="match_id" value="{{t.id}}">
-<input type="number" name="kills" placeholder="Your Kills" required style="width:100%;padding:9px;border-radius:6px;border:none;margin-bottom:6px;">
-<input type="file" name="screenshot" accept="image/*" required style="width:100%;padding:6px;background:#222;color:#fff;border-radius:6px;margin-bottom:6px;">
-<button type="submit" style="width:100%;background:gold;color:#000;padding:10px;font-weight:900;border-radius:6px;border:none;">SUBMIT</button>
+<input type="number" name="kills" placeholder="Your Kills" required style="width:100%;padding:9px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px;">
+<input type="file" name="screenshot" accept="image/*" required style="width:100%;padding:6px;background:#fff;color:#111;border-radius:6px;margin-bottom:6px;border:1px solid #d1d5db;">
+<button type="submit" style="width:100%;background:#111827;color:#fff;padding:10px;font-weight:900;border-radius:6px;border:none;">SUBMIT</button>
 </form>
 </div>
 {% else %}
@@ -146,15 +144,15 @@ body{background: linear-gradient(rgba(10,14,26,0.85), rgba(10,14,26,0.9)), url('
 {% if t.status == 'COMPLETED' %}
 <div class="card result">
 <div style="padding:15px">
-<div class="card-top"><span class="badge re">🏆 COMPLETED</span><span style="font-size:11px;color:gold">Winner ID: {{t.winner_id}}</span></div>
+<div class="card-top"><span class="badge re">🏆 COMPLETED</span><span style="font-size:11px;color:#d97706">Winner ID: {{t.winner_id}}</span></div>
 <div class="title">{{t.game}} - {{t.type}}</div>
 <div class="details"><span>🗓 {{t.time}}</span><span>💰 ₹{{t.prize}} Distributed</span></div>
-<a href="/match_result/{{t.id}}" class="btn" style="background:gold;color:#000;">VIEW RESULT 📊</a>
+<a href="/match_result/{{t.id}}" class="btn" style="background:#111827;color:#fff;">VIEW RESULT 📊</a>
 </div>
 </div>
 {% endif %}
 {% else %}
-<div style="text-align:center;padding:40px;color:#aaa">🏁 Results Coming Soon!</div>
+<div style="text-align:center;padding:40px;color:#9ca3af">🏁 Results Coming Soon!</div>
 {% endfor %}
 </div>
 
