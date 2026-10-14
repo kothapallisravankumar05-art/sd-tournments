@@ -31,7 +31,7 @@ MY_UPI_ID = os.getenv("UPI_ID", "yourname@phonepe")
 SITE_URL = "https://sd-tournments.onrender.com"
 BOT_TOKEN = os.getenv("BOT_TOKEN", "PASTE_YOUR_BOT_TOKEN_HERE")
 ADMIN_CHAT_ID = os.getenv("CHAT_ID", "PASTE_YOUR_CHAT_ID_HERE")
-ADMIN_USER_ID = 1
+ADMIN_USER_ID = 2
 ADMIN_PASSWORD = "NANI19"
 
 def send_notify(msg):
