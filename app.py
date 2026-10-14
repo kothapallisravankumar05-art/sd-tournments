@@ -233,21 +233,6 @@ def leaderboard():
     conn.close()
     return render_template('leaderboard.html', top=top, user=user)
 
-@app.route('/daily_bonus')
-@nocache
-def daily_bonus():
-    if 'user_id' not in session: return redirect('/login')
-    conn = get_db()
-    user = conn.execute("SELECT last_bonus FROM users WHERE id=?", (session['user_id'],)).fetchone()
-    today = str(date.today())
-    if user and user['last_bonus'] == today:
-        conn.close()
-        return "<h2>Already Claimed Today! Come tomorrow 🎁</h2><a href='/'>Home</a>"
-    conn.execute("UPDATE users SET balance=balance+5, last_bonus=? WHERE id=?", (today, session['user_id']))
-    conn.commit(); conn.close()
-    add_txn(session['user_id'], 5, "BONUS", "Daily Login Bonus ₹5")
-    return "<h2>₹5 Daily Bonus Added! 🎉</h2><a href='/'>Home</a>"
-
 @app.route('/refer/<code>')
 def referral_page(code):
     session['ref_code'] = code
