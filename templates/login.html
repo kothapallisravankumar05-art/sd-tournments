@@ -5,69 +5,101 @@
 <title>SD - Login</title>
 <style>
 body {
-    background: linear-gradient(rgba(15,23,42,0.85), rgba(15,23,42,0.9)), url('https://wallpapercave.com/wp/wp10551227.jpg');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    color: #fff;
+    background:#ffffff !important; /* BLUE/IMAGE TEESesa - FULL WHITE */
+    color: #111827;
     font-family: Arial;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    margin: 0
+    min-height: 100vh;
+    margin: 0;
+    padding:20px;
 }
 .box {
-    background: rgba(30,41,59,0.95);
+    background: #ffffff;
     padding: 30px;
-    border-radius: 15px;
+    border-radius: 16px;
     text-align: center;
-    width: 90%;
-    max-width: 350px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 0 20px rgba(0,255,136,0.3)
+    width: 100%;
+    max-width: 360px;
+    border:1px solid #e5e7eb;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
 }
+h2{color:#111827;margin-bottom:15px}
 input {
-    padding: 12px;
-    border-radius: 8px;
-    border: none;
-    margin: 8px;
-    width: 85%;
-    outline: none
+    padding: 13px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    margin: 6px 0;
+    width: 100%;
+    outline: none;
+    font-size:15px;
+    box-sizing:border-box;
 }
 input:focus {
-    box-shadow: 0 0 8px #00ff88
+    border-color:#111827;
+    box-shadow:none;
 }
 button {
-    padding: 12px 20px;
-    background: #00ff88;
+    padding: 13px 20px;
+    background: #111827;
+    color:#fff;
     border: none;
-    border-radius: 8px;
+    border-radius: 10px;
     font-weight: 900;
-    width: 90%;
-    margin-top: 10px;
+    width: 100%;
+    margin-top: 12px;
     cursor: pointer;
     font-size: 16px
 }
 button:active {
     transform: scale(0.98)
 }
+.error{
+    background:#fee2e2;
+    color:#dc2626;
+    padding:10px;
+    border-radius:8px;
+    font-size:13px;
+    margin-bottom:12px;
+    border:1px solid #fecaca;
+}
 a { text-decoration: none; }
-a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
 <div class="box">
     <h2>🔒 LOGIN</h2>
-    <form method="POST" action="/login">
-        <input type="text" name="phone" placeholder="Phone Number" required><br>
-        <input type="password" name="password" placeholder="Password" required><br>
+
+    <!-- ERROR SHOW - Wrong password ugly page kakunda ikkade chupistadi -->
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/login" autocomplete="off">
+        <input type="text" name="phone" placeholder="📱 Phone or Username" required><br>
+        <input type="password" name="password" placeholder="🔑 Password" required><br>
         <button type="submit">LOGIN</button>
     </form>
     <br>
-    <a href="/register" style="color:#00ff88; font-weight:bold;">New? Register</a>
+    <a href="/register" style="color:#111827; font-weight:bold;">New? Register</a>
     <br><br>
-    <a href="/forgot" style="color:#ff4444; font-size:13px;">Forgot Password?</a>
+    <a href="/forgot" style="color:#ef4444; font-size:13px;">Forgot Password?</a>
 </div>
+
+<script>
+// --- BACK BUTTON BUG FIX - Main fix bro! ---
+// Login ayaka back nokkithe malla login ki radu
+history.pushState(null, null, location.href);
+window.onpopstate = function () {
+    history.go(1);
+};
+
+// Cache nundi raakunda
+if(window.performance && performance.navigation.type == 2){
+    location.reload(true);
+}
+</script>
+
 </body>
 </html>
