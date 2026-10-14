@@ -6,8 +6,17 @@ from datetime import datetime, date,timedelta
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "sd_final_secret_2026_rocket")
 app.config['PERMANENT_SESSION_LIFETIME']=timedelta(days=3650)
-DB = "sd.db"
-UPLOAD_FOLDER = 'static/uploads'
+
+# ===== FIX: PERSISTENT DB FOR RENDER DISK =====
+if os.path.isdir("/data"):
+    BASE_DIR = "/data"
+    DB = os.path.join(BASE_DIR, "sd.db")
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+else:
+    BASE_DIR = "."
+    DB = "sd.db"
+    UPLOAD_FOLDER = 'static/uploads'
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs('static', exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -17,7 +26,7 @@ SITE_URL = "https://sd-tournments.onrender.com"
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "PASTE_YOUR_BOT_TOKEN_HERE")
 ADMIN_CHAT_ID = os.getenv("CHAT_ID", "PASTE_YOUR_CHAT_ID_HERE")
-ADMIN_USER_ID = 1 # <-- ID 19 nunchi 1 ki marchesa bro! Nee first account ID 1!
+ADMIN_USER_ID = 1
 ADMIN_PASSWORD = "NANI19"
 
 def send_notify(msg):
@@ -229,10 +238,10 @@ def register():
             conn.execute("INSERT INTO users (username,password,phone,balance,referral_code) VALUES (?,?,?,0,?)", (username,password,phone,ref_code))
             conn.commit()
             user = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
-            
+
             if 'ref_code' in session and session['ref_code']:
                 ref_user = conn.execute("SELECT id FROM users WHERE referral_code=?", (session['ref_code'],)).fetchone()
-                if ref_user and ref_user['id'] != user['id']:
+                if ref_user and ref_user['id']!= user['id']:
                     conn.execute("UPDATE users SET balance=balance+20 WHERE id=?", (ref_user['id'],))
                     conn.execute("UPDATE users SET balance=balance+20, referred_by=? WHERE id=?", (ref_user['id'], user['id']))
                     conn.commit()
@@ -241,7 +250,7 @@ def register():
                         add_txn(user['id'], 20, "REFERRAL", "Welcome Referral Bonus ₹20")
                         send_notify(f"🎁 <b>REFERRAL BONUS</b>\n{username} joined via {session['ref_code']}\nBoth got ₹20")
                     except: pass
-            
+
             session.permanent = True
             session['user_id'] = user['id']
             conn.close()
@@ -375,13 +384,13 @@ def admin():
             if request.form.get('admin_pass_input') == ADMIN_PASSWORD:
                 session['admin_unlocked'] = True
             else:
-                return """<body style="background:#0a1628;color:#fff;font-family:Arial;text-align:center;padding:60px"><h2 style="color:#ff4444">❌ Wrong Password AKHI19 kaadu!</h2><a href="/admin" style="color:#00ff88">Try Again</a></body>"""
+                return """<body style="background:#0a1628;color:#fff;font-family:Arial;text-align:center;padding:60px"><h2 style="color:#ff4444">❌ Wrong Password NANI19 kaadu!</h2><a href="/admin" style="color:#00ff88">Try Again</a></body>"""
         else:
             return f"""
             <body style="background:#0a1628;color:#fff;font-family:Arial;text-align:center;padding:40px">
             <div style="background:#162435;padding:30px;border-radius:15px;max-width:350px;margin:0 auto;border:1px solid gold">
             <h2 style="color:gold">🔒 ADMIN LOGIN</h2><p style="color:#888;font-size:13px">ID {ADMIN_USER_ID} - Enter Password</p>
-            <form method="POST"><input type="password" name="admin_pass_input" placeholder="Password AKHI19" style="width:100%;padding:14px;border-radius:10px;border:none;margin:15px 0;box-sizing:border-box" required>
+            <form method="POST"><input type="password" name="admin_pass_input" placeholder="Password NANI19" style="width:100%;padding:14px;border-radius:10px;border:none;margin:15px 0;box-sizing:border-box" required>
             <button type="submit" style="width:100%;background:gold;color:#000;padding:12px;border:none;border-radius:10px;font-weight:900;cursor:pointer">UNLOCK ADMIN</button></form></div></body>"""
 
     conn = get_db()
@@ -459,10 +468,9 @@ def admin():
         conn.close()
         return render_template('admin.html', matches=tournaments, tournaments=tournaments, pending_payments=pending_payments, pending_withdrawals=pending_withdrawals, pending_results=pending_results, all_results=all_results, total_users=total_users, total_tour=total_tour, total_earning=total_earning)
     except:
-        # Fallback if admin.html missing
         tournaments = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
         conn.close()
-        html = "<body style='background:#0a1628;color:#fff;font-family:Arial;padding:20px'><h1 style='color:gold'>👑 ADMIN - AKHI19</h1>"
+        html = "<body style='background:#0a1628;color:#fff;font-family:Arial;padding:20px'><h1 style='color:gold'>👑 ADMIN</h1>"
         html += "<div style='background:#162435;padding:20px;border-radius:10px'><h3>Create</h3><form method='POST'><input type='hidden' name='action' value='create_match'><input name='game' placeholder='Game' required style='padding:10px;margin:5px'><input name='type' placeholder='Type' style='padding:10px;margin:5px'><input name='prize' placeholder='Prize' style='padding:10px;margin:5px'><input name='fee' placeholder='Fee' style='padding:10px;margin:5px'><input name='total' placeholder='Slots' style='padding:10px;margin:5px'><button style='background:gold;padding:10px'>CREATE</button></form></div>"
         for t in tournaments: html += f"<div style='background:#1a2a40;padding:10px;margin:5px'>ID {t['id']} - {t['game']} ₹{t['prize']}</div>"
         return html + "</body>"
