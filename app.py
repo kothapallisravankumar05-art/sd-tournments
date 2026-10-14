@@ -348,9 +348,12 @@ def wallet():
         amount = request.form.get('amount'); utr = request.form.get('utr') or ""; upi_id = request.form.get('upi_id')
         if amount and utr:
             try:
-                conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(amount), utr, datetime.now().strftime("%d/%m %H:%M")))
-                conn.commit()
-                send_notify(f"💰 <b>DEPOSIT</b>\nUser {session['user_id']}\n₹{amount}\nUTR {utr}")
+                utr_clean = utr.strip().upper()
+                dup_check = conn.execute("SELECT id FROM payments WHERE utr=?", (utr_clean,)).fetchone()
+                if not dup_check:
+                    conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(amount), utr_clean, datetime.now().strftime("%d/%m %H:%M")))
+                    conn.commit()
+                    send_notify(f"💰 <b>DEPOSIT</b>\nUser {session['user_id']}\n₹{amount}\nUTR {utr_clean}")
             except: pass
         if amount and upi_id:
             user = conn.execute("SELECT balance FROM users WHERE id=?", (session['user_id'],)).fetchone()
@@ -446,8 +449,8 @@ def admin():
         elif action == 'approve_payment':
             pid = request.form.get('payment_id') or request.form.get('id')
             if pid:
-                p = conn.execute("SELECT user_id,amount FROM payments WHERE id=?", (pid,)).fetchone()
-                if p:
+                p = conn.execute("SELECT user_id,amount,status FROM payments WHERE id=?", (pid,)).fetchone()
+                if p and p['status'] == 'PENDING':
                     conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (p['amount'], p['user_id']))
                     conn.execute("UPDATE payments SET status='APPROVED' WHERE id=?", (pid,))
                     add_txn(p['user_id'], p['amount'], "CREDIT", f"Deposit Approved ₹{p['amount']}")
@@ -520,18 +523,28 @@ def get_upi():
 @app.route('/verify_upi', methods=['POST'])
 @nocache
 def verify():
-    if 'user_id' not in session: return jsonify({"ok":False})
+    if 'user_id' not in session: return jsonify({"ok":False, "msg":"Login ledu"})
     data = request.get_json() or {}
-    utr = (data.get('utr') or "").strip()
+    utr = (data.get('utr') or "").strip().upper()
     amt = data.get('amount')
-    if len(utr) < 6: return jsonify({"ok":False, "msg":"UTR short"})
+    if len(utr) < 6: return jsonify({"ok":False, "msg":"UTR short - 12 digit pettu"})
     conn = get_db()
-    dup = conn.execute("SELECT id FROM payments WHERE utr=?", (utr,)).fetchone()
-    if dup: conn.close(); return jsonify({"ok":False, "msg":"UTR used"})
-    conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(float(amt)), utr, datetime.now().strftime("%d/%m %H:%M")))
-    conn.commit(); conn.close()
-    send_notify(f"💰 <b>NEW DEPOSIT</b>\nUser {session['user_id']}\n₹{amt}\nUTR {utr}")
-    return jsonify({"ok":True})
+    dup = conn.execute("SELECT id, user_id FROM payments WHERE utr=?", (utr,)).fetchone()
+    if dup:
+        conn.close()
+        if int(dup['user_id']) == session['user_id']:
+            return jsonify({"ok":False, "msg":"Ee UTR ni nuvve mundhu pampav - Duplicate!"})
+        else:
+            return jsonify({"ok":False, "msg":"Fake UTR! Ee UTR inkokaru vadaru"})
+    try:
+        conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], int(float(amt)), utr, datetime.now().strftime("%d/%m %H:%M")))
+        conn.commit()
+        send_notify(f"💰 <b>NEW DEPOSIT</b>\nUser {session['user_id']}\n₹{amt}\nUTR {utr}")
+    except Exception as e:
+        conn.close()
+        return jsonify({"ok":False, "msg":f"Error: {e}"})
+    conn.close()
+    return jsonify({"ok":True, "msg":"UTR Submitted - Admin approve chestadu"})
 
 @app.route('/logout')
 def logout():
