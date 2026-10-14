@@ -255,7 +255,6 @@ def register():
             conn.execute("INSERT INTO users (username,password,phone,balance,referral_code) VALUES (?,?,?,0,?)", (username,password,phone,ref_code))
             conn.commit()
             user = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
-
             if 'ref_code' in session and session['ref_code']:
                 ref_user = conn.execute("SELECT id FROM users WHERE referral_code=?", (session['ref_code'],)).fetchone()
                 if ref_user and ref_user['id']!= user['id']:
@@ -267,7 +266,6 @@ def register():
                         add_txn(user['id'], 20, "REFERRAL", "Welcome Referral Bonus ₹20")
                         send_notify(f"🎁 <b>REFERRAL BONUS</b>\n{username} joined via {session['ref_code']}\nBoth got ₹20")
                     except: pass
-
             session.permanent = True
             session['user_id'] = user['id']
             conn.close()
@@ -280,7 +278,6 @@ def register():
             return render_template('register.html', error=f"Username exists bro! {e}")
     return render_template('register.html')
 
-# --- FIXED LOGIN - WHITE THEME + NO BACK BUG ---
 @app.route('/login', methods=['GET','POST'])
 @nocache
 def login():
@@ -289,21 +286,15 @@ def login():
     if request.method == 'POST':
         u = (request.form.get('username') or request.form.get('phone') or "").strip()
         p = (request.form.get('password') or "").strip()
-
         if not u or not p:
             return render_template('login.html', error="Phone & Password pettu bro!")
-
         conn = get_db()
-        # Try username first, then phone
         user = conn.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
         if not user:
             user = conn.execute("SELECT * FROM users WHERE phone=?", (u,)).fetchone()
-
         if not user:
             conn.close()
             return render_template('login.html', error="Account ledu bro! Create chey!")
-
-        # Password check - supports plain + hashed
         stored = user['password']
         ok = False
         if stored == p:
@@ -314,16 +305,13 @@ def login():
                     ok = True
             except:
                 ok = False
-
         if not ok:
             conn.close()
             return render_template('login.html', error="Wrong Password bro! Malla try chey!")
-
         session.permanent = True
         session['user_id'] = user['id']
         conn.close()
         return redirect('/')
-
     return render_template('login.html')
 
 @app.route('/forgot', methods=['GET','POST'])
@@ -429,7 +417,6 @@ def admin():
         <a href="/myid" style="color:#111">Check My ID</a> | <a href="/">Home</a>
         </body>
         """
-
     if session.get('admin_unlocked')!= True:
         if request.method == 'POST' and request.form.get('admin_pass_input'):
             if request.form.get('admin_pass_input') == ADMIN_PASSWORD:
@@ -443,7 +430,6 @@ def admin():
             <h2 style="color:#111">🔒 ADMIN LOGIN</h2><p style="color:#888;font-size:13px">ID {ADMIN_USER_ID} - Enter Password</p>
             <form method="POST"><input type="password" name="admin_pass_input" placeholder="Password NANI19" style="width:100%;padding:14px;border-radius:10px;border:1px solid #e5e7eb;margin:15px 0;box-sizing:border-box" required>
             <button type="submit" style="width:100%;background:#111827;color:#fff;padding:12px;border:none;border-radius:10px;font-weight:900;cursor:pointer">UNLOCK ADMIN</button></form></div></body>"""
-
     conn = get_db()
     if request.method == 'POST':
         action = request.form.get('action')
@@ -586,6 +572,22 @@ def logout():
     resp.headers['Pragma'] = 'no-cache'
     resp.headers['Expires'] = '0'
     return resp
+
+# --- NEW ROUTES - INSTRUCTIONS + RULES - WHITE THEME ---
+@app.route('/instructions')
+@nocache
+def instructions():
+    return render_template('instructions.html')
+
+@app.route('/how-to-play')
+@nocache
+def how_to_play():
+    return render_template('instructions.html')
+
+@app.route('/rules')
+@nocache
+def rules():
+    return render_template('rules.html')
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
