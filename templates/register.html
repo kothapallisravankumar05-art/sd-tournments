@@ -5,9 +5,9 @@
 <title>SD - Register</title>
 <style>
 body {
-    background:#ffffff !important; /* Dark image teesesam - Full white */
+    background:#ffffff !important;
     color: #111827;
-    font-family: Arial;
+    font-family: Arial, sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -25,7 +25,7 @@ body {
     border:1px solid #e5e7eb;
     box-shadow: 0 4px 20px rgba(0,0,0,0.06);
 }
-h2{color:#111827;margin-bottom:15px}
+h2{color:#111827;margin-bottom:15px;letter-spacing:1px}
 input {
     padding: 13px;
     border-radius: 10px;
@@ -36,9 +36,7 @@ input {
     font-size:15px;
     box-sizing:border-box;
 }
-input:focus {
-    border-color:#111827;
-}
+input:focus { border-color:#111827; }
 button {
     padding: 13px 20px;
     background: #111827;
@@ -49,13 +47,13 @@ button {
     width: 100%;
     margin-top: 12px;
     cursor: pointer;
-    font-size: 16px
+    font-size: 16px;
+    transition:0.1s;
 }
-button:active {
-    transform: scale(0.98)
-}
+button:active { transform: scale(0.98); }
+button:disabled { opacity:0.6; }
 a { text-decoration: none; }
-.small{font-size:12px; color:#065f46; margin-top:10px; display:block;background:#d1fae5;padding:8px;border-radius:8px;}
+.small{font-size:12px; color:#065f46; margin-top:12px; display:block;background:#d1fae5;padding:10px;border-radius:8px;border:1px solid #a7f3d0}
 .error{
     background:#fee2e2;
     color:#dc2626;
@@ -64,6 +62,15 @@ a { text-decoration: none; }
     font-size:13px;
     margin-bottom:12px;
     border:1px solid #fecaca;
+    text-align:left;
+}
+.show-pass{
+    font-size:12px;
+    color:#6b7280;
+    text-align:right;
+    cursor:pointer;
+    margin-top:4px;
+    user-select:none;
 }
 </style>
 </head>
@@ -71,16 +78,16 @@ a { text-decoration: none; }
 <div class="box">
     <h2>📝 REGISTER</h2>
 
-    <!-- ERROR BOX - Username Already Exists -->
     {% if error %}
-    <div class="error">{{ error }}</div>
+    <div class="error">⚠️ {{ error }}</div>
     {% endif %}
 
-    <form method="POST" action="/register" autocomplete="off">
-        <input type="tel" name="phone" placeholder="📱 10 Digit Phone" pattern="[0-9]{10}" maxlength="10" required><br>
-        <input type="text" name="username" placeholder="🎮 Username / Free Fire Name" required><br>
-        <input type="password" name="password" placeholder="🔑 Password" minlength="4" required><br>
-        <button type="submit">REGISTER</button>
+    <form method="POST" action="/register" autocomplete="off" id="regForm">
+        <input type="tel" name="phone" id="phone" placeholder="📱 10 Digit Phone" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" required autocomplete="off"><br>
+        <input type="text" name="username" id="username" placeholder="🎮 Username / Free Fire Name" required autocomplete="off"><br>
+        <input type="password" name="password" id="password" placeholder="🔑 Password (min 4)" minlength="4" required autocomplete="new-password"><br>
+        <div class="show-pass" onclick="togglePass()">👁️ Show Password</div>
+        <button type="submit" id="regBtn">REGISTER</button>
     </form>
 
     <span class="small">🎁 Referral bonus ₹20 - Join Link Using Refer Id ₹20!</span>
@@ -90,11 +97,25 @@ a { text-decoration: none; }
 </div>
 
 <script>
-// BACK BUTTON BUG FIX - Register ayaka back nokkithe malla register ki radu
+document.getElementById('regForm').addEventListener('submit', function(e){
+    const phone = document.getElementById('phone').value.trim();
+    if(!/^[0-9]{10}$/.test(phone)){
+        e.preventDefault();
+        alert('Phone 10 digits undali bro! 9550043870 la');
+        return false;
+    }
+    document.getElementById('regBtn').innerText = 'CREATING...';
+    document.getElementById('regBtn').disabled = true;
+});
+
+function togglePass(){
+    const p = document.getElementById('password');
+    p.type = p.type === 'password' ? 'text' : 'password';
+}
+
+// BACK BUTTON FIX
 history.pushState(null, null, location.href);
-window.onpopstate = function () {
-    history.go(1);
-};
+window.onpopstate = function () { history.go(1); };
 if(window.performance && performance.navigation.type == 2){
     location.reload(true);
 }
