@@ -24,7 +24,7 @@ body{background:#e5e5e5;min-height:100vh}
 <div><b style="font-size:20px;color:gold">💰 {{ won or 0 }}</b><br><small>Amount Won</small></div>
 </div>
 
-<!-- ✅ NEW REFERRAL BOX -->
+<!-- ✅ FIXED REFERRAL BOX - CORRECT MN LINK -->
 <div class="refer-box">
 <h3 style="text-align:center">🎁 Invite & Earn Rs 20</h3>
 <p style="font-size:12px;color:#666;text-align:center;margin:5px 0">Share your link - You & Friend both get Rs 20!</p>
@@ -33,7 +33,7 @@ body{background:#e5e5e5;min-height:100vh}
 <input class="refer-input" value="{{ user.referral_code }}" readonly style="text-align:center;font-weight:900;font-size:16px;letter-spacing:2px" id="codeInput">
 
 <label style="font-size:12px;font-weight:700">Your Refer Link:</label>
-<input class="refer-input" value="{{ site_url }}/refer/{{ user.referral_code }}" readonly id="linkInput">
+<input class="refer-input" value="https://sd-tournments.onrender.com/refer/{{ user.referral_code }}" readonly id="linkInput">
 
 <button class="btn-copy" onclick="copyLink()">📋 COPY LINK</button>
 <button class="btn-wa" onclick="shareWA()">🟢 SHARE ON WHATSAPP</button>
