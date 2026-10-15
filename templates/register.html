@@ -122,7 +122,7 @@ document.getElementById('regForm').addEventListener('submit', function(e){
     const phone = document.getElementById('phone').value.trim();
     if(!/^[0-9]{10}$/.test(phone)){
         e.preventDefault();
-        alert('Phone 10 digits undali bro! 9550043870 la');
+        alert('Phone 10 digits! 9550043870 la');
         return false;
     }
     document.getElementById('regBtn').innerText = 'CREATING...';
