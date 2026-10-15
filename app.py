@@ -98,6 +98,27 @@ def parse_match_time(time_str):
         except: continue
     return None
 
+# ===== NEW FILTERS - 12 HOUR TIME - 1 PM NOT 13 =====
+@app.template_filter('time12')
+def time12_filter(time_str):
+    try:
+        dt = parse_match_time(time_str)
+        if dt:
+            return dt.strftime("%d/%m %I:%M %p")
+        return time_str
+    except:
+        return time_str
+
+@app.template_filter('time12only')
+def time12only_filter(time_str):
+    try:
+        dt = parse_match_time(time_str)
+        if dt:
+            return dt.strftime("%I:%M %p")
+        return time_str
+    except:
+        return time_str
+
 def auto_expire_matches():
     try:
         conn = get_db()
@@ -110,8 +131,7 @@ def auto_expire_matches():
             except:
                 try: room = t[4]
                 except: pass
-            if room and str(room).strip()!= "":
-                continue
+            if room and str(room).strip()!= "": continue
             t_time = parse_match_time(t['time'] if 'time' in t.keys() else t[1])
             if not t_time: continue
             if t_time > now: continue
