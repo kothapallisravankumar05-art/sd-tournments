@@ -1,6 +1,5 @@
-from flask import Flask, render_template, request, redirect, session, make_response, jsonify, send_from_directory
+from flask import Flask, render_template, request, redirect, session, make_response, jsonify
 import os, random, string, sqlite3, traceback, urllib.parse
-from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, timezone
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -12,15 +11,13 @@ if IS_POSTGRES:
     import psycopg2, psycopg2.extras
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "sd_final_secret_2026_rocket")
+app.secret_key = os.getenv("SECRET_KEY", "sd_final_2026")
 app.config['PERMANENT_SESSION_LIFETIME']=timedelta(days=3650)
 
-BASE_DIR = "/data" if os.path.isdir("/data") else "."
-DB_FILE = os.path.join(BASE_DIR, "sd.db") if os.path.isdir("/data") else "sd.db"
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads") if os.path.isdir("/data") else 'static/uploads'
+DB_FILE = "/data/sd.db" if os.path.isdir("/data") else "sd.db"
+UPLOAD_FOLDER = "/data/uploads" if os.path.isdir("/data") else "static/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs('static', exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 MY_UPI_ID = os.getenv("UPI_ID", "9550043870@ibl")
 SITE_URL = "https://sd-tournments.onrender.com"
@@ -54,14 +51,6 @@ def get_db():
         conn.row_factory = sqlite3.Row
         return conn
 
-def add_txn(user_id, amount, type_, desc):
-    try:
-        c = get_db()
-        c.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (user_id, amount, type_, desc, now_ist().strftime("%d/%m %H:%M")))
-        c.commit()
-        c.close()
-    except: pass
-
 def init_db():
     conn = get_db()
     try:
@@ -69,7 +58,6 @@ def init_db():
             conn.execute("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
             conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id SERIAL PRIMARY KEY, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
             conn.execute("CREATE TABLE IF NOT EXISTS joined (id SERIAL PRIMARY KEY, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0)")
-            conn.execute("CREATE TABLE IF NOT EXISTS results (id SERIAL PRIMARY KEY, match_id INTEGER, user_id INTEGER, kills INTEGER, screenshot TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS payments (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
@@ -78,11 +66,12 @@ def init_db():
             conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
             conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
             conn.execute("CREATE TABLE IF NOT EXISTS joined (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0)")
-            conn.execute("CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY AUTOINCREMENT, match_id INTEGER, user_id INTEGER, kills INTEGER, screenshot TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
             conn.commit()
+    except Exception as e:
+        print(e)
     finally:
         conn.close()
 init_db()
@@ -98,111 +87,17 @@ def nocache(view):
 @app.route('/health')
 def health(): return "OK", 200
 
-# WALLET - 502 FIXED
-@app.route('/wallet', methods=['GET','POST'])
-@nocache
-def wallet():
-    if 'user_id' not in session: return redirect('/login')
-    conn = None
-    try:
-        conn = get_db()
-        if request.method == 'POST':
-            utr = (request.form.get('utr') or "").strip().upper()
-            upi_id = (request.form.get('upi_id') or "").strip()
-            amount = request.form.get('amount') or "0"
-            if utr and amount:
-                dup = conn.execute("SELECT id FROM payments WHERE utr=?", (utr,)).fetchone()
-                if not dup:
-                    amt_i = int(float(amount))
-                    if amt_i >= 10:
-                        conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?,'PENDING',?)", (session['user_id'], amt_i, utr, now_ist().strftime("%d/%m %H:%M")))
-                        conn.commit()
-            elif upi_id and amount:
-                amt = int(float(amount))
-                user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-                if user and int(user['balance'] or 0) >= amt and amt >= 200:
-                    conn.execute("INSERT INTO withdrawals (user_id, amount, upi_id, status, time) VALUES (?,?,?,'PENDING',?)", (session['user_id'], amt, upi_id, now_ist().strftime("%d/%m %H:%M")))
-                    conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (amt, session['user_id']))
-                    conn.commit()
-            conn.close()
-            return redirect('/wallet')
-        user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-        payments = conn.execute("SELECT * FROM payments WHERE user_id=? ORDER BY id DESC", (session['user_id'],)).fetchall()
-        withdrawals = conn.execute("SELECT * FROM withdrawals WHERE user_id=? ORDER BY id DESC", (session['user_id'],)).fetchall()
-        txns = conn.execute("SELECT * FROM transactions WHERE user_id=? ORDER BY id DESC LIMIT 50", (session['user_id'],)).fetchall()
-        conn.close()
-        return render_template('wallet.html', user=user, payments=payments, withdrawals=withdrawals, transactions=txns, wallet=user['balance'])
-    except Exception as e:
-        print(e); traceback.print_exc()
-        try:
-            if conn: conn.close()
-        except: pass
-        return redirect('/wallet')
-
-# UPI 100% HIDE - SERVER SIDE QR
-@app.route('/get_qr')
-@nocache
-def get_qr():
-    if 'user_id' not in session: return jsonify({"error": "login"}), 401
-    amount = request.args.get('amount', '50')
-    try: amt = int(float(amount))
-    except: amt = 50
-    upi_link = f"upi://pay?pa={MY_UPI_ID}&pn=SDTournament&am={amt}&cu=INR"
-    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={urllib.parse.quote(upi_link)}"
-    return jsonify({"qr_url": qr_url, "upi_link": upi_link})
-
-@app.route('/verify_upi', methods=['POST'])
-@nocache
-def verify_upi():
-    if 'user_id' not in session: return jsonify({"ok": False, "msg": "Login avvu bro!"}), 401
-    conn = None
-    try:
-        data = request.get_json() if request.is_json else request.form
-        utr = (data.get('utr') or "").strip().upper()
-        amount = data.get('amount') or 0
-        if not utr or len(utr) < 6: return jsonify({"ok": False, "msg": "Valid UTR enter chey bro!"}), 400
-        conn = get_db()
-        dup = conn.execute("SELECT id FROM payments WHERE utr=?", (utr,)).fetchone()
-        if dup:
-            conn.close()
-            return jsonify({"ok": False, "msg": "Ee UTR already use chesav bro!"}), 400
-        amt_i = int(float(amount))
-        conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?,'PENDING',?)", (session['user_id'], amt_i, utr, now_ist().strftime("%d/%m %H:%M")))
-        conn.commit(); conn.close()
-        return jsonify({"ok": True, "msg": f"✅ ₹{amt_i} Submitted! Admin 5 min lo approve chestadu!"})
-    except Exception as e:
-        print(e); traceback.print_exc()
-        try:
-            if conn: conn.close()
-        except: pass
-        return jsonify({"ok": False, "msg": f"Error: {e}"}), 500
-
-@app.route('/request_withdrawal', methods=['POST'])
-@nocache
-def request_withdrawal():
-    if 'user_id' not in session: return redirect('/login')
-    conn = get_db()
-    try:
-        upi_id = (request.form.get('upi_id') or "").strip()
-        amt = int(float(request.form.get('amount') or 0))
-        user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-        if user and int(user['balance'] or 0) >= amt and amt >= 200:
-            conn.execute("INSERT INTO withdrawals (user_id, amount, upi_id, status, time) VALUES (?,?,?,'PENDING',?)", (session['user_id'], amt, upi_id, now_ist().strftime("%d/%m %H:%M")))
-            conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (amt, session['user_id']))
-            conn.commit()
-    finally:
-        conn.close()
-    return redirect('/wallet')
-
-# Keep your other routes (admin, index, register, login, etc.) - same as before
-#... [paste your remaining routes from your file here]...
+@app.errorhandler(500)
+def handle_500(e):
+    traceback.print_exc()
+    return f"<h3>500 Error - Check Logs</h3><pre>{traceback.format_exc()}</pre>", 500
 
 @app.route('/')
 @nocache
 def index():
     if 'user_id' not in session: return redirect('/login')
     conn = get_db()
-    t = conn.execute("SELECT * FROM tournaments ORDER BY time ASC").fetchall()
+    t = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     if not user: session.clear(); conn.close(); return redirect('/login')
     my_joined = conn.execute("SELECT tournament_id FROM joined WHERE user_id=?", (session['user_id'],)).fetchall()
@@ -242,7 +137,7 @@ def register():
 @app.route('/login', methods=['GET','POST'])
 @nocache
 def login():
-    if 'user_id' not in session: return redirect('/')
+    if 'user_id' in session: return redirect('/')
     if request.method == 'POST':
         u = (request.form.get('username') or "").strip()
         p = (request.form.get('password') or "").strip()
@@ -261,6 +156,86 @@ def referral_page(code):
     session['ref_code'] = code.upper().strip()
     session.permanent = True
     return redirect('/register')
+
+@app.route('/wallet', methods=['GET','POST'])
+@nocache
+def wallet():
+    if 'user_id' not in session: return redirect('/login')
+    conn = get_db()
+    try:
+        if request.method == 'POST':
+            utr = (request.form.get('utr') or "").strip().upper()
+            upi_id = (request.form.get('upi_id') or "").strip()
+            amount = request.form.get('amount') or "0"
+            if utr and amount:
+                dup = conn.execute("SELECT id FROM payments WHERE utr=?", (utr,)).fetchone()
+                if not dup:
+                    amt_i = int(float(amount))
+                    if amt_i >= 10:
+                        conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?,'PENDING',?)", (session['user_id'], amt_i, utr, now_ist().strftime("%d/%m %H:%M")))
+                        conn.commit()
+            elif upi_id and amount:
+                amt = int(float(amount))
+                user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+                if user and int(user['balance'] or 0) >= amt and amt >= 200:
+                    conn.execute("INSERT INTO withdrawals (user_id, amount, upi_id, status, time) VALUES (?,?,?,'PENDING',?)", (session['user_id'], amt, upi_id, now_ist().strftime("%d/%m %H:%M")))
+                    conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (amt, session['user_id']))
+                    conn.commit()
+            conn.close()
+            return redirect('/wallet')
+        user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+        payments = conn.execute("SELECT * FROM payments WHERE user_id=? ORDER BY id DESC", (session['user_id'],)).fetchall()
+        withdrawals = conn.execute("SELECT * FROM withdrawals WHERE user_id=? ORDER BY id DESC", (session['user_id'],)).fetchall()
+        txns = conn.execute("SELECT * FROM transactions WHERE user_id=? ORDER BY id DESC LIMIT 50", (session['user_id'],)).fetchall()
+        conn.close()
+        return render_template('wallet.html', user=user, payments=payments, withdrawals=withdrawals, transactions=txns, wallet=user['balance'])
+    except Exception as e:
+        print(e); traceback.print_exc()
+        try: conn.close()
+        except: pass
+        return f"Wallet Error: {e}", 500
+
+@app.route('/get_qr')
+@nocache
+def get_qr():
+    if 'user_id' not in session: return jsonify({"error": "login"}), 401
+    amount = request.args.get('amount', '50')
+    try: amt = int(float(amount))
+    except: amt = 50
+    upi_link = f"upi://pay?pa={MY_UPI_ID}&pn=SDTournament&am={amt}&cu=INR"
+    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={urllib.parse.quote(upi_link)}"
+    return jsonify({"qr_url": qr_url, "upi_link": upi_link})
+
+@app.route('/verify_upi', methods=['POST'])
+@nocache
+def verify_upi():
+    if 'user_id' not in session: return jsonify({"ok": False, "msg": "Login avvu bro!"}), 401
+    conn = None
+    try:
+        data = request.get_json() if request.is_json else request.form
+        utr = (data.get('utr') or "").strip().upper()
+        amount = data.get('amount') or 0
+        if not utr or len(utr) < 6: return jsonify({"ok": False, "msg": "Valid UTR enter chey bro!"}), 400
+        conn = get_db()
+        dup = conn.execute("SELECT id FROM payments WHERE utr=?", (utr,)).fetchone()
+        if dup:
+            conn.close()
+            return jsonify({"ok": False, "msg": "Ee UTR already use chesav bro!"}), 400
+        amt_i = int(float(amount))
+        conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?,'PENDING',?)", (session['user_id'], amt_i, utr, now_ist().strftime("%d/%m %H:%M")))
+        conn.commit(); conn.close()
+        return jsonify({"ok": True, "msg": f"✅ ₹{amt_i} Submitted! Admin approve chestadu!"})
+    except Exception as e:
+        print(e); traceback.print_exc()
+        try:
+            if conn: conn.close()
+        except: pass
+        return jsonify({"ok": False, "msg": f"Error: {e}"}), 500
+
+@app.route('/request_withdrawal', methods=['POST'])
+@nocache
+def request_withdrawal():
+    return redirect('/wallet')
 
 @app.route('/logout')
 def logout():
