@@ -30,7 +30,6 @@ h3{margin-top:0;color:#00ff88}
 <h2 style="text-align:center" id="adminLogo">👑 SD TOURNAMENT - ADMIN PANEL</h2>
 <div style="text-align:center;margin-bottom:10px"><a href="/" style="color:#00ff88;text-decoration:none;font-weight:900;">← GO TO HOME</a> | <a href="/logout" style="color:#ff4444;text-decoration:none;">LOGOUT</a></div>
 
-<!-- NEW: STATS DASHBOARD -->
 <div class="stats">
 <div class="stat-box"><small>TOTAL TOURNAMENTS</small><h2>{{matches|length}}</h2></div>
 <div class="stat-box"><small>PENDING RESULTS</small><h2 style="color:orange">{{pending_results|length}}</h2></div>
@@ -38,17 +37,27 @@ h3{margin-top:0;color:#00ff88}
 <div class="stat-box"><small>PENDING WITHDRAW</small><h2 style="color:#008cff">{{pending_withdrawals|length}}</h2></div>
 </div>
 
+<!-- AUTO GENERATE - DAILY 9AM-9PM 40MIN GAP -->
+<div class="card" style="border:2px solid gold;background:linear-gradient(135deg,#1a1a1a,#2a2000);">
+<h3 style="color:gold;">⚡ AUTO GENERATE DAILY (9AM-9PM | 40MIN GAP)</h3>
+<p style="font-size:11px;color:#888;">CS Solo ₹30/₹40 (2 slots) | CS Duo ₹30/₹80 (4) | CS Squad ₹25/₹150 (8) | Bermuda Solo ₹15/₹1000 (48) + ₹8/Kill - Daily Rotate</p>
+<form method="POST" style="margin-top:10px;">
+<input type="hidden" name="action" value="auto_generate">
+<button class="btn-gold" style="width:100%;padding:15px;font-size:14px;">🚀 GENERATE TODAY'S 19 TOURNAMENTS (9AM-9PM)</button>
+</form>
+</div>
+
 <!-- 1. ADD TOURNAMENT -->
 <div class="card">
-<h3>➕ Add New Tournament</h3>
+<h3>➕ Add New Tournament Manually</h3>
 <form method="POST">
 <input type="hidden" name="action" value="add_tournament">
-<input name="game" placeholder="Game (BGMI/FREE FIRE)" required>
+<input name="game" placeholder="Game (Clash Squad/Bermuda)" required>
 <input name="type" placeholder="SOLO/DUO/SQUAD" required>
 <input name="entry_fee" type="number" placeholder="Entry Fee" required>
 <input name="prize" type="number" placeholder="Prize Pool" required>
 <input name="total_slots" type="number" placeholder="Total Slots" required>
-<input name="per_kill" type="number" placeholder="Per Kill Prize (0)">
+<input name="per_kill" type="number" placeholder="Per Kill (0)">
 <input name="time" type="datetime-local" required>
 <button class="btn-green">CREATE TOURNAMENT</button>
 </form>
@@ -56,7 +65,7 @@ h3{margin-top:0;color:#00ff88}
 
 <!-- 2. MAKE LIVE -->
 <div class="card" style="border:1px solid #ff4444;">
-<h3 style="color:#ff4444;">🔴 Make Match LIVE (Room ID Pettali) - Vallake Velthadi!</h3>
+<h3 style="color:#ff4444;">🔴 Make Match LIVE (Room ID)</h3>
 <form method="POST">
 <input type="hidden" name="action" value="set_room">
 <input name="mid" type="number" placeholder="Match ID (Ex: 1)" required>
@@ -64,7 +73,6 @@ h3{margin-top:0;color:#00ff88}
 <input name="room_pass" placeholder="Password" required>
 <button class="btn-red">SET ROOM & GO LIVE</button>
 </form>
-<p style="font-size:11px;color:#888;margin-top:8px;">Note: Room ID pedithe JOIN ayina vallake matrame kanipistadi. Vere vallaki kanipiyadu - 100% Secure!</p>
 </div>
 
 <!-- 3. ALL TOURNAMENTS -->
@@ -72,10 +80,11 @@ h3{margin-top:0;color:#00ff88}
 <h3>📋 All Tournaments ({{matches|length}})</h3>
 {% for m in matches %}
 <div class="item">
-<span>ID: <b style="color:gold">{{m.id}}</b> | {{m.game}} {{m.type}} | Time: {{m.time}}<br>Joined: <b style="color:gold">{{m.joined}}/{{m.total}}</b> | Status: <b style="color:{% if m.status=='LIVE'%}#ff4444{% elif m.status=='CANCELLED'%}orange{% else %}#00ff88{% endif %}">{{m.status}}</b> | Room: <b style="color:#00ff88">{{m.room_id}} / {{m.room_pass}}</b> | Fee: ₹{{m.fee}}</span>
+<span>ID: <b style="color:gold">{{m.id}}</b> | {{m.game}} {{m.type}} | Time: {{m.time}}<br>Joined: <b style="color:gold">{{m.joined}}/{{m.total}}</b> | Status: <b style="color:{% if m.status=='LIVE'%}#ff4444{% elif m.status=='CANCELLED'%}orange{% else %}#00ff88{% endif %}">{{m.status}}</b> | Room: <b style="color:#00ff88">{{m.room_id}} / {{m.room_pass}}</b> | Fee: ₹{{m.fee}} | Prize: ₹{{m.prize}}</span>
 <div style="display:flex;gap:5px;flex-wrap:wrap">
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="cancel_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-orange" onclick="return confirm('Cancel chesi andhariki ₹{{m.fee}} refund cheyala?')">CANCEL & REFUND</button></form>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red" onclick="return confirm('DELETE chesi andhariki ₹{{m.fee}} refund cheyala?')">DELETE & REFUND</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="generate_room_id"><input type="hidden" name="mid" value="{{m.id}}"><button class="btn-green" style="background:gold;color:#000;">🎲 AUTO ROOM</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="cancel_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-orange" onclick="return confirm('Cancel chesi refund cheyala?')">CANCEL</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red" onclick="return confirm('DELETE & REFUND?')">DELETE</button></form>
 </div>
 </div>
 {% endfor %}
@@ -83,8 +92,7 @@ h3{margin-top:0;color:#00ff88}
 
 <!-- 4. MATCH RESULTS -->
 <div class="card" style="border:2px solid gold;">
-<h3 style="color:gold;">🏆 Match Results Verification - Anti Cheat ({{pending_results|length}} Pending)</h3>
-<p style="font-size:12px;color:#888;">Player screenshot chusi kills verify chesi APPROVE kottali. Fake aithe REJECT.</p>
+<h3 style="color:gold;">🏆 Match Results Verification ({{pending_results|length}} Pending)</h3>
 {% if pending_results|length==0 %}<p style="color:#666">No pending results - Antha clear!</p>{% endif %}
 {% for r in pending_results %}
 <div class="result-item">
@@ -93,14 +101,14 @@ h3{margin-top:0;color:#00ff88}
 ID: <b style="color:gold">{{r.id}}</b> | Match ID: <b>{{r.match_id}}</b> | User ID: <b style="color:#00ff88">{{r.user_id}}</b> ({{r.username}})<br>
 Kills: <b style="font-size:18px;color:gold;">{{r.kills}}</b> | Status: <span class="badge badge-pending">{{r.status}}</span> | Time: {{r.time}}<br>
 {% if r.screenshot %}
-<a href="/static/uploads/{{r.screenshot}}" target="_blank" style="color:#00ff88;font-weight:900;font-size:14px;">📸 VIEW SCREENSHOT PROOF</a>
+<a href="/static/uploads/{{r.screenshot}}" target="_blank" style="color:#00ff88;font-weight:900;">📸 VIEW SCREENSHOT</a>
 {% else %}
 <span style="color:red;">❌ No Screenshot!</span>
 {% endif %}
 </div>
 <div>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-green" style="padding:12px 20px;">✅ APPROVE + GIVE PRIZE</button></form><br><br>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="reject_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-red" style="padding:8px 15px;">❌ REJECT - FAKE</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-green" style="padding:12px 20px;">✅ APPROVE</button></form><br><br>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="reject_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-red" style="padding:8px 15px;">❌ REJECT</button></form>
 </div>
 </div>
 </div>
@@ -115,7 +123,7 @@ Kills: <b style="font-size:18px;color:gold;">{{r.kills}}</b> | Status: <span cla
 <div class="item">
 <span>ID: <b>{{p.id}}</b> | User: {{p.user_id}} | ₹<b style="color:gold">{{p.amount}}</b> | UTR: <b style="color:#00ff88">{{p.utr}}</b> | {{p.time}}</span>
 <div>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_payment"><input type="hidden" name="payment_id" value="{{p.id}}"><button class="btn-green">APPROVE +₹{{p.amount}}</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_payment"><input type="hidden" name="payment_id" value="{{p.id}}"><button class="btn-green">APPROVE</button></form>
 <form method="POST" style="display:inline"><input type="hidden" name="action" value="reject_payment"><input type="hidden" name="payment_id" value="{{p.id}}"><button class="btn-red">REJECT</button></form>
 </div>
 </div>
