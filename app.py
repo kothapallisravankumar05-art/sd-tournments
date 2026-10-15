@@ -24,25 +24,21 @@ MY_UPI_ID = os.getenv("UPI_ID", "9550043870@ibl")
 SITE_URL = "https://sd-tournments.onrender.com"
 ADMIN_USER_ID = 1
 
-# ===== 12 HRS FILTER - 100% FIX =====
+# ===== 12 HRS FILTER - FIX =====
 @app.template_filter('time12')
 def time12_filter(t):
     try:
         if not t: return ""
         s = str(t).strip()
-        # "14:30" or "14:30:00" handle chestadi
         parts = s.split(":")
         if len(parts) < 2: return s
-        h = int(parts[0])
-        m = int(parts[1])
+        h = int(parts[0]); m = int(parts[1])
         ampm = "AM" if h < 12 else "PM"
         h12 = h % 12
         if h12 == 0: h12 = 12
         return f"{h12}:{m:02d} {ampm}"
-    except:
-        return str(t)
+    except: return str(t)
 
-# safety kosam rendu peru pettam - time ani vadina kuda 12hrs eh vasthadi
 @app.template_filter('time')
 def time_filter(t):
     return time12_filter(t)
@@ -87,7 +83,6 @@ def init_db():
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
             conn.commit()
-            print("✅ POSTGRES TABLES READY - 100% PERSISTENT!")
         else:
             conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
             conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
@@ -96,10 +91,8 @@ def init_db():
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
             conn.commit()
-    except Exception as e:
-        print(e)
-    finally:
-        conn.close()
+    except Exception as e: print(e)
+    finally: conn.close()
 init_db()
 
 def nocache(view):
@@ -183,6 +176,20 @@ def referral_page(code):
     session.permanent = True
     return redirect('/register')
 
+# ===== ACCOUNT ROUTE - MALLI ADD CHESA - IDI IMPORTANT =====
+@app.route('/account')
+@nocache
+def account():
+    if 'user_id' not in session: return redirect('/login')
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    if not user: session.clear(); conn.close(); return redirect('/login')
+    payments = conn.execute("SELECT * FROM payments WHERE user_id=? ORDER BY id DESC LIMIT 20", (session['user_id'],)).fetchall()
+    withdrawals = conn.execute("SELECT * FROM withdrawals WHERE user_id=? ORDER BY id DESC LIMIT 20", (session['user_id'],)).fetchall()
+    joined_count = conn.execute("SELECT COUNT(*) FROM joined WHERE user_id=?", (session['user_id'],)).fetchone()[0]
+    conn.close()
+    return render_template('account.html', user=user, payments=payments, withdrawals=withdrawals, joined_count=joined_count, site_url=SITE_URL)
+
 @app.route('/wallet', methods=['GET','POST'])
 @nocache
 def wallet():
@@ -262,6 +269,44 @@ def verify_upi():
 @nocache
 def request_withdrawal():
     return redirect('/wallet')
+
+@app.route('/join/<int:tid>', methods=['POST','GET'])
+@nocache
+def join_tournament(tid):
+    if 'user_id' not in session: return redirect('/login')
+    conn = get_db()
+    try:
+        tour = conn.execute("SELECT * FROM tournaments WHERE id=?", (tid,)).fetchone()
+        user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+        if not tour or not user:
+            conn.close(); return redirect('/')
+        already = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
+        if already:
+            conn.close(); return redirect('/')
+        if int(user['balance'] or 0) < int(tour['fee'] or 0):
+            conn.close(); return redirect('/wallet')
+        if int(tour['joined'] or 0) >= int(tour['total'] or 10):
+            conn.close(); return redirect('/')
+        slot = int(tour['joined'] or 0) + 1
+        conn.execute("INSERT INTO joined (user_id, tournament_id, slot_no) VALUES (?,?,?)", (session['user_id'], tid, slot))
+        conn.execute("UPDATE tournaments SET joined=joined+1 WHERE id=?", (tid,))
+        conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (int(tour['fee']), session['user_id']))
+        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (session['user_id'], int(tour['fee']), 'DEBIT', f'Joined Tournament {tid}', now_ist().strftime("%d/%m %H:%M")))
+        conn.commit()
+        conn.close()
+        return redirect('/')
+    except Exception as e:
+        print(e); conn.close(); return redirect('/')
+
+@app.route('/my_tournaments')
+@nocache
+def my_tournaments():
+    if 'user_id' not in session: return redirect('/login')
+    conn = get_db()
+    data = conn.execute("SELECT j.*, t.* FROM joined j JOIN tournaments t ON j.tournament_id=t.id WHERE j.user_id=? ORDER BY j.id DESC", (session['user_id'],)).fetchall()
+    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    conn.close()
+    return render_template('my_tournaments.html', joined=data, user=user)
 
 @app.route('/logout')
 def logout():
