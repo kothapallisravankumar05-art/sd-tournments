@@ -33,7 +33,6 @@ SITE_URL = "https://sd-tournaments.onrender.com"
 ADMIN_USER_ID = 1
 ADMIN_PASSWORD = "NANI19"
 
-# ================= DAILY FIXED TOURNAMENTS - YOUR CONFIG =================
 TOURNAMENT_TEMPLATES = [
     {"game": "Clash Squad", "type": "Solo", "map": "Bermuda", "fee": 30, "prize": 40, "total": 2, "per_kill": 0},
     {"game": "Clash Squad", "type": "Duo", "map": "Bermuda", "fee": 30, "prize": 80, "total": 4, "per_kill": 0},
@@ -114,10 +113,8 @@ def auto_expire_matches():
             if room and str(room).strip()!= "":
                 continue
             t_time = parse_match_time(t['time'] if 'time' in t.keys() else t[1])
-            if not t_time:
-                continue
-            if t_time > now:
-                continue
+            if not t_time: continue
+            if t_time > now: continue
             if now > (t_time + timedelta(hours=1)):
                 fee_val = 0
                 try: fee_val = int(t['fee'] or 0)
@@ -127,7 +124,6 @@ def auto_expire_matches():
                 expired.append((t['id'] if 'id' in t.keys() else t[0], fee_val))
         for tid, fee in expired:
             try:
-                print(f"Expiring {tid}")
                 joined_users = conn.execute("SELECT user_id FROM joined WHERE tournament_id=?", (tid,)).fetchall()
                 for ju in joined_users:
                     uid = ju['user_id'] if hasattr(ju, 'keys') and 'user_id' in ju.keys() else ju[0]
@@ -226,20 +222,13 @@ def nocache(view):
     return wrapper
 
 @app.route('/manifest.json')
-def manifest_root():
-    return send_from_directory('static', 'manifest.json')
-
+def manifest_root(): return send_from_directory('static', 'manifest.json')
 @app.route('/sw.js')
-def sw_root():
-    return send_from_directory('static', 'sw.js')
-
+def sw_root(): return send_from_directory('static', 'sw.js')
 @app.route('/icon-192.png')
-def icon192():
-    return send_from_directory('static', 'icon-192.png')
-
+def icon192(): return send_from_directory('static', 'icon-192.png')
 @app.route('/icon-512.png')
-def icon512():
-    return send_from_directory('static', 'icon-512.png')
+def icon512(): return send_from_directory('static', 'icon-512.png')
 
 @app.errorhandler(500)
 def handle_500(e):
@@ -343,13 +332,13 @@ def admin():
             except: pass
         return redirect('/admin')
     try:
-        matches = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
+        matches = conn.execute("SELECT * FROM tournaments ORDER BY time ASC, id ASC").fetchall()
         pending_results = conn.execute("SELECT r.*, u.username FROM results r JOIN users u ON r.user_id=u.id WHERE r.status='PENDING' ORDER BY r.id DESC").fetchall()
         all_results = conn.execute("SELECT r.*, u.username FROM results r JOIN users u ON r.user_id=u.id WHERE r.status!='PENDING' ORDER BY r.id DESC LIMIT 20").fetchall()
         pending_payments = conn.execute("SELECT * FROM payments WHERE status='PENDING' ORDER BY id DESC").fetchall()
         pending_withdrawals = conn.execute("SELECT * FROM withdrawals WHERE status='PENDING' ORDER BY id DESC").fetchall()
     except:
-        matches = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
+        matches = conn.execute("SELECT * FROM tournaments ORDER BY time ASC, id ASC").fetchall()
         pending_results = conn.execute("SELECT * FROM results WHERE status='PENDING' ORDER BY id DESC").fetchall()
         all_results = conn.execute("SELECT * FROM results WHERE status!='PENDING' ORDER BY id DESC LIMIT 20").fetchall()
         pending_payments = conn.execute("SELECT * FROM payments WHERE status='PENDING' ORDER BY id DESC").fetchall()
@@ -366,7 +355,7 @@ def index():
         auto_expire_matches()
     except: pass
     conn = get_db()
-    t = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
+    t = conn.execute("SELECT * FROM tournaments ORDER BY time ASC, id ASC").fetchall()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     if not user: session.clear(); conn.close(); return redirect('/login')
     my_joined = conn.execute("SELECT tournament_id FROM joined WHERE user_id=?", (session['user_id'],)).fetchall()
@@ -410,7 +399,7 @@ def match_result(tid):
 def matches_page():
     if 'user_id' not in session: return redirect('/login')
     conn = get_db()
-    t = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
+    t = conn.execute("SELECT * FROM tournaments ORDER BY time ASC, id ASC").fetchall()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     my_joined = conn.execute("SELECT tournament_id FROM joined WHERE user_id=?", (session['user_id'],)).fetchall()
     my_joined_ids = [r[0] for r in my_joined]
@@ -491,13 +480,11 @@ def referral_page(code):
 
 @app.route('/r/<code>')
 @nocache
-def referral_short(code):
-    return redirect(f'/refer/{code.upper().strip()}')
+def referral_short(code): return redirect(f'/refer/{code.upper().strip()}')
 
 @app.route('/refer')
 @nocache
-def refer_empty():
-    return redirect('/register')
+def refer_empty(): return redirect('/register')
 
 @app.route('/account')
 @nocache
