@@ -6,7 +6,7 @@
 <style>
 body{background:#0a1628;color:#fff;font-family:Arial;padding:15px;margin:0}
 .card{background:#162435;padding:18px;border-radius:14px;margin-bottom:15px;border:1px solid #1e3a5a}
-input{width:100%;padding:14px;border-radius:10px;border:none;margin:10px 0;font-size:16px;box-sizing:border-box;outline:none}
+input{width:100%;padding:14px;border-radius:10px;border:none;margin:10px 0;font-size:16px;box-sizing:border-box;outline:none;background:#fff;color:#000;font-weight:bold;}
 input:focus{box-shadow:0 0 8px #00ff88}
 .btn{width:100%;padding:14px;border:none;border-radius:10px;font-weight:bold;font-size:16px;cursor:pointer}
 .btn:active{transform:scale(0.98)}
@@ -25,12 +25,11 @@ input:focus{box-shadow:0 0 8px #00ff88}
 <a href="/" style="color:#00d4ff;text-decoration:none;font-weight:bold">← Back to Tournaments</a>
 <h2>💰 Wallet - ₹{{ user['balance'] if user else 0 }}</h2>
 
-<!-- REFERRAL - FIXED TO MN LINK -->
 <div class="card refer-box">
-<h3 style="margin:0">💸 REFER & EARN ₹10</h3>
-<p style="font-size:12px;color:#ccc;margin:5px 0">Invite Your Friend Earn Upto-  ₹10!</p>
+<h3 style="margin:0">💸 REFER & EARN ₹20</h3>
+<p style="font-size:12px;color:#ccc;margin:5px 0">Invite Your Friend Earn Upto ₹20 Instant!</p>
 <div style="background:#000;padding:10px;border-radius:8px;margin:10px 0;display:flex;justify-content:space-between;align-items:center">
-<span id="refLink" style="font-size:11px;word-break:break-all">https://sd-tournments.onrender.com/refer/{{ user['referral_code'] if user and user['referral_code'] else 'XXXXXX' }}</span>
+<span id="refLink" style="font-size:11px;word-break:break-all;color:#fff;">https://sd-tournments.onrender.com/refer/{{ user['referral_code'] if user and user['referral_code'] else 'XXXXXX' }}</span>
 <button onclick="copyRef()" style="background:gold;border:none;padding:6px 10px;border-radius:6px;font-weight:900;cursor:pointer">COPY</button>
 </div>
 <button onclick="shareRef()" class="btn btn-gold" style="padding:10px;font-size:14px">SHARE ON WHATSAPP</button>
@@ -40,35 +39,39 @@ input:focus{box-shadow:0 0 8px #00ff88}
 <h3>💰 Add Money (Min ₹20)</h3>
 <input type="number" id="amt" min="20" value="50" placeholder="Amount">
 <button class="btn btn-green" onclick="showQR()">PAY ₹<span id="amtText">50</span> - SHOW QR</button>
+<p style="font-size:11px;color:#666;text-align:center;margin-top:6px;">Direct UPI App Open Avuthundi - No Number Needed</p>
 </div>
 
 <div id="qrBox" class="qr-box">
 <h3>Scan & Pay ₹<span id="qrAmt">50</span></h3>
 <img id="mainQR" src="" style="width:220px;height:220px;border-radius:12px">
-<p style="font-size:13px;margin-top:10px">PhonePe / GPay - 9550043870@ibl</p>
-<button class="btn btn-blue" onclick="showUTR()">I HAVE PAID - ENTER UTR</button>
+<!-- UPI NUMBER HIDE CHESA BRO - IKKADA KANIPINCHADU -->
+<p style="font-size:11px;color:#888;margin-top:10px">Scan with any UPI App - Auto Detected ✅</p>
+<button class="btn btn-blue" onclick="payDirect()" style="margin-top:10px;background:#00ff88;">📲 OPEN UPI APP DIRECTLY</button>
+<button class="btn btn-blue" onclick="showUTR()" style="margin-top:10px;">I HAVE PAID - ENTER UTR</button>
 </div>
 
-<!-- DEPOSIT FIXED - NOW USES JS FETCH TO /verify_upi -->
-<div id="utrBox" class="utr-box card" style="display:none">
-<h3>Enter 12 Digit UTR</h3>
-<input type="hidden" id="finalAmt" value="50">
-<input type="text" id="utrInput" maxlength="12" minlength="6" placeholder="UTR - Ex: 123456789012">
-<button type="button" class="btn btn-green" onclick="submitUTR()">SUBMITTED</button>
-<p id="utrMsg" style="font-size:13px;margin-top:10px"></p>
+<!-- DEPOSIT FIXED - NO MORE /verify_upi - DIRECT /wallet POST -->
+<div id="utrBox" class="utr-box card" style="display:none;border:2px solid #00ff88;">
+<h3 style="color:#00ff88;">Enter 12 Digit UTR</h3>
+<form method="POST" action="/wallet" id="utrForm">
+<input type="hidden" name="amount" id="finalAmt" value="50">
+<input type="text" name="utr" id="utrInput" maxlength="12" minlength="6" placeholder="UTR - Ex: 183727382837" required>
+<button type="submit" class="btn btn-green">SUBMITTED FOR VERIFICATION</button>
+<p id="utrMsg" style="font-size:12px;color:#888;margin-top:8px;">Admin 5 min lo approve chestadu</p>
+</form>
 </div>
 
-<!-- WITHDRAWAL FIXED - ACTION CORRECT -->
+<!-- WITHDRAWAL FIXED - ACTION TO /wallet -->
 <div class="card">
 <h3>💸 Withdraw (Min ₹200)</h3>
-<form method="POST" action="/request_withdrawal">
+<form method="POST" action="/wallet">
 <input type="number" name="amount" min="200" max="{{ user['balance'] if user else 0 }}" required placeholder="Amount Min 200">
 <input type="text" name="upi_id" required placeholder="Your UPI ID - Ex: 9396@ybl">
 <button type="submit" class="btn btn-orange">REQUEST WITHDRAWAL</button>
 </form>
 </div>
 
-<!-- TRANSACTION HISTORY -->
 <div class="card" style="border:1px solid gold">
 <h3>📜 Transaction History</h3>
 {% if transactions %}
@@ -79,7 +82,7 @@ input:focus{box-shadow:0 0 8px #00ff88}
 </div>
 {% endfor %}
 {% else %}
-<p style="color:#888;font-size:12px">No transactions yet - Play tournaments!</p>
+<p style="color:#888;font-size:12px">No transactions yet</p>
 {% endif %}
 </div>
 
@@ -96,55 +99,48 @@ input:focus{box-shadow:0 0 8px #00ff88}
 </div>
 
 <script>
+// UPI ID - JS lo mathrame - HTML lo kanipinchadu bro!
+const UPI_ID = "9550043870@ibl";
+const UPI_NAME = "SDTournament";
+
 document.getElementById('amt').addEventListener('input', function(){
     let v = this.value || 50;
     document.getElementById('amtText').innerText = v;
     document.getElementById('qrAmt').innerText = v;
+    document.getElementById('finalAmt').value = v;
 });
+
 function showQR(){
     let a = document.getElementById('amt').value;
     if(a < 20){ alert("Min 20 bro"); return; }
     document.getElementById('finalAmt').value = a;
     document.getElementById('qrAmt').innerText = a;
-    let upi = "upi://pay?pa=9550043870@ibl&pn=SDTournament&am="+a+"&cu=INR";
+    let upi = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${a}&cu=INR`;
     let qr = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data="+encodeURIComponent(upi);
     document.getElementById('mainQR').src = qr;
     document.getElementById('qrBox').style.display = 'block';
     window.scrollTo(0, document.getElementById('qrBox').offsetTop);
 }
+
+function payDirect(){
+    let a = document.getElementById('amt').value || 50;
+    let upi = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${a}&cu=INR`;
+    window.location.href = upi;
+}
+
 function showUTR(){
     document.getElementById('utrBox').style.display = 'block';
     window.scrollTo(0, document.getElementById('utrBox').offsetTop);
 }
-async function submitUTR(){
-    let utr = document.getElementById('utrInput').value.trim();
-    let amt = document.getElementById('finalAmt').value;
-    if(utr.length < 6){ alert("Valid UTR enter chey bro!"); return; }
-    document.getElementById('utrMsg').innerText = "Submitting...";
-    try{
-        let res = await fetch('/verify_upi', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({utr: utr, amount: amt})
-        });
-        let data = await res.json();
-        document.getElementById('utrMsg').innerText = data.msg;
-        document.getElementById('utrMsg').style.color = data.ok ? '#00ff88' : '#ff4444';
-        if(data.ok){
-            setTimeout(()=>{ window.location.href='/wallet'; }, 1500);
-        }
-    }catch(e){
-        document.getElementById('utrMsg').innerText = "Error: "+e;
-    }
-}
+
 function copyRef(){
     let link = document.getElementById('refLink').innerText;
     navigator.clipboard.writeText(link);
-    alert("Referral link copied! Share To Your Friends");
+    alert("Referral link copied!");
 }
 function shareRef(){
     let link = document.getElementById('refLink').innerText;
-    let text = "SD Tournaments lo join & get ₹20 FREE bonus ! Free Fire tournaments play earn more! "+link;
+    let text = "SD Tournaments lo join & get ₹20 FREE bonus! Free Fire tournaments play earn more! "+link;
     window.open("https://wa.me/?text="+encodeURIComponent(text), "_blank");
 }
 </script>
