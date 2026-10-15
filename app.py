@@ -7,7 +7,7 @@ from datetime import datetime, date, timedelta, timezone
 # ===== IST TIMEZONE FIX - IMPORTANT FOR RENDER =====
 IST = timezone(timedelta(hours=5, minutes=30))
 def now_ist():
-    return datetime.now(IST).replace(tzinfo=None) # naive IST for DB compatibility
+    return datetime.now(IST).replace(tzinfo=None)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 IS_POSTGRES = bool(DATABASE_URL and DATABASE_URL.startswith("postgres"))
@@ -34,7 +34,7 @@ os.makedirs('static', exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 MY_UPI_ID = os.getenv("UPI_ID", "9550043870@ibl")
-SITE_URL = "https://sd-tournaments.onrender.com"
+SITE_URL = "https://sd-tournments.onrender.com"
 ADMIN_USER_ID = 1
 ADMIN_PASSWORD = "NANI19"
 
@@ -88,9 +88,7 @@ def add_txn(user_id, amount, type_, desc):
 
 def parse_match_time(time_str):
     if not time_str: return None
-    # Support both 24h and 12h formats
     formats = ["%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M", "%d-%m-%Y %H:%M", "%Y-%m-%dT%H:%M", "%H:%M", "%I:%M %p", "%d/%m %H:%M", "%d/%m %I:%M %p"]
-    # Clean string like "15/10 09:00 AM" -> try
     s = str(time_str).strip()
     now = now_ist()
     for fmt in formats:
@@ -140,24 +138,16 @@ def auto_expire_matches():
                 room = t['room_id'] if 'room_id' in t.keys() else t[4]
                 total = t['total'] if 'total' in t.keys() else t[5]
                 joined_c = t['joined'] if 'joined' in t.keys() else t[6]
-
                 if room and str(room).strip()!= "":
                     continue
-
                 t_time = parse_match_time(time_str)
                 if not t_time:
                     print(f"Skip {tid}: can't parse {time_str}")
                     continue
-
-                # Future match -> skip
                 if t_time > now:
                     continue
-
-                # Check if 60 mins passed
                 if now <= (t_time + timedelta(minutes=60)):
                     continue
-
-                # FULL CHECK - MAIN LOGIC YOU ASKED
                 try: total_slots = int(total)
                 except: total_slots = 0
                 try: joined_slots = int(joined_c)
@@ -165,22 +155,17 @@ def auto_expire_matches():
                     try:
                         joined_slots = conn.execute("SELECT COUNT(*) FROM joined WHERE tournament_id=?", (tid,)).fetchone()[0]
                     except: joined_slots = 0
-
                 is_full = total_slots > 0 and joined_slots >= total_slots
-
                 if is_full:
                     print(f"Match {tid} FULL {joined_slots}/{total_slots} -> MOVING TO LIVE, NOT DELETING")
                     conn.execute("UPDATE tournaments SET status='LIVE' WHERE id=?", (tid,))
                     conn.commit()
                     continue
-
                 print(f"Match {tid} EXPIRED {time_str} {joined_slots}/{total_slots} -> MARK FOR DELETE")
                 expired.append((tid, int(fee) if fee else 0))
-
             except Exception as e_inner:
                 print(f"Expire inner error: {e_inner}")
                 continue
-
         for tid, fee in expired:
             try:
                 joined_users = conn.execute("SELECT user_id FROM joined WHERE tournament_id=?", (tid,)).fetchall()
@@ -259,7 +244,7 @@ def init_db():
             conn.commit()
         else:
             conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0, last_bonus TEXT)")
-            conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING', winner_id TEXT)")
+            conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING', winner_id TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS joined (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0)")
             conn.execute("CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY AUTOINCREMENT, match_id INTEGER, user_id INTEGER, kills INTEGER, screenshot TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
