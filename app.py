@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, session, make_response, jsonify
 import os, random, string, sqlite3, traceback, urllib.parse
 from datetime import datetime, timedelta, timezone
+from functools import wraps
 
 IST = timezone(timedelta(hours=5, minutes=30))
 def now_ist(): return datetime.now(IST).replace(tzinfo=None)
@@ -22,6 +23,30 @@ os.makedirs('static', exist_ok=True)
 MY_UPI_ID = os.getenv("UPI_ID", "9550043870@ibl")
 SITE_URL = "https://sd-tournments.onrender.com"
 ADMIN_USER_ID = 1
+
+# ===== 12 HRS FILTER - 100% FIX =====
+@app.template_filter('time12')
+def time12_filter(t):
+    try:
+        if not t: return ""
+        s = str(t).strip()
+        # "14:30" or "14:30:00" handle chestadi
+        parts = s.split(":")
+        if len(parts) < 2: return s
+        h = int(parts[0])
+        m = int(parts[1])
+        ampm = "AM" if h < 12 else "PM"
+        h12 = h % 12
+        if h12 == 0: h12 = 12
+        return f"{h12}:{m:02d} {ampm}"
+    except:
+        return str(t)
+
+# safety kosam rendu peru pettam - time ani vadina kuda 12hrs eh vasthadi
+@app.template_filter('time')
+def time_filter(t):
+    return time12_filter(t)
+# ===== END FIX =====
 
 class PGWrapper:
     def __init__(self, conn): self.conn = conn
@@ -62,6 +87,7 @@ def init_db():
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
             conn.commit()
+            print("✅ POSTGRES TABLES READY - 100% PERSISTENT!")
         else:
             conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
             conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
@@ -77,11 +103,11 @@ def init_db():
 init_db()
 
 def nocache(view):
+    @wraps(view)
     def wrapper(*args, **kwargs):
         resp = make_response(view(*args, **kwargs))
         resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         return resp
-    wrapper.__name__ = view.__name__
     return wrapper
 
 @app.route('/health')
@@ -90,7 +116,7 @@ def health(): return "OK", 200
 @app.errorhandler(500)
 def handle_500(e):
     traceback.print_exc()
-    return f"<h3>500 Error - Check Logs</h3><pre>{traceback.format_exc()}</pre>", 500
+    return f"<h3>500 Error</h3><pre>{traceback.format_exc()}</pre>", 500
 
 @app.route('/')
 @nocache
