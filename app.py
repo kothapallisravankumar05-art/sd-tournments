@@ -122,26 +122,72 @@ def time12only_filter(time_str):
 def auto_expire_matches():
     try:
         conn = get_db()
-        tournaments = conn.execute("SELECT id, time, fee, status, room_id FROM tournaments WHERE status='UPCOMING'").fetchall()
+        tournaments = conn.execute("SELECT id, time, fee, status, room_id, total, joined FROM tournaments WHERE status='UPCOMING'").fetchall()
         now = datetime.now()
         expired = []
+        keep_full = [] # Full ayina matches list
         for t in tournaments:
+            # Room check
             room = None
             try: room = t['room_id']
             except:
                 try: room = t[4]
                 except: pass
             if room and str(room).strip()!= "": continue
-            t_time = parse_match_time(t['time'] if 'time' in t.keys() else t[1])
+
+            # Parse time
+            t_time = None
+            try:
+                t_time = parse_match_time(t['time'] if 'time' in t.keys() else t[1])
+            except:
+                try: t_time = parse_match_time(t[1])
+                except: pass
             if not t_time: continue
             if t_time > now: continue
-            if now > (t_time + timedelta(hours=1)):
-                fee_val = 0
-                try: fee_val = int(t['fee'] or 0)
+
+            # 1 HOUR tarvata matrame expire
+            if now <= (t_time + timedelta(hours=1)):
+                continue
+
+            # ===== NEW LOGIC - FULL CHECK =====
+            total_slots = 0
+            joined_slots = 0
+            try:
+                total_slots = int(t['total'] if 'total' in t.keys() else t[5])
+                joined_slots = int(t['joined'] if 'joined' in t.keys() else t[6])
+            except:
+                try:
+                    # Fallback: count from joined table
+                    cnt = conn.execute("SELECT COUNT(*) FROM joined WHERE tournament_id=?", (t['id'] if 'id' in t.keys() else t[0],)).fetchone()[0]
+                    joined_slots = int(cnt)
                 except:
-                    try: fee_val = int(t[2] or 0)
-                    except: pass
-                expired.append((t['id'] if 'id' in t.keys() else t[0], fee_val))
+                    joined_slots = 0
+
+            is_full = False
+            if total_slots > 0 and joined_slots >= total_slots:
+                is_full = True
+
+            # FULL ayithe DELETE VADDU - Ongoing ki move chey
+            if is_full:
+                tid = t['id'] if 'id' in t.keys() else t[0]
+                keep_full.append(tid)
+                print(f"Match {tid} is FULL ({joined_slots}/{total_slots}) - NOT DELETING, moving to LIVE")
+                try:
+                    conn.execute("UPDATE tournaments SET status='LIVE' WHERE id=?", (tid,))
+                    conn.commit()
+                except Exception as e:
+                    print(f"Full keep error {tid}: {e}")
+                continue
+
+            # FULL kadu ayithe delete list lo
+            fee_val = 0
+            try: fee_val = int(t['fee'] or 0)
+            except:
+                try: fee_val = int(t[2] or 0)
+                except: pass
+            expired.append((t['id'] if 'id' in t.keys() else t[0], fee_val))
+
+        # Delete only NOT FULL matches
         for tid, fee in expired:
             try:
                 joined_users = conn.execute("SELECT user_id FROM joined WHERE tournament_id=?", (tid,)).fetchall()
@@ -154,6 +200,7 @@ def auto_expire_matches():
                 conn.execute("DELETE FROM results WHERE match_id=?", (tid,))
                 conn.execute("DELETE FROM tournaments WHERE id=?", (tid,))
                 conn.commit()
+                print(f"Deleted expired empty match {tid}")
             except Exception as e:
                 print(f"Auto expire error {tid}: {e}")
                 try: conn.rollback()
@@ -161,6 +208,7 @@ def auto_expire_matches():
         conn.close()
     except Exception as e:
         print(f"auto_expire_matches error: {e}")
+        traceback.print_exc()
 
 def generate_daily_tournaments():
     try:
