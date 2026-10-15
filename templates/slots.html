@@ -19,8 +19,11 @@ body{background:#0f172a;color:#fff;min-height:100vh;padding-bottom:80px}
 <body>
 
 <div class="top">
-<a href="/match/{{t.id}}" style="color:#fff;text-decoration:none;font-size:22px">←</a>
-<b>Select Position - Match #{{t.id}}</b>
+<a href="/match/{{t.id}}" id="backBtn" style="color:#fff;text-decoration:none;font-size:22px">←</a>
+<div>
+<b>Select Position - Match #{{t.id}}</b><br>
+<span style="font-size:11px;color:#00ff88">{{t.time | time12}} | {{t.game}} - {{t.type}}</span>
+</div>
 </div>
 
 <div class="green-head">SELECT MATCH POSITION</div>
@@ -56,6 +59,12 @@ function selectSlot(n){
  document.getElementById('joinBtn').style.opacity=1;
  document.getElementById('joinBtn').innerText='JOIN NOW - Slot #'+n;
 }
+
+// Back button 100% fix
+document.getElementById('backBtn').addEventListener('click', function(e){
+  e.preventDefault();
+  window.location.href='/match/{{t.id}}';
+});
 </script>
 
 </body>
