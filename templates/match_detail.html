@@ -23,7 +23,7 @@ body{background:#0f172a;color:#fff;min-height:100vh;padding:15px}
 <div style="color:#00ff88;margin:10px 0">{{joined_count}}/{{t.total}} Joined | {{t.total - joined_count}} Left</div>
 <div style="background:#0f172a;padding:12px;border-radius:10px;text-align:left;font-size:13px;line-height:22px">
 <div>🗺 Map: <b>{{t.map}}</b></div>
-<div>⏰ Time: <b>{{t.time}}</b></div>
+<div>⏰ Time: <b>{{t.time | time12}}</b></div>
 <div>💰 Prize Pool: <b style="color:#00ff88">₹{{t.prize}}</b></div>
 <div>🎯 Per Kill: <b>₹{{t.per_kill}}</b></div>
 <div>💵 Entry Fee: <b>₹{{t.fee}}</b></div>
@@ -35,7 +35,6 @@ body{background:#0f172a;color:#fff;min-height:100vh;padding:15px}
 {% if my_join %}
 <button class="btn joined">✅ ALREADY JOINED - Slot #{{my_join['slot_no']}}</button>
 
-<!-- ✅ SCREENSHOT UPLOAD - ADDED HERE -->
 {% if t.status == 'LIVE' or t.status == 'UPCOMING' or t.status == 'COMPLETED' %}
 <div style="background:#0f172a;margin-top:15px;padding:15px;border-radius:12px;border:1px dashed gold;text-align:left">
 <h4 style="color:gold;text-align:center;margin-bottom:10px">📤 Submit Result</h4>
@@ -46,17 +45,33 @@ body{background:#0f172a;color:#fff;min-height:100vh;padding:15px}
 <input type="file" name="screenshot" accept="image/*" required class="file-box">
 <button type="submit" class="btn submit">SUBMIT KILLS + SCREENSHOT</button>
 </form>
-<p style="color:#666;font-size:11px;text-align:center;margin-top:8px">* If You Upload Fake Screenshot Reward Amount Not Be Credited!</p>
+<p style="color:#666;font-size:11px;text-align:center;margin-top:8px">* Fake Screenshot aithe Reward Credit Kaadu!</p>
 </div>
 {% endif %}
 
-<a href="/" class="btn back">Go to Home</a>
 {% else %}
 <a href="/slots/{{t.id}}" class="btn join">SELECT SLOT & JOIN - {{t.total - joined_count}} Left</a>
 {% endif %}
 
 <a href="/" class="btn back">← Back to Matches</a>
-<a href="/match_result/{{t.id}}" class="btn back" style="color:gold">🏆 View Results</a>
+<a href="/match_result/{{t.id}}" class="btn back" style="color:gold;border:1px solid gold">🏆 View Results</a>
 </div>
+
+<script>
+// Back & View Results 100% working fix
+document.querySelectorAll('.btn').forEach(btn=>{
+  if(btn.textContent.includes('Back to Matches')){
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      if(document.referrer && document.referrer.includes(window.location.host)){
+        history.back();
+        setTimeout(()=>{ if(document.visibilityState !== 'hidden') location.href='/'; }, 600);
+      } else {
+        location.href='/';
+      }
+    });
+  }
+});
+</script>
 </body>
 </html>
