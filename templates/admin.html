@@ -33,33 +33,49 @@ h3{margin-top:0;color:#00ff88}
 <div class="stats">
 <div class="stat-box"><small>TOTAL TOURNAMENTS</small><h2>{{matches|length}}</h2></div>
 <div class="stat-box"><small>PENDING RESULTS</small><h2 style="color:orange">{{pending_results|length}}</h2></div>
-<div class="stat-box"><small>PENDING PAYMENTS</small><h2 style="color:#00ff88">₹{{pending_payments|length}}</h2></div>
+<div class="stat-box"><small>PENDING PAYMENTS</small><h2 style="color:#00ff88">{{pending_payments|length}}</h2></div>
 <div class="stat-box"><small>PENDING WITHDRAW</small><h2 style="color:#008cff">{{pending_withdrawals|length}}</h2></div>
 </div>
 
-<!-- AUTO GENERATE - DAILY 9AM-9PM 40MIN GAP -->
+<!-- AUTO GENERATE -->
 <div class="card" style="border:2px solid gold;background:linear-gradient(135deg,#1a1a1a,#2a2000);">
 <h3 style="color:gold;">⚡ AUTO GENERATE DAILY (9AM-9PM | 40MIN GAP)</h3>
-<p style="font-size:11px;color:#888;">CS Solo ₹30/₹40 (2 slots) | CS Duo ₹30/₹80 (4) | CS Squad ₹25/₹150 (8) | Bermuda Solo ₹15/₹1000 (48) + ₹8/Kill - Daily Rotate</p>
+<p style="font-size:11px;color:#888;">CS Solo ₹30/₹40 (2) | CS Duo ₹30/₹80 (4) | CS Squad ₹25/₹150 (8) | Bermuda Solo ₹15/₹1000 (48) + ₹8/Kill</p>
 <form method="POST" style="margin-top:10px;">
 <input type="hidden" name="action" value="auto_generate">
-<button class="btn-gold" style="width:100%;padding:15px;font-size:14px;">🚀 GENERATE TODAY'S 19 TOURNAMENTS (9AM-9PM)</button>
+<button class="btn-gold" style="width:100%;padding:15px;font-size:14px;">🚀 GENERATE TODAY'S 19 TOURNAMENTS</button>
 </form>
 </div>
 
-<!-- 1. ADD TOURNAMENT -->
-<div class="card">
-<h3>➕ Add New Tournament Manually</h3>
-<form method="POST">
+<!-- 1. ADD TOURNAMENT - UPDATED WITH 12 TEAMS CUSTOM LOGIC -->
+<div class="card" style="border:2px solid #00ff88;">
+<h3>➕ Add New Tournament - CUSTOM PRIZE POOL</h3>
+<form method="POST" id="tournamentForm">
 <input type="hidden" name="action" value="add_tournament">
-<input name="game" placeholder="Game (Clash Squad/Bermuda)" required>
-<input name="type" placeholder="SOLO/DUO/SQUAD" required>
-<input name="entry_fee" type="number" placeholder="Entry Fee" required>
-<input name="prize" type="number" placeholder="Prize Pool" required>
-<input name="total_slots" type="number" placeholder="Total Slots" required>
-<input name="per_kill" type="number" placeholder="Per Kill (0)">
-<input name="time" type="datetime-local" required>
-<button class="btn-green">CREATE TOURNAMENT</button>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+<input name="game" placeholder="Game (Free Fire)" value="Free Fire" required>
+<select name="type" id="typeSelect" required>
+<option value="Squad">Squad - 4 Members</option>
+<option value="Duo">Duo - 2 Members</option>
+<option value="Solo">Solo - 1 Member</option>
+<option value="Clash Squad">Clash Squad</option>
+</select>
+<input name="entry_fee" id="entryFee" type="number" placeholder="Entry Fee per Team (Ex: 50)" required>
+<input name="prize" id="prizePool" type="number" placeholder="Prize Pool (Ex: 500 or -600)" required>
+<input name="teams" id="teamsInput" type="number" value="12" placeholder="No. of Teams (12)">
+<input name="players_per_team" id="playersInput" type="number" value="4" placeholder="Members per Team (4)">
+<input name="total_slots" id="totalSlots" type="number" placeholder="Total Slots (Auto 48)" required>
+<input name="per_kill" type="number" placeholder="Per Kill (0)" value="0">
+<input name="time" type="datetime-local" required style="grid-column:span 2">
+</div>
+<div style="background:#000;padding:10px;border-radius:8px;margin-top:10px;font-size:12px;border:1px solid #333;">
+<p style="margin:2px 0;color:#888;">💡 Teams x Members = Total Slots</p>
+<p style="margin:2px 0;color:gold;" id="calcInfo">12 Teams x 4 Members = 48 Slots</p>
+<p style="margin:2px 0;color:#888;" id="collectionInfo">Collection: ₹0</p>
+<p style="margin:2px 0;font-weight:bold;" id="profitInfo">Profit: ₹0</p>
+<p style="margin:2px 0;font-size:10px;color:#ffaa00;">Tip: Prize Pool lo -600 pedithe Loss track avutundi</p>
+</div>
+<button class="btn-green" style="width:100%;margin-top:10px;padding:12px;">CREATE TOURNAMENT</button>
 </form>
 </div>
 
@@ -151,6 +167,39 @@ document.getElementById('adminLogo').addEventListener('click',()=>{
  c++; clearTimeout(t); t=setTimeout(()=>c=0,3000);
  if(c>=5){ c=0; if(navigator.vibrate) navigator.vibrate(100); window.location.href='/'; }
 });
+
+function calculateAll(){
+  let teams = parseInt(document.getElementById('teamsInput').value) || 0;
+  let players = parseInt(document.getElementById('playersInput').value) || 0;
+  let fee = parseInt(document.getElementById('entryFee').value) || 0;
+  let prize = parseInt(document.getElementById('prizePool').value) || 0;
+  let total = teams * players;
+  
+  document.getElementById('totalSlots').value = total;
+  document.getElementById('calcInfo').innerText = `${teams} Teams x ${players} Members = ${total} Slots`;
+  
+  let collection = teams * fee;
+  let profit = collection - prize;
+  
+  document.getElementById('collectionInfo').innerText = `Collection: ${teams} x ₹${fee} = ₹${collection}`;
+  let profitEl = document.getElementById('profitInfo');
+  profitEl.innerText = `Profit: ₹${profit} ${profit<0 ? '(LOSS -'+Math.abs(profit)+')' : ''}`;
+  profitEl.style.color = profit >=0 ? '#00ff88' : '#ff4444';
+}
+
+document.getElementById('teamsInput').addEventListener('input', calculateAll);
+document.getElementById('playersInput').addEventListener('input', calculateAll);
+document.getElementById('entryFee').addEventListener('input', calculateAll);
+document.getElementById('prizePool').addEventListener('input', calculateAll);
+document.getElementById('typeSelect').addEventListener('change', function(){
+  let val = this.value;
+  if(val==='Squad') document.getElementById('playersInput').value = 4;
+  else if(val==='Duo') document.getElementById('playersInput').value = 2;
+  else if(val==='Solo') document.getElementById('playersInput').value = 1;
+  calculateAll();
+});
+
+calculateAll();
 </script>
 </body>
 </html>
