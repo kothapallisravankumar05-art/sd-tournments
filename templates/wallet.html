@@ -16,8 +16,8 @@ input:focus{box-shadow:0 0 8px #00ff88}
 .hist-item{border-bottom:1px solid #233a5a;padding:10px 0;font-size:13px;display:flex;justify-content:space-between;align-items:center}
 .badge{padding:3px 8px;border-radius:12px;font-size:11px;font-weight:bold}
 .badge-PENDING{background:orange;color:#000}.badge-APPROVED{background:#00ff88;color:#000}.badge-REJECTED{background:#ff4444;color:#fff}
-.badge-CREDIT{background:#00ff88;color:#000}.badge-DEBIT{background:#ff4444;color:#fff}.badge-WIN{background:gold;color:#000}.badge-BONUS{background:#00d4ff;color:#000}.badge-REFERRAL{background:#ff00ff;color:#fff}.badge-REFUND{background:orange;color:#000}
-.badge-WITHDRAW{background:#ffaa00;color:#000}
+.badge-CREDIT{background:#00ff88;color:#000}.badge-DEBIT{background:#ff4444;color:#fff}
+.badge-REFUND{background:orange;color:#000}
 .refer-box{background:linear-gradient(135deg,#1a0033,#6600ff);border:1px solid #ff00ff}
 </style>
 </head>
@@ -26,8 +26,8 @@ input:focus{box-shadow:0 0 8px #00ff88}
 <h2>💰 Wallet - ₹{{ user['balance'] if user else 0 }}</h2>
 
 <div class="card refer-box">
-<h3 style="margin:0">💸 REFER & EARN ₹20</h3>
-<p style="font-size:12px;color:#ccc;margin:5px 0">Invite Your Friend Earn Upto ₹20 Instant!</p>
+<h3 style="margin:0">💸 REFER & EARN ₹10</h3>
+<p style="font-size:12px;color:#ccc;margin:5px 0">Invite Friend - You & Friend Both Get ₹10 Instant!</p>
 <div style="background:#000;padding:10px;border-radius:8px;margin:10px 0;display:flex;justify-content:space-between;align-items:center">
 <span id="refLink" style="font-size:11px;word-break:break-all;color:#fff;">https://sd-tournments.onrender.com/refer/{{ user['referral_code'] if user and user['referral_code'] else 'XXXXXX' }}</span>
 <button onclick="copyRef()" style="background:gold;border:none;padding:6px 10px;border-radius:6px;font-weight:900;cursor:pointer">COPY</button>
@@ -36,33 +36,29 @@ input:focus{box-shadow:0 0 8px #00ff88}
 </div>
 
 <div class="card">
-<h3>💰 Add Money (Min ₹20)</h3>
-<input type="number" id="amt" min="20" value="50" placeholder="Amount">
+<h3>💰 Add Money (Min ₹10)</h3>
+<input type="number" id="amt" min="10" value="50" placeholder="Amount">
 <button class="btn btn-green" onclick="showQR()">PAY ₹<span id="amtText">50</span> - SHOW QR</button>
-<p style="font-size:11px;color:#666;text-align:center;margin-top:6px;">Direct UPI App Open Avuthundi - No Number Needed</p>
+<p style="font-size:11px;color:#666;text-align:center;margin-top:6px;">Direct UPI App Open - No Number Needed ✅</p>
 </div>
 
 <div id="qrBox" class="qr-box">
 <h3>Scan & Pay ₹<span id="qrAmt">50</span></h3>
 <img id="mainQR" src="" style="width:220px;height:220px;border-radius:12px">
-<!-- UPI NUMBER HIDE CHESA BRO - IKKADA KANIPINCHADU -->
-<p style="font-size:11px;color:#888;margin-top:10px">Scan with any UPI App - Auto Detected ✅</p>
-<button class="btn btn-blue" onclick="payDirect()" style="margin-top:10px;background:#00ff88;">📲 OPEN UPI APP DIRECTLY</button>
+<!-- UPI HIDE - NO NUMBER HERE -->
+<p style="font-size:11px;color:#888;margin-top:10px">Scan with PhonePe / GPay / Paytm ✅</p>
+<button class="btn btn-green" onclick="payDirect()" style="margin-top:10px;">📲 OPEN UPI APP DIRECTLY</button>
 <button class="btn btn-blue" onclick="showUTR()" style="margin-top:10px;">I HAVE PAID - ENTER UTR</button>
 </div>
 
-<!-- DEPOSIT FIXED - NO MORE /verify_upi - DIRECT /wallet POST -->
 <div id="utrBox" class="utr-box card" style="display:none;border:2px solid #00ff88;">
 <h3 style="color:#00ff88;">Enter 12 Digit UTR</h3>
-<form method="POST" action="/wallet" id="utrForm">
-<input type="hidden" name="amount" id="finalAmt" value="50">
-<input type="text" name="utr" id="utrInput" maxlength="12" minlength="6" placeholder="UTR - Ex: 183727382837" required>
-<button type="submit" class="btn btn-green">SUBMITTED FOR VERIFICATION</button>
-<p id="utrMsg" style="font-size:12px;color:#888;margin-top:8px;">Admin 5 min lo approve chestadu</p>
-</form>
+<input type="hidden" id="finalAmt" value="50">
+<input type="text" id="utrInput" maxlength="12" minlength="6" placeholder="UTR - Ex: 183727382837" required>
+<button type="button" class="btn btn-green" onclick="submitUTR()">SUBMIT</button>
+<p id="utrMsg" style="font-size:13px;margin-top:10px"></p>
 </div>
 
-<!-- WITHDRAWAL FIXED - ACTION TO /wallet -->
 <div class="card">
 <h3>💸 Withdraw (Min ₹200)</h3>
 <form method="POST" action="/wallet">
@@ -74,45 +70,21 @@ input:focus{box-shadow:0 0 8px #00ff88}
 
 <div class="card" style="border:1px solid gold">
 <h3>📜 Transaction History</h3>
-{% if transactions %}
-{% for tx in transactions %}
-<div class="hist-item">
-<span><span class="badge badge-{{tx['type']}}">{{tx['type']}}</span> {{tx['description']}}</span>
-<span style="text-align:right"><b style="color:gold">₹{{tx['amount']}}</b><br><span style="font-size:10px;color:#888">{{tx['time']}}</span></span>
-</div>
-{% endfor %}
-{% else %}
-<p style="color:#888;font-size:12px">No transactions yet</p>
-{% endif %}
-</div>
-
-<div class="card">
-<h3>Payment History</h3>
-{% if payments %}
-{% for p in payments %}<div class="hist-item"><span>₹{{p['amount']}} - UTR:{{p['utr']}}</span><span class="badge badge-{{p['status']}}">{{p['status']}}</span></div>{% endfor %}
-{% else %}<p style="color:#888;font-size:13px">No payments yet</p>{% endif %}
-
-<h3 style="margin-top:20px">Withdrawal History</h3>
-{% if withdrawals %}
-{% for w in withdrawals %}<div class="hist-item"><span>₹{{w['amount']}} - {{w['upi_id']}}</span><span class="badge badge-{{w['status']}}">{{w['status']}}</span></div>{% endfor %}
-{% else %}<p style="color:#888;font-size:13px">No withdrawals yet</p>{% endif %}
+{% if transactions %}{% for tx in transactions %}<div class="hist-item"><span><span class="badge badge-{{tx['type']}}">{{tx['type']}}</span> {{tx['description']}}</span><span style="text-align:right"><b style="color:gold">₹{{tx['amount']}}</b><br><span style="font-size:10px;color:#888">{{tx['time']}}</span></span></div>{% endfor %}{% else %}<p style="color:#888;font-size:12px">No transactions yet</p>{% endif %}
 </div>
 
 <script>
-// UPI ID - JS lo mathrame - HTML lo kanipinchadu bro!
 const UPI_ID = "9550043870@ibl";
 const UPI_NAME = "SDTournament";
-
 document.getElementById('amt').addEventListener('input', function(){
     let v = this.value || 50;
     document.getElementById('amtText').innerText = v;
     document.getElementById('qrAmt').innerText = v;
     document.getElementById('finalAmt').value = v;
 });
-
 function showQR(){
     let a = document.getElementById('amt').value;
-    if(a < 20){ alert("Min 20 bro"); return; }
+    if(a < 10){ alert("Min 10 bro"); return; }
     document.getElementById('finalAmt').value = a;
     document.getElementById('qrAmt').innerText = a;
     let upi = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${a}&cu=INR`;
@@ -121,26 +93,46 @@ function showQR(){
     document.getElementById('qrBox').style.display = 'block';
     window.scrollTo(0, document.getElementById('qrBox').offsetTop);
 }
-
 function payDirect(){
     let a = document.getElementById('amt').value || 50;
     let upi = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${a}&cu=INR`;
     window.location.href = upi;
 }
-
 function showUTR(){
     document.getElementById('utrBox').style.display = 'block';
     window.scrollTo(0, document.getElementById('utrBox').offsetTop);
 }
-
+async function submitUTR(){
+    let utr = document.getElementById('utrInput').value.trim();
+    let amt = document.getElementById('finalAmt').value;
+    if(utr.length < 6){ alert("Valid UTR enter chey bro!"); return; }
+    document.getElementById('utrMsg').innerText = "Submitting...";
+    document.getElementById('utrMsg').style.color = "#fff";
+    try{
+        let res = await fetch('/verify_upi', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({utr: utr, amount: amt})
+        });
+        let data = await res.json();
+        document.getElementById('utrMsg').innerText = data.msg;
+        document.getElementById('utrMsg').style.color = data.ok ? '#00ff88' : '#ff4444';
+        if(data.ok){
+            setTimeout(()=>{ window.location.href='/wallet'; }, 1500);
+        }
+    }catch(e){
+        document.getElementById('utrMsg').innerText = "Error: "+e+" - Try refreshing";
+        document.getElementById('utrMsg').style.color = "#ff4444";
+    }
+}
 function copyRef(){
     let link = document.getElementById('refLink').innerText;
     navigator.clipboard.writeText(link);
-    alert("Referral link copied!");
+    alert("Referral link copied! ₹10 Bonus!");
 }
 function shareRef(){
     let link = document.getElementById('refLink').innerText;
-    let text = "SD Tournaments lo join & get ₹20 FREE bonus! Free Fire tournaments play earn more! "+link;
+    let text = "SD Tournaments lo join & get ₹10 FREE bonus! Free Fire tournaments play earn more! "+link;
     window.open("https://wa.me/?text="+encodeURIComponent(text), "_blank");
 }
 </script>
