@@ -572,11 +572,11 @@ def register():
             if 'ref_code' in session and session['ref_code']:
                 ref_user = conn.execute("SELECT id FROM users WHERE referral_code=?", (session['ref_code'],)).fetchone()
                 if ref_user and ref_user['id']!= user['id']:
-                    conn.execute("UPDATE users SET balance=balance+20 WHERE id=?", (ref_user['id'],))
-                    conn.execute("UPDATE users SET balance=balance+20, referred_by=? WHERE id=?", (ref_user['id'], user['id']))
+                    conn.execute("UPDATE users SET balance=balance+10 WHERE id=?", (ref_user['id'],))
+                    conn.execute("UPDATE users SET balance=balance+10, referred_by=? WHERE id=?", (ref_user['id'], user['id']))
                     conn.commit()
-                    add_txn(ref_user['id'], 20, "CREDIT", f"Referral Bonus for {username}")
-                    add_txn(user['id'], 20, "CREDIT", f"Welcome Bonus - Referred by {session['ref_code']}")
+                    add_txn(ref_user['id'], 10, "CREDIT", f"Referral Bonus for {username}")
+                    add_txn(user['id'], 10, "CREDIT", f"Welcome Bonus - Referred by {session['ref_code']}")
             session.permanent = True
             session['user_id'] = user['id']
             session.pop('ref_code', None)
