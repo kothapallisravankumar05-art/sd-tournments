@@ -4,26 +4,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SD TOURNAMENT - Admin</title>
 <style>
-body{background:#0a0a0a;color:#fff;font-family:Arial;padding:10px;margin:0;padding-top: env(safe-area-inset-top);}
-.card{background:#1a1a1a;padding:15px;border-radius:10px;margin-bottom:15px;border:1px solid #333}
+*{box-sizing:border-box}
+body{background:#0a0a0a;color:#fff;font-family:Arial;padding:10px;margin:0;padding-top: env(safe-area-inset-top);overflow-x:hidden;}
+.card{background:#1a1a1a;padding:15px;border-radius:10px;margin-bottom:15px;border:1px solid #333;max-width:100%;overflow:hidden;}
 .item{background:#222;padding:12px;margin:8px 0;border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
-input,select{padding:10px;margin:5px;border-radius:5px;border:none;background:#333;color:#fff}
+input,select{padding:10px;margin:5px;border-radius:5px;border:none;background:#333;color:#fff;width:100%;min-width:0;}
 button{padding:8px 15px;border:none;border-radius:5px;cursor:pointer;font-weight:bold}
 .btn-green{background:#00ff88;color:#000}
 .btn-red{background:#ff4444;color:#fff}
 .btn-blue{background:#008cff;color:#fff}
 .btn-gold{background:gold;color:#000}
 .btn-orange{background:orange;color:#000}
-h3{margin-top:0;color:#00ff88}
+h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 .badge{font-size:11px;padding:3px 7px;border-radius:10px;font-weight:900}
 .badge-pending{background:orange;color:#000}
 .badge-approved{background:#00ff88;color:#000}
 .badge-rejected{background:#ff4444;color:#fff}
-.result-item{background:#111;border:1px solid gold;padding:12px;border-radius:10px;margin:8px 0}
+.result-item{background:#111;border:1px solid gold;padding:12px;border-radius:10px;margin:8px 0;max-width:100%;overflow:hidden;}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:15px}
 .stat-box{background:linear-gradient(135deg,#1a1a1a,#222);padding:15px;border-radius:10px;text-align:center;border:1px solid #333}
 .stat-box h2{margin:5px 0;color:gold}
 #adminLogo{cursor:pointer;user-select:none}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
@@ -37,7 +40,6 @@ h3{margin-top:0;color:#00ff88}
 <div class="stat-box"><small>PENDING WITHDRAW</small><h2 style="color:#008cff">{{pending_withdrawals|length}}</h2></div>
 </div>
 
-<!-- AUTO GENERATE -->
 <div class="card" style="border:2px solid gold;background:linear-gradient(135deg,#1a1a1a,#2a2000);">
 <h3 style="color:gold;">⚡ AUTO GENERATE DAILY (9AM-9PM | 40MIN GAP)</h3>
 <p style="font-size:11px;color:#888;">CS Solo ₹30/₹40 (2) | CS Duo ₹30/₹80 (4) | CS Squad ₹25/₹150 (8) | Bermuda Solo ₹15/₹1000 (48) + ₹8/Kill</p>
@@ -47,51 +49,50 @@ h3{margin-top:0;color:#00ff88}
 </form>
 </div>
 
-<!-- 1. ADD TOURNAMENT - UPDATED WITH 12 TEAMS CUSTOM LOGIC -->
+<!-- 1. ADD TOURNAMENT - FIXED BORDER + PER PERSON -->
 <div class="card" style="border:2px solid #00ff88;">
-<h3>➕ Add New Tournament - CUSTOM PRIZE POOL</h3>
+<h3>➕ Add New Tournament - PER PERSON CUSTOM</h3>
 <form method="POST" id="tournamentForm">
 <input type="hidden" name="action" value="add_tournament">
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
-<input name="game" placeholder="Game (Free Fire)" value="Free Fire" required>
+<div class="form-grid">
+<input name="game" placeholder="Game" value="Free Fire" required>
 <select name="type" id="typeSelect" required>
-<option value="Squad">Squad - 4 Members</option>
+<option value="Squad" selected>Squad - 4 Members</option>
 <option value="Duo">Duo - 2 Members</option>
 <option value="Solo">Solo - 1 Member</option>
 <option value="Clash Squad">Clash Squad</option>
 </select>
-<input name="entry_fee" id="entryFee" type="number" placeholder="Entry Fee per Team (Ex: 50)" required>
-<input name="prize" id="prizePool" type="number" placeholder="Prize Pool (Ex: 500 or -600)" required>
-<input name="teams" id="teamsInput" type="number" value="12" placeholder="No. of Teams (12)">
-<input name="players_per_team" id="playersInput" type="number" value="4" placeholder="Members per Team (4)">
-<input name="total_slots" id="totalSlots" type="number" placeholder="Total Slots (Auto 48)" required>
+<input name="entry_fee" id="entryFee" type="number" placeholder="Entry Fee PER PERSON (Ex: 15)" required>
+<input name="prize" id="prizePool" type="number" placeholder="Prize Pool (Ex: 600)" required>
+<input name="teams" id="teamsInput" type="number" value="12" placeholder="Teams (12)">
+<input name="players_per_team" id="playersInput" type="number" value="4" placeholder="Members/Team (4)">
+<input name="total_slots" id="totalSlots" type="number" placeholder="Total Slots Auto" required readonly style="background:#222;color:gold;font-weight:bold;">
 <input name="per_kill" type="number" placeholder="Per Kill (0)" value="0">
-<input name="time" type="datetime-local" required style="grid-column:span 2">
+<input name="time" type="datetime-local" required style="grid-column:1 / -1;">
 </div>
-<div style="background:#000;padding:10px;border-radius:8px;margin-top:10px;font-size:12px;border:1px solid #333;">
-<p style="margin:2px 0;color:#888;">💡 Teams x Members = Total Slots</p>
-<p style="margin:2px 0;color:gold;" id="calcInfo">12 Teams x 4 Members = 48 Slots</p>
-<p style="margin:2px 0;color:#888;" id="collectionInfo">Collection: ₹0</p>
+<div style="background:#000;padding:10px;border-radius:8px;margin-top:10px;font-size:12px;border:1px solid #333;word-break:break-all;">
+<p style="margin:2px 0;color:gold;font-weight:bold;" id="calcInfo">12 Teams x 4 Members = 48 Slots</p>
+<p style="margin:2px 0;color:#aaa;" id="collectionInfo">Collection: 48 x ₹0 = ₹0</p>
+<p style="margin:2px 0;color:#00ff88;" id="perTeamInfo">Per Team Cost: ₹0</p>
 <p style="margin:2px 0;font-weight:bold;" id="profitInfo">Profit: ₹0</p>
-<p style="margin:2px 0;font-size:10px;color:#ffaa00;">Tip: Prize Pool lo -600 pedithe Loss track avutundi</p>
 </div>
 <button class="btn-green" style="width:100%;margin-top:10px;padding:12px;">CREATE TOURNAMENT</button>
 </form>
 </div>
 
-<!-- 2. MAKE LIVE -->
 <div class="card" style="border:1px solid #ff4444;">
 <h3 style="color:#ff4444;">🔴 Make Match LIVE (Room ID)</h3>
 <form method="POST">
 <input type="hidden" name="action" value="set_room">
-<input name="mid" type="number" placeholder="Match ID (Ex: 1)" required>
+<div class="form-grid">
+<input name="mid" type="number" placeholder="Match ID" required>
 <input name="room_id" placeholder="Room ID" required>
-<input name="room_pass" placeholder="Password" required>
-<button class="btn-red">SET ROOM & GO LIVE</button>
+<input name="room_pass" placeholder="Password" required style="grid-column:1 / -1;">
+</div>
+<button class="btn-red" style="width:100%;margin-top:8px;">SET ROOM & GO LIVE</button>
 </form>
 </div>
 
-<!-- 3. ALL TOURNAMENTS -->
 <div class="card">
 <h3>📋 All Tournaments ({{matches|length}})</h3>
 {% for m in matches %}
@@ -99,64 +100,46 @@ h3{margin-top:0;color:#00ff88}
 <span>ID: <b style="color:gold">{{m.id}}</b> | {{m.game}} {{m.type}} | Time: {{m.time}}<br>Joined: <b style="color:gold">{{m.joined}}/{{m.total}}</b> | Status: <b style="color:{% if m.status=='LIVE'%}#ff4444{% elif m.status=='CANCELLED'%}orange{% else %}#00ff88{% endif %}">{{m.status}}</b> | Room: <b style="color:#00ff88">{{m.room_id}} / {{m.room_pass}}</b> | Fee: ₹{{m.fee}} | Prize: ₹{{m.prize}}</span>
 <div style="display:flex;gap:5px;flex-wrap:wrap">
 <form method="POST" style="display:inline"><input type="hidden" name="action" value="generate_room_id"><input type="hidden" name="mid" value="{{m.id}}"><button class="btn-green" style="background:gold;color:#000;">🎲 AUTO ROOM</button></form>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="cancel_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-orange" onclick="return confirm('Cancel chesi refund cheyala?')">CANCEL</button></form>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red" onclick="return confirm('DELETE & REFUND?')">DELETE</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="cancel_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-orange">CANCEL</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red">DELETE</button></form>
 </div>
 </div>
 {% endfor %}
 </div>
 
-<!-- 4. MATCH RESULTS -->
 <div class="card" style="border:2px solid gold;">
-<h3 style="color:gold;">🏆 Match Results Verification ({{pending_results|length}} Pending)</h3>
-{% if pending_results|length==0 %}<p style="color:#666">No pending results - Antha clear!</p>{% endif %}
+<h3 style="color:gold;">🏆 Match Results ({{pending_results|length}} Pending)</h3>
 {% for r in pending_results %}
 <div class="result-item">
-<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-<div>
-ID: <b style="color:gold">{{r.id}}</b> | Match ID: <b>{{r.match_id}}</b> | User ID: <b style="color:#00ff88">{{r.user_id}}</b> ({{r.username}})<br>
-Kills: <b style="font-size:18px;color:gold;">{{r.kills}}</b> | Status: <span class="badge badge-pending">{{r.status}}</span> | Time: {{r.time}}<br>
-{% if r.screenshot %}
-<a href="/static/uploads/{{r.screenshot}}" target="_blank" style="color:#00ff88;font-weight:900;">📸 VIEW SCREENSHOT</a>
-{% else %}
-<span style="color:red;">❌ No Screenshot!</span>
-{% endif %}
-</div>
-<div>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-green" style="padding:12px 20px;">✅ APPROVE</button></form><br><br>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="reject_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-red" style="padding:8px 15px;">❌ REJECT</button></form>
-</div>
+ID: <b style="color:gold">{{r.id}}</b> | Match {{r.match_id}} | User {{r.user_id}} ({{r.username}})<br>
+Kills: <b style="color:gold;">{{r.kills}}</b> | {{r.status}} | {{r.time}}<br>
+{% if r.screenshot %}<a href="/static/uploads/{{r.screenshot}}" target="_blank" style="color:#00ff88;">📸 VIEW</a>{% endif %}
+<div style="margin-top:8px;">
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-green">APPROVE</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="reject_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-red">REJECT</button></form>
 </div>
 </div>
 {% endfor %}
 </div>
 
-<!-- 5. DEPOSIT -->
 <div class="card" style="border:1px solid #00ff88;">
-<h3>💰 Pending Add Money Requests ({{pending_payments|length}})</h3>
-{% if pending_payments|length==0 %}<p style="color:#666">No pending payments</p>{% endif %}
+<h3>💰 Pending Payments ({{pending_payments|length}})</h3>
 {% for p in pending_payments %}
 <div class="item">
-<span>ID: <b>{{p.id}}</b> | User: {{p.user_id}} | ₹<b style="color:gold">{{p.amount}}</b> | UTR: <b style="color:#00ff88">{{p.utr}}</b> | {{p.time}}</span>
-<div>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_payment"><input type="hidden" name="payment_id" value="{{p.id}}"><button class="btn-green">APPROVE</button></form>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="reject_payment"><input type="hidden" name="payment_id" value="{{p.id}}"><button class="btn-red">REJECT</button></form>
-</div>
+<span>ID {{p.id}} | User {{p.user_id}} | ₹<b style="color:gold">{{p.amount}}</b> | UTR {{p.utr}}</span>
+<div><form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_payment"><input type="hidden" name="payment_id" value="{{p.id}}"><button class="btn-green">APPROVE</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="reject_payment"><input type="hidden" name="payment_id" value="{{p.id}}"><button class="btn-red">REJECT</button></form></div>
 </div>
 {% endfor %}
 </div>
 
-<!-- 6. WITHDRAWAL -->
 <div class="card" style="border:1px solid #008cff;">
-<h3>💸 Pending Withdraw Requests ({{pending_withdrawals|length}})</h3>
-{% if pending_withdrawals|length==0 %}<p style="color:#666">No pending withdrawals</p>{% endif %}
+<h3>💸 Pending Withdraw ({{pending_withdrawals|length}})</h3>
 {% for w in pending_withdrawals %}
 <div class="item">
-<span>ID: <b>{{w.id}}</b> | User: {{w.user_id}} | ₹{{w.amount}} | UPI: <b>{{w.upi_id}}</b> | {{w.time}}</span>
-<div>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_withdrawal"><input type="hidden" name="withdrawal_id" value="{{w.id}}"><button class="btn-green">PAID</button></form>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="reject_withdrawal"><input type="hidden" name="withdrawal_id" value="{{w.id}}"><button class="btn-red">REJECT & REFUND</button></form>
-</div>
+<span>ID {{w.id}} | User {{w.user_id}} | ₹{{w.amount}} | UPI {{w.upi_id}}</span>
+<div><form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_withdrawal"><input type="hidden" name="withdrawal_id" value="{{w.id}}"><button class="btn-green">PAID</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="reject_withdrawal"><input type="hidden" name="withdrawal_id" value="{{w.id}}"><button class="btn-red">REJECT</button></form></div>
 </div>
 {% endfor %}
 </div>
@@ -167,38 +150,33 @@ document.getElementById('adminLogo').addEventListener('click',()=>{
  c++; clearTimeout(t); t=setTimeout(()=>c=0,3000);
  if(c>=5){ c=0; if(navigator.vibrate) navigator.vibrate(100); window.location.href='/'; }
 });
-
 function calculateAll(){
   let teams = parseInt(document.getElementById('teamsInput').value) || 0;
   let players = parseInt(document.getElementById('playersInput').value) || 0;
   let fee = parseInt(document.getElementById('entryFee').value) || 0;
   let prize = parseInt(document.getElementById('prizePool').value) || 0;
   let total = teams * players;
-  
   document.getElementById('totalSlots').value = total;
-  document.getElementById('calcInfo').innerText = `${teams} Teams x ${players} Members = ${total} Slots`;
-  
-  let collection = teams * fee;
+  document.getElementById('calcInfo').innerText = `${teams} Teams x ${players} Members = ${total} Slots (Players)`;
+  let collection = total * fee;
+  let perTeam = players * fee;
+  document.getElementById('collectionInfo').innerText = `Collection: ${total} Players x ₹${fee} = ₹${collection}`;
+  document.getElementById('perTeamInfo').innerText = `Per Team Cost: ₹${perTeam} (${players} x ₹${fee}) - Customize per person!`;
   let profit = collection - prize;
-  
-  document.getElementById('collectionInfo').innerText = `Collection: ${teams} x ₹${fee} = ₹${collection}`;
   let profitEl = document.getElementById('profitInfo');
-  profitEl.innerText = `Profit: ₹${profit} ${profit<0 ? '(LOSS -'+Math.abs(profit)+')' : ''}`;
+  profitEl.innerText = `Profit: ₹${profit} | Prize Pool: ₹${prize}`;
   profitEl.style.color = profit >=0 ? '#00ff88' : '#ff4444';
 }
-
 document.getElementById('teamsInput').addEventListener('input', calculateAll);
 document.getElementById('playersInput').addEventListener('input', calculateAll);
 document.getElementById('entryFee').addEventListener('input', calculateAll);
 document.getElementById('prizePool').addEventListener('input', calculateAll);
 document.getElementById('typeSelect').addEventListener('change', function(){
-  let val = this.value;
-  if(val==='Squad') document.getElementById('playersInput').value = 4;
-  else if(val==='Duo') document.getElementById('playersInput').value = 2;
-  else if(val==='Solo') document.getElementById('playersInput').value = 1;
+  if(this.value==='Squad') document.getElementById('playersInput').value = 4;
+  else if(this.value==='Duo') document.getElementById('playersInput').value = 2;
+  else document.getElementById('playersInput').value = 1;
   calculateAll();
 });
-
 calculateAll();
 </script>
 </body>
