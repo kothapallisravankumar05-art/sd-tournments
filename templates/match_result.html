@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Match Results - SD</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{background:#0f172a;color:#fff;min-height:100vh;padding:15px}
+.top{max-width:600px;margin:0 auto}
+.card{background:#1e293b;padding:15px;border-radius:12px;border:1px solid gold;margin-bottom:12px}
+.btn{width:100%;padding:14px;border:none;border-radius:10px;font-weight:900;margin-top:10px;display:block;text-decoration:none;text-align:center;cursor:pointer}
+.back{background:#2d3748;color:#fff}
+.gold{background:gold;color:#000}
+.row{background:#0f172a;padding:12px;border-radius:10px;margin:8px 0;display:flex;justify-content:space-between;align-items:center}
+.badge{padding:4px 10px;border-radius:20px;font-size:10px;font-weight:900}
+.ok{background:#00ff88;color:#000}
+.pend{background:#f59e0b;color:#000}
+.rej{background:#ef4444;color:#fff}
+.proof{color:#00ff88;font-size:12px;text-decoration:none;margin-top:5px;display:inline-block}
+</style>
+</head>
+<body>
+<div class="top">
+<div style="text-align:center;padding:10px">
+<div style="font-size:40px">🏆</div>
+<h2 style="color:gold">{{t.game}} - {{t.type}}</h2>
+<p style="color:#00ff88;margin:6px 0">⏰ {{t.time | time12}} | 💰 Prize ₹{{t.prize}} | Status {{t.status}}</p>
+</div>
+
+{% if results|length == 0 %}
+<div class="card" style="text-align:center;padding:40px">
+<div style="font-size:30px">🏁</div>
+<p style="color:#aaa;margin-top:10px;font-weight:900">No Results Yet!</p>
+<p style="color:#666;font-size:12px;margin-top:6px">Players inka kills submit cheyale bro.<br>Match aipoyaka ikkada leaderboard vastadi.</p>
+</div>
+{% endif %}
+
+{% for r in results %}
+<div class="card">
+<div class="row">
+<div style="text-align:left">
+<div><span style="color:gold;font-weight:900">#{{loop.index}}</span> - <b style="font-size:16px">{{r.username if r.username is defined and r.username else 'Player #' ~ r.user_id}}</b></div>
+<div style="font-size:11px;color:#888;margin:4px 0">ID: {{r.user_id}} | Time: {{r.time}} | Match #{{r.match_id}}</div>
+<div style="font-size:20px;color:gold;font-weight:900;margin:6px 0">🎯 {{r.kills}} Kills</div>
+{% if r.screenshot %}
+<a href="/static/uploads/{{r.screenshot}}" target="_blank" class="proof">📸 View Screenshot Proof</a>
+{% endif %}
+</div>
+<div style="text-align:right">
+{% if r.status == 'APPROVED' %}
+<span class="badge ok">APPROVED</span><br><span style="font-size:10px;color:#00ff88">₹ Credited</span>
+{% elif r.status == 'REJECTED' %}
+<span class="badge rej">REJECTED</span>
+{% else %}
+<span class="badge pend">{{r.status}}</span>
+{% endif %}
+</div>
+</div>
+</div>
+{% endfor %}
+
+<a href="/match/{{t.id}}" class="btn back">← Back to Match Details</a>
+<a href="/" class="btn gold">🏠 Back to Home</a>
+</div>
+</body>
+</html>
