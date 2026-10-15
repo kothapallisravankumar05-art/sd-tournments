@@ -33,7 +33,7 @@ body{background:#0f172a;color:#fff;min-height:100vh;padding:15px}
 </div>
 
 {% if my_join %}
-<button class="btn joined">✅ ALREADY JOINED - Slot #{{my_join['slot_no']}}</button>
+<button class="btn joined">JOINED - Slot #{{my_join['slot_no']}}</button>
 
 {% if t.status == 'LIVE' or t.status == 'UPCOMING' or t.status == 'COMPLETED' %}
 <div style="background:#0f172a;margin-top:15px;padding:15px;border-radius:12px;border:1px dashed gold;text-align:left">
