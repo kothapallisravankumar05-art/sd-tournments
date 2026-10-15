@@ -54,7 +54,7 @@ input:focus{box-shadow:0 0 8px #00ff88}
 <h3>Enter 12 Digit UTR</h3>
 <input type="hidden" id="finalAmt" value="50">
 <input type="text" id="utrInput" maxlength="12" minlength="6" placeholder="UTR - Ex: 123456789012">
-<button type="button" class="btn btn-green" onclick="submitUTR()">SUBMIT TO ADMIN</button>
+<button type="button" class="btn btn-green" onclick="submitUTR()">SUBMITTED</button>
 <p id="utrMsg" style="font-size:13px;margin-top:10px"></p>
 </div>
 
@@ -144,7 +144,7 @@ function copyRef(){
 }
 function shareRef(){
     let link = document.getElementById('refLink').innerText;
-    let text = "🔥 SD Tournaments lo join & get ₹20 FREE bonus ! Free Fire tournaments play earn more! "+link;
+    let text = "SD Tournaments lo join & get ₹20 FREE bonus ! Free Fire tournaments play earn more! "+link;
     window.open("https://wa.me/?text="+encodeURIComponent(text), "_blank");
 }
 </script>
