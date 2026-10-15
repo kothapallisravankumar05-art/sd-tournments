@@ -2,7 +2,12 @@ from flask import Flask, render_template, request, redirect, session, make_respo
 import os, requests, random, string, sqlite3, traceback
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
+
+# ===== IST TIMEZONE FIX - IMPORTANT FOR RENDER =====
+IST = timezone(timedelta(hours=5, minutes=30))
+def now_ist():
+    return datetime.now(IST).replace(tzinfo=None) # naive IST for DB compatibility
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 IS_POSTGRES = bool(DATABASE_URL and DATABASE_URL.startswith("postgres"))
@@ -34,10 +39,6 @@ ADMIN_USER_ID = 1
 ADMIN_PASSWORD = "NANI19"
 
 TOURNAMENT_TEMPLATES = [
-    {"game": "Clash Squad", "type": "Solo", "map": "Bermuda", "fee": 30, "prize": 40, "total": 2, "per_kill": 0},
-    {"game": "Clash Squad", "type": "Duo", "map": "Bermuda", "fee": 30, "prize": 80, "total": 4, "per_kill": 0},
-    {"game": "Clash Squad", "type": "Squad", "map": "Bermuda", "fee": 25, "prize": 150, "total": 8, "per_kill": 0},
-    {"game": "Bermuda", "type": "Solo", "map": "Bermuda", "fee": 15, "prize": 1000, "total": 48, "per_kill": 8},
     {"game": "Clash Squad", "type": "Solo", "map": "Bermuda", "fee": 30, "prize": 40, "total": 2, "per_kill": 0},
     {"game": "Clash Squad", "type": "Duo", "map": "Bermuda", "fee": 30, "prize": 80, "total": 4, "per_kill": 0},
     {"game": "Clash Squad", "type": "Squad", "map": "Bermuda", "fee": 25, "prize": 150, "total": 8, "per_kill": 0},
@@ -79,7 +80,7 @@ def get_db():
 def add_txn(user_id, amount, type_, desc):
     try:
         c = get_db()
-        c.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (user_id, amount, type_, desc, datetime.now().strftime("%d/%m %H:%M")))
+        c.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (user_id, amount, type_, desc, now_ist().strftime("%d/%m %H:%M")))
         c.commit()
         c.close()
     except Exception as e:
@@ -87,18 +88,22 @@ def add_txn(user_id, amount, type_, desc):
 
 def parse_match_time(time_str):
     if not time_str: return None
-    formats = ["%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M", "%d-%m-%Y %H:%M", "%Y-%m-%dT%H:%M", "%H:%M", "%I:%M %p", "%d/%m %H:%M"]
-    now = datetime.now()
+    # Support both 24h and 12h formats
+    formats = ["%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M", "%d-%m-%Y %H:%M", "%Y-%m-%dT%H:%M", "%H:%M", "%I:%M %p", "%d/%m %H:%M", "%d/%m %I:%M %p"]
+    # Clean string like "15/10 09:00 AM" -> try
+    s = str(time_str).strip()
+    now = now_ist()
     for fmt in formats:
         try:
-            dt = datetime.strptime(str(time_str).strip(), fmt)
+            dt = datetime.strptime(s, fmt)
             if fmt in ["%H:%M", "%I:%M %p"]:
                 dt = dt.replace(year=now.year, month=now.month, day=now.day)
+            if "%d/%m" in fmt and "%Y" not in fmt:
+                dt = dt.replace(year=now.year)
             return dt
         except: continue
     return None
 
-# ===== NEW FILTERS - 12 HOUR TIME - 1 PM NOT 13 =====
 @app.template_filter('time12')
 def time12_filter(time_str):
     try:
@@ -123,71 +128,59 @@ def auto_expire_matches():
     try:
         conn = get_db()
         tournaments = conn.execute("SELECT id, time, fee, status, room_id, total, joined FROM tournaments WHERE status='UPCOMING'").fetchall()
-        now = datetime.now()
+        now = now_ist()
+        print(f"--- AUTO EXPIRE CHECK IST {now} - Found {len(tournaments)} UPCOMING ---")
         expired = []
-        keep_full = [] # Full ayina matches list
         for t in tournaments:
-            # Room check
-            room = None
-            try: room = t['room_id']
-            except:
-                try: room = t[4]
-                except: pass
-            if room and str(room).strip()!= "": continue
-
-            # Parse time
-            t_time = None
             try:
-                t_time = parse_match_time(t['time'] if 'time' in t.keys() else t[1])
-            except:
-                try: t_time = parse_match_time(t[1])
-                except: pass
-            if not t_time: continue
-            if t_time > now: continue
-
-            # 1 HOUR tarvata matrame expire
-            if now <= (t_time + timedelta(hours=1)):
-                continue
-
-            # ===== NEW LOGIC - FULL CHECK =====
-            total_slots = 0
-            joined_slots = 0
-            try:
-                total_slots = int(t['total'] if 'total' in t.keys() else t[5])
-                joined_slots = int(t['joined'] if 'joined' in t.keys() else t[6])
-            except:
-                try:
-                    # Fallback: count from joined table
-                    cnt = conn.execute("SELECT COUNT(*) FROM joined WHERE tournament_id=?", (t['id'] if 'id' in t.keys() else t[0],)).fetchone()[0]
-                    joined_slots = int(cnt)
-                except:
-                    joined_slots = 0
-
-            is_full = False
-            if total_slots > 0 and joined_slots >= total_slots:
-                is_full = True
-
-            # FULL ayithe DELETE VADDU - Ongoing ki move chey
-            if is_full:
                 tid = t['id'] if 'id' in t.keys() else t[0]
-                keep_full.append(tid)
-                print(f"Match {tid} is FULL ({joined_slots}/{total_slots}) - NOT DELETING, moving to LIVE")
-                try:
+                time_str = t['time'] if 'time' in t.keys() else t[1]
+                fee = t['fee'] if 'fee' in t.keys() else t[2]
+                status = str(t['status'] if 'status' in t.keys() else t[3]).upper()
+                room = t['room_id'] if 'room_id' in t.keys() else t[4]
+                total = t['total'] if 'total' in t.keys() else t[5]
+                joined_c = t['joined'] if 'joined' in t.keys() else t[6]
+
+                if room and str(room).strip()!= "":
+                    continue
+
+                t_time = parse_match_time(time_str)
+                if not t_time:
+                    print(f"Skip {tid}: can't parse {time_str}")
+                    continue
+
+                # Future match -> skip
+                if t_time > now:
+                    continue
+
+                # Check if 60 mins passed
+                if now <= (t_time + timedelta(minutes=60)):
+                    continue
+
+                # FULL CHECK - MAIN LOGIC YOU ASKED
+                try: total_slots = int(total)
+                except: total_slots = 0
+                try: joined_slots = int(joined_c)
+                except:
+                    try:
+                        joined_slots = conn.execute("SELECT COUNT(*) FROM joined WHERE tournament_id=?", (tid,)).fetchone()[0]
+                    except: joined_slots = 0
+
+                is_full = total_slots > 0 and joined_slots >= total_slots
+
+                if is_full:
+                    print(f"Match {tid} FULL {joined_slots}/{total_slots} -> MOVING TO LIVE, NOT DELETING")
                     conn.execute("UPDATE tournaments SET status='LIVE' WHERE id=?", (tid,))
                     conn.commit()
-                except Exception as e:
-                    print(f"Full keep error {tid}: {e}")
+                    continue
+
+                print(f"Match {tid} EXPIRED {time_str} {joined_slots}/{total_slots} -> MARK FOR DELETE")
+                expired.append((tid, int(fee) if fee else 0))
+
+            except Exception as e_inner:
+                print(f"Expire inner error: {e_inner}")
                 continue
 
-            # FULL kadu ayithe delete list lo
-            fee_val = 0
-            try: fee_val = int(t['fee'] or 0)
-            except:
-                try: fee_val = int(t[2] or 0)
-                except: pass
-            expired.append((t['id'] if 'id' in t.keys() else t[0], fee_val))
-
-        # Delete only NOT FULL matches
         for tid, fee in expired:
             try:
                 joined_users = conn.execute("SELECT user_id FROM joined WHERE tournament_id=?", (tid,)).fetchall()
@@ -195,17 +188,18 @@ def auto_expire_matches():
                     uid = ju['user_id'] if hasattr(ju, 'keys') and 'user_id' in ju.keys() else ju[0]
                     conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (fee, uid))
                     conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)",
-                                 (uid, fee, "REFUND", f"Match #{tid} Expired - Auto Refund Rs {fee}", datetime.now().strftime("%d/%m %H:%M")))
+                                 (uid, fee, "REFUND", f"Match #{tid} Expired - Auto Refund Rs {fee}", now_ist().strftime("%d/%m %H:%M")))
                 conn.execute("DELETE FROM joined WHERE tournament_id=?", (tid,))
                 conn.execute("DELETE FROM results WHERE match_id=?", (tid,))
                 conn.execute("DELETE FROM tournaments WHERE id=?", (tid,))
                 conn.commit()
-                print(f"Deleted expired empty match {tid}")
+                print(f"DELETED {tid}")
             except Exception as e:
-                print(f"Auto expire error {tid}: {e}")
+                print(f"Delete error {tid}: {e}")
                 try: conn.rollback()
                 except: pass
         conn.close()
+        print(f"--- AUTO EXPIRE DONE - Deleted {len(expired)} ---")
     except Exception as e:
         print(f"auto_expire_matches error: {e}")
         traceback.print_exc()
@@ -213,13 +207,13 @@ def auto_expire_matches():
 def generate_daily_tournaments():
     try:
         conn = get_db()
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_ist().strftime("%Y-%m-%d")
         cnt = conn.execute("SELECT COUNT(*) FROM tournaments WHERE time LIKE?", (f"{today}%",)).fetchone()[0]
         if cnt >= 15:
             conn.close()
             return False
-        start = datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
-        end = datetime.now().replace(hour=21, minute=0, second=0, microsecond=0)
+        start = now_ist().replace(hour=9, minute=0, second=0, microsecond=0)
+        end = now_ist().replace(hour=21, minute=0, second=0, microsecond=0)
         times = []
         cur = start
         while cur <= end:
@@ -234,7 +228,7 @@ def generate_daily_tournaments():
             template_idx += 1
         conn.commit()
         conn.close()
-        print(f" Generated {len(times)} Daily Tournaments!")
+        print(f" Generated {len(times)} Daily Tournaments for {today}!")
         return True
     except Exception as e:
         print(f"Generate error: {e}")
@@ -244,7 +238,7 @@ def generate_daily_tournaments():
 def check_and_generate_daily():
     try:
         conn = get_db()
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_ist().strftime("%Y-%m-%d")
         cnt = conn.execute("SELECT COUNT(*) FROM tournaments WHERE time LIKE?", (f"{today}%",)).fetchone()[0]
         conn.close()
         if cnt < 10:
@@ -348,7 +342,7 @@ def admin():
                 for j in joined:
                     uid = j['user_id'] if hasattr(j, 'keys') else j[0]
                     conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (fee,uid))
-                    conn.execute("INSERT INTO transactions (user_id,amount,type,description,time) VALUES (?,?,?,?,?)", (uid,fee,"REFUND",f"Tournament {tid} Cancelled Refund",datetime.now().strftime("%d/%m %H:%M")))
+                    conn.execute("INSERT INTO transactions (user_id,amount,type,description,time) VALUES (?,?,?,?,?)", (uid,fee,"REFUND",f"Tournament {tid} Cancelled Refund",now_ist().strftime("%d/%m %H:%M")))
                 conn.execute("DELETE FROM joined WHERE tournament_id=?", (tid,))
                 conn.execute("DELETE FROM results WHERE match_id=?", (tid,))
                 conn.execute("DELETE FROM tournaments WHERE id=?", (tid,))
@@ -362,7 +356,7 @@ def admin():
                     prize = int(res['kills'] or 0) * per_kill
                     if prize>0:
                         conn.execute("UPDATE users SET balance=balance+?, total_wins=total_wins+? WHERE id=?", (prize,res['kills'],res['user_id']))
-                        conn.execute("INSERT INTO transactions (user_id,amount,type,description,time) VALUES (?,?,?,?,?)", (res['user_id'],prize,"CREDIT",f"Kills Prize Match {res['match_id']} - {res['kills']} kills",datetime.now().strftime("%d/%m %H:%M")))
+                        conn.execute("INSERT INTO transactions (user_id,amount,type,description,time) VALUES (?,?,?,?,?)", (res['user_id'],prize,"CREDIT",f"Kills Prize Match {res['match_id']} - {res['kills']} kills",now_ist().strftime("%d/%m %H:%M")))
                     conn.execute("UPDATE results SET status='APPROVED' WHERE id=?", (rid,))
                     conn.commit()
             elif action == 'reject_result':
@@ -375,7 +369,7 @@ def admin():
                 if pay and pay['status']=='PENDING':
                     conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (pay['amount'],pay['user_id']))
                     conn.execute("UPDATE payments SET status='APPROVED' WHERE id=?", (pid,))
-                    conn.execute("INSERT INTO transactions (user_id,amount,type,description,time) VALUES (?,?,?,?,?)", (pay['user_id'],pay['amount'],"CREDIT",f"Deposit Approved Rs {pay['amount']}",datetime.now().strftime("%d/%m %H:%M")))
+                    conn.execute("INSERT INTO transactions (user_id,amount,type,description,time) VALUES (?,?,?,?,?)", (pay['user_id'],pay['amount'],"CREDIT",f"Deposit Approved Rs {pay['amount']}",now_ist().strftime("%d/%m %H:%M")))
                     conn.commit()
             elif action == 'reject_payment':
                 pid = request.form.get('payment_id')
@@ -391,7 +385,7 @@ def admin():
                 if wd:
                     conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (wd['amount'],wd['user_id']))
                     conn.execute("UPDATE withdrawals SET status='REJECTED' WHERE id=?", (wid,))
-                    conn.execute("INSERT INTO transactions (user_id,amount,type,description,time) VALUES (?,?,?,?,?)", (wd['user_id'],wd['amount'],"REFUND",f"Withdraw Rejected Refund Rs {wd['amount']}",datetime.now().strftime("%d/%m %H:%M")))
+                    conn.execute("INSERT INTO transactions (user_id,amount,type,description,time) VALUES (?,?,?,?,?)", (wd['user_id'],wd['amount'],"REFUND",f"Withdraw Rejected Refund Rs {wd['amount']}",now_ist().strftime("%d/%m %H:%M")))
                     conn.commit()
         except Exception as e:
             print(f"Admin action error {e}")
@@ -440,10 +434,10 @@ def submit_result():
     file = request.files.get('screenshot')
     filename = ""
     if file and file.filename:
-        filename = secure_filename(f"{match_id}_{session['user_id']}_{datetime.now().strftime('%H%M%S')}_{file.filename}")
+        filename = secure_filename(f"{match_id}_{session['user_id']}_{now_ist().strftime('%H%M%S')}_{file.filename}")
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
     conn = get_db()
-    conn.execute("INSERT INTO results (match_id, user_id, kills, screenshot, status, time) VALUES (?,?,?,?,?,?)", (match_id, session['user_id'], kills, filename, 'PENDING', datetime.now().strftime("%d/%m %H:%M")))
+    conn.execute("INSERT INTO results (match_id, user_id, kills, screenshot, status, time) VALUES (?,?,?,?,?,?)", (match_id, session['user_id'], kills, filename, 'PENDING', now_ist().strftime("%d/%m %H:%M")))
     conn.commit()
     conn.close()
     return redirect('/')
@@ -646,13 +640,13 @@ def wallet():
                 dup = conn.execute("SELECT id FROM payments WHERE utr=?", (utr.strip().upper(),)).fetchone()
                 if not dup:
                     amt_i = int(float(amount))
-                    conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], amt_i, utr.strip().upper(), datetime.now().strftime("%d/%m %H:%M")))
+                    conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?, 'PENDING',?)", (session['user_id'], amt_i, utr.strip().upper(), now_ist().strftime("%d/%m %H:%M")))
                     conn.commit()
             elif upi_id and amount:
                 amt = int(float(amount))
                 user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
                 if user and int(user['balance'] or 0) >= amt and amt >= 200:
-                    conn.execute("INSERT INTO withdrawals (user_id, amount, upi_id, status, time) VALUES (?,?,?,'PENDING',?)", (session['user_id'], amt, upi_id.strip(), datetime.now().strftime("%d/%m %H:%M")))
+                    conn.execute("INSERT INTO withdrawals (user_id, amount, upi_id, status, time) VALUES (?,?,?,'PENDING',?)", (session['user_id'], amt, upi_id.strip(), now_ist().strftime("%d/%m %H:%M")))
                     conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (amt, session['user_id']))
                     conn.commit()
         except Exception as e:
