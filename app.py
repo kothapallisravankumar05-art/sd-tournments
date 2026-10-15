@@ -33,6 +33,18 @@ SITE_URL = "https://sd-tournaments.onrender.com"
 ADMIN_USER_ID = 1
 ADMIN_PASSWORD = "NANI19"
 
+# ================= DAILY FIXED TOURNAMENTS - YOUR CONFIG =================
+TOURNAMENT_TEMPLATES = [
+    {"game": "Clash Squad", "type": "Solo", "map": "Bermuda", "fee": 30, "prize": 40, "total": 2, "per_kill": 0},
+    {"game": "Clash Squad", "type": "Duo", "map": "Bermuda", "fee": 30, "prize": 80, "total": 4, "per_kill": 0},
+    {"game": "Clash Squad", "type": "Squad", "map": "Bermuda", "fee": 25, "prize": 150, "total": 8, "per_kill": 0},
+    {"game": "Bermuda", "type": "Solo", "map": "Bermuda", "fee": 15, "prize": 1000, "total": 48, "per_kill": 8},
+    {"game": "Clash Squad", "type": "Solo", "map": "Bermuda", "fee": 30, "prize": 40, "total": 2, "per_kill": 0},
+    {"game": "Clash Squad", "type": "Duo", "map": "Bermuda", "fee": 30, "prize": 80, "total": 4, "per_kill": 0},
+    {"game": "Clash Squad", "type": "Squad", "map": "Bermuda", "fee": 25, "prize": 150, "total": 8, "per_kill": 0},
+    {"game": "Bermuda", "type": "Solo", "map": "Bermuda", "fee": 15, "prize": 1000, "total": 48, "per_kill": 8},
+]
+
 class PGWrapper:
     def __init__(self, conn):
         self.conn = conn
@@ -90,15 +102,32 @@ def parse_match_time(time_str):
 def auto_expire_matches():
     try:
         conn = get_db()
-        tournaments = conn.execute("SELECT id, time, fee, status FROM tournaments WHERE status='UPCOMING'").fetchall()
+        tournaments = conn.execute("SELECT id, time, fee, status, room_id FROM tournaments WHERE status='UPCOMING'").fetchall()
         now = datetime.now()
         expired = []
         for t in tournaments:
-            t_time = parse_match_time(t['time'])
-            if t_time and now > (t_time + timedelta(hours=2)):
-                expired.append((t['id'], int(t['fee'] or 0)))
+            room = None
+            try: room = t['room_id']
+            except:
+                try: room = t[4]
+                except: pass
+            if room and str(room).strip()!= "":
+                continue
+            t_time = parse_match_time(t['time'] if 'time' in t.keys() else t[1])
+            if not t_time:
+                continue
+            if t_time > now:
+                continue
+            if now > (t_time + timedelta(hours=1)):
+                fee_val = 0
+                try: fee_val = int(t['fee'] or 0)
+                except:
+                    try: fee_val = int(t[2] or 0)
+                    except: pass
+                expired.append((t['id'] if 'id' in t.keys() else t[0], fee_val))
         for tid, fee in expired:
             try:
+                print(f"Expiring {tid}")
                 joined_users = conn.execute("SELECT user_id FROM joined WHERE tournament_id=?", (tid,)).fetchall()
                 for ju in joined_users:
                     uid = ju['user_id'] if hasattr(ju, 'keys') and 'user_id' in ju.keys() else ju[0]
@@ -116,6 +145,47 @@ def auto_expire_matches():
         conn.close()
     except Exception as e:
         print(f"auto_expire_matches error: {e}")
+
+def generate_daily_tournaments():
+    try:
+        conn = get_db()
+        today = datetime.now().strftime("%Y-%m-%d")
+        cnt = conn.execute("SELECT COUNT(*) FROM tournaments WHERE time LIKE?", (f"{today}%",)).fetchone()[0]
+        if cnt >= 15:
+            conn.close()
+            return False
+        start = datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
+        end = datetime.now().replace(hour=21, minute=0, second=0, microsecond=0)
+        times = []
+        cur = start
+        while cur <= end:
+            times.append(cur)
+            cur += timedelta(minutes=40)
+        template_idx = 0
+        for t_time in times:
+            tpl = TOURNAMENT_TEMPLATES[template_idx % len(TOURNAMENT_TEMPLATES)]
+            time_str = t_time.strftime("%Y-%m-%d %H:%M")
+            conn.execute("INSERT INTO tournaments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                         (tpl["game"], tpl["type"], tpl["map"], time_str, tpl["prize"], tpl["fee"], tpl["per_kill"], tpl["total"], 0, "UPCOMING"))
+            template_idx += 1
+        conn.commit()
+        conn.close()
+        print(f"✅ Generated {len(times)} Daily Tournaments!")
+        return True
+    except Exception as e:
+        print(f"Generate error: {e}")
+        traceback.print_exc()
+        return False
+
+def check_and_generate_daily():
+    try:
+        conn = get_db()
+        today = datetime.now().strftime("%Y-%m-%d")
+        cnt = conn.execute("SELECT COUNT(*) FROM tournaments WHERE time LIKE?", (f"{today}%",)).fetchone()[0]
+        conn.close()
+        if cnt < 10:
+            generate_daily_tournaments()
+    except: pass
 
 def init_db():
     conn = get_db()
@@ -155,7 +225,6 @@ def nocache(view):
     wrapper.__name__ = view.__name__
     return wrapper
 
-# ✅ PWA FIX - ROOT FILES FOR INSTALL
 @app.route('/manifest.json')
 def manifest_root():
     return send_from_directory('static', 'manifest.json')
@@ -181,15 +250,12 @@ def handle_500(e):
 @app.route('/health')
 def health(): return "OK", 200
 
-# ================= ADMIN PANEL - SECRET LOGO ENTRY =================
 @app.route('/admin', methods=['GET','POST'])
 @nocache
 def admin():
     if 'user_id' not in session: return redirect('/login')
     if int(session['user_id'])!= ADMIN_USER_ID: return "<h2>Access Denied - Admin Only!</h2><a href='/'>Go Home</a>"
     conn = get_db()
-
-    # POST ACTIONS
     if request.method == 'POST':
         action = request.form.get('action')
         try:
@@ -202,6 +268,14 @@ def admin():
                 per_kill = int(request.form.get('per_kill') or 0)
                 time = request.form.get('time')
                 conn.execute("INSERT INTO tournaments (game,type,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,0,'UPCOMING')", (game,typ,time,prize,fee,per_kill,total))
+                conn.commit()
+            elif action == 'auto_generate':
+                generate_daily_tournaments()
+            elif action == 'generate_room_id':
+                mid = request.form.get('mid')
+                auto_room = ''.join(random.choices(string.digits, k=6))
+                auto_pass = ''.join(random.choices(string.digits, k=4))
+                conn.execute("UPDATE tournaments SET room_id=?, room_pass=?, status='LIVE' WHERE id=?", (auto_room, auto_pass, mid))
                 conn.commit()
             elif action == 'set_room':
                 mid = request.form.get('mid')
@@ -268,8 +342,6 @@ def admin():
             try: conn.rollback()
             except: pass
         return redirect('/admin')
-
-    # GET - SHOW ADMIN PANEL
     try:
         matches = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
         pending_results = conn.execute("SELECT r.*, u.username FROM results r JOIN users u ON r.user_id=u.id WHERE r.status='PENDING' ORDER BY r.id DESC").fetchall()
@@ -277,25 +349,21 @@ def admin():
         pending_payments = conn.execute("SELECT * FROM payments WHERE status='PENDING' ORDER BY id DESC").fetchall()
         pending_withdrawals = conn.execute("SELECT * FROM withdrawals WHERE status='PENDING' ORDER BY id DESC").fetchall()
     except:
-        # SQLite fallback without join
         matches = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
         pending_results = conn.execute("SELECT * FROM results WHERE status='PENDING' ORDER BY id DESC").fetchall()
-        for r in pending_results:
-            try: u=conn.execute("SELECT username FROM users WHERE id=?", (r['user_id'],)).fetchone(); r=dict(r); r['username']=u['username'] if u else r['user_id']
-            except: pass
         all_results = conn.execute("SELECT * FROM results WHERE status!='PENDING' ORDER BY id DESC LIMIT 20").fetchall()
         pending_payments = conn.execute("SELECT * FROM payments WHERE status='PENDING' ORDER BY id DESC").fetchall()
         pending_withdrawals = conn.execute("SELECT * FROM withdrawals WHERE status='PENDING' ORDER BY id DESC").fetchall()
-
     conn.close()
     return render_template('admin.html', matches=matches, pending_results=pending_results, all_results=all_results, pending_payments=pending_payments, pending_withdrawals=pending_withdrawals)
 
-# ================= YOUR EXISTING ROUTES =================
 @app.route('/')
 @nocache
 def index():
     if 'user_id' not in session: return redirect('/login')
-    try: auto_expire_matches()
+    try:
+        check_and_generate_daily()
+        auto_expire_matches()
     except: pass
     conn = get_db()
     t = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
@@ -305,6 +373,37 @@ def index():
     my_joined_ids = [r[0] for r in my_joined]
     conn.close()
     return render_template('index.html', tournaments=t, user=user, my_joined_ids=my_joined_ids, site_url=SITE_URL)
+
+@app.route('/submit_result', methods=['POST'])
+@nocache
+def submit_result():
+    if 'user_id' not in session: return redirect('/login')
+    match_id = request.form.get('match_id')
+    kills = request.form.get('kills')
+    file = request.files.get('screenshot')
+    filename = ""
+    if file and file.filename:
+        filename = secure_filename(f"{match_id}_{session['user_id']}_{datetime.now().strftime('%H%M%S')}_{file.filename}")
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    conn = get_db()
+    conn.execute("INSERT INTO results (match_id, user_id, kills, screenshot, status, time) VALUES (?,?,?,?,?,?)", (match_id, session['user_id'], kills, filename, 'PENDING', datetime.now().strftime("%d/%m %H:%M")))
+    conn.commit()
+    conn.close()
+    return redirect('/')
+
+@app.route('/match_result/<int:tid>')
+@nocache
+def match_result(tid):
+    if 'user_id' not in session: return redirect('/login')
+    conn = get_db()
+    try:
+        t = conn.execute("SELECT * FROM tournaments WHERE id=?", (tid,)).fetchone()
+        results = conn.execute("SELECT r.*, u.username FROM results r JOIN users u ON r.user_id=u.id WHERE r.match_id=? ORDER BY CAST(r.kills AS INTEGER) DESC", (tid,)).fetchall()
+    except:
+        t = conn.execute("SELECT * FROM tournaments WHERE id=?", (tid,)).fetchone()
+        results = conn.execute("SELECT * FROM results WHERE match_id=? ORDER BY CAST(kills AS INTEGER) DESC", (tid,)).fetchall()
+    conn.close()
+    return render_template('match_result.html', t=t, results=results)
 
 @app.route('/matches')
 @nocache
