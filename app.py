@@ -186,7 +186,7 @@ def generate_daily_tournaments():
             template_idx += 1
         conn.commit()
         conn.close()
-        print(f"✅ Generated {len(times)} Daily Tournaments!")
+        print(f" Generated {len(times)} Daily Tournaments!")
         return True
     except Exception as e:
         print(f"Generate error: {e}")
