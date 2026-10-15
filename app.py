@@ -16,15 +16,14 @@ app.secret_key = os.getenv("SECRET_KEY", "sd_final_2026")
 app.config['PERMANENT_SESSION_LIFETIME']=timedelta(days=3650)
 
 DB_FILE = "/data/sd.db" if os.path.isdir("/data") else "sd.db"
-UPLOAD_FOLDER = "/data/uploads" if os.path.isdir("/data") else "static/uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs("/data/uploads" if os.path.isdir("/data") else "static/uploads", exist_ok=True)
 os.makedirs('static', exist_ok=True)
 
 MY_UPI_ID = os.getenv("UPI_ID", "9550043870@ibl")
 SITE_URL = "https://sd-tournments.onrender.com"
 ADMIN_USER_ID = 1
 
-# ===== 12 HRS FILTER - FIX =====
+# ===== 12 HRS FILTER =====
 @app.template_filter('time12')
 def time12_filter(t):
     try:
@@ -40,9 +39,7 @@ def time12_filter(t):
     except: return str(t)
 
 @app.template_filter('time')
-def time_filter(t):
-    return time12_filter(t)
-# ===== END FIX =====
+def time_filter(t): return time12_filter(t)
 
 class PGWrapper:
     def __init__(self, conn): self.conn = conn
@@ -75,22 +72,13 @@ def get_db():
 def init_db():
     conn = get_db()
     try:
-        if IS_POSTGRES:
-            conn.execute("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
-            conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id SERIAL PRIMARY KEY, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
-            conn.execute("CREATE TABLE IF NOT EXISTS joined (id SERIAL PRIMARY KEY, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0)")
-            conn.execute("CREATE TABLE IF NOT EXISTS payments (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
-            conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
-            conn.execute("CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
-            conn.commit()
-        else:
-            conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
-            conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
-            conn.execute("CREATE TABLE IF NOT EXISTS joined (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0)")
-            conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
-            conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
-            conn.execute("CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
-            conn.commit()
+        conn.execute("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)" if IS_POSTGRES else "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
+        conn.execute("CREATE TABLE IF NOT EXISTS tournaments (id SERIAL PRIMARY KEY, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')" if IS_POSTGRES else "CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
+        conn.execute("CREATE TABLE IF NOT EXISTS joined (id SERIAL PRIMARY KEY, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0)" if IS_POSTGRES else "CREATE TABLE IF NOT EXISTS joined (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0)")
+        conn.execute("CREATE TABLE IF NOT EXISTS payments (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)" if IS_POSTGRES else "CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
+        conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)" if IS_POSTGRES else "CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
+        conn.execute("CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)" if IS_POSTGRES else "CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
+        conn.commit()
     except Exception as e: print(e)
     finally: conn.close()
 init_db()
@@ -102,6 +90,9 @@ def nocache(view):
         resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         return resp
     return wrapper
+
+def is_admin():
+    return 'user_id' in session and session['user_id'] == ADMIN_USER_ID
 
 @app.route('/health')
 def health(): return "OK", 200
@@ -176,7 +167,6 @@ def referral_page(code):
     session.permanent = True
     return redirect('/register')
 
-# ===== ACCOUNT ROUTE - MALLI ADD CHESA - IDI IMPORTANT =====
 @app.route('/account')
 @nocache
 def account():
@@ -267,8 +257,7 @@ def verify_upi():
 
 @app.route('/request_withdrawal', methods=['POST'])
 @nocache
-def request_withdrawal():
-    return redirect('/wallet')
+def request_withdrawal(): return redirect('/wallet')
 
 @app.route('/join/<int:tid>', methods=['POST','GET'])
 @nocache
@@ -278,22 +267,17 @@ def join_tournament(tid):
     try:
         tour = conn.execute("SELECT * FROM tournaments WHERE id=?", (tid,)).fetchone()
         user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-        if not tour or not user:
-            conn.close(); return redirect('/')
+        if not tour or not user: conn.close(); return redirect('/')
         already = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
-        if already:
-            conn.close(); return redirect('/')
-        if int(user['balance'] or 0) < int(tour['fee'] or 0):
-            conn.close(); return redirect('/wallet')
-        if int(tour['joined'] or 0) >= int(tour['total'] or 10):
-            conn.close(); return redirect('/')
+        if already: conn.close(); return redirect('/')
+        if int(user['balance'] or 0) < int(tour['fee'] or 0): conn.close(); return redirect('/wallet')
+        if int(tour['joined'] or 0) >= int(tour['total'] or 10): conn.close(); return redirect('/')
         slot = int(tour['joined'] or 0) + 1
         conn.execute("INSERT INTO joined (user_id, tournament_id, slot_no) VALUES (?,?,?)", (session['user_id'], tid, slot))
         conn.execute("UPDATE tournaments SET joined=joined+1 WHERE id=?", (tid,))
         conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (int(tour['fee']), session['user_id']))
         conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (session['user_id'], int(tour['fee']), 'DEBIT', f'Joined Tournament {tid}', now_ist().strftime("%d/%m %H:%M")))
-        conn.commit()
-        conn.close()
+        conn.commit(); conn.close()
         return redirect('/')
     except Exception as e:
         print(e); conn.close(); return redirect('/')
@@ -307,6 +291,102 @@ def my_tournaments():
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     conn.close()
     return render_template('my_tournaments.html', joined=data, user=user)
+
+# ===== ADMIN ROUTES - IKKADA UNNAI BRO =====
+@app.route('/admin')
+@nocache
+def admin():
+    if not is_admin(): return "Not Authorized - Login with Admin Account (ID=1)", 403
+    conn = get_db()
+    tournaments = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
+    users = conn.execute("SELECT * FROM users ORDER BY id DESC").fetchall()
+    payments = conn.execute("SELECT p.*, u.username FROM payments p JOIN users u ON p.user_id=u.id ORDER BY p.id DESC").fetchall()
+    withdrawals = conn.execute("SELECT w.*, u.username FROM withdrawals w JOIN users u ON w.user_id=u.id ORDER BY w.id DESC").fetchall()
+    conn.close()
+    return render_template('admin.html', tournaments=tournaments, users=users, payments=payments, withdrawals=withdrawals)
+
+@app.route('/admin/create', methods=['POST'])
+@nocache
+def admin_create():
+    if not is_admin(): return redirect('/login')
+    game = request.form.get('game','FREE FIRE')
+    type_ = request.form.get('type','Solo')
+    map_ = request.form.get('map','Bermuda')
+    time_ = request.form.get('time','18:00')
+    prize = int(request.form.get('prize',1000))
+    fee = int(request.form.get('fee',20))
+    total = int(request.form.get('total',48))
+    conn = get_db()
+    conn.execute("INSERT INTO tournaments (game,type,map,time,prize,fee,total,joined,status) VALUES (?,?,?,?,?,?,?,0,'UPCOMING')", (game,type_,map_,time_,prize,fee,total))
+    conn.commit(); conn.close()
+    return redirect('/admin')
+
+@app.route('/admin/delete/<int:tid>')
+@nocache
+def admin_delete(tid):
+    if not is_admin(): return redirect('/login')
+    conn = get_db()
+    conn.execute("DELETE FROM tournaments WHERE id=?", (tid,))
+    conn.execute("DELETE FROM joined WHERE tournament_id=?", (tid,))
+    conn.commit(); conn.close()
+    return redirect('/admin')
+
+@app.route('/admin/approve_payment/<int:pid>')
+@nocache
+def admin_approve_payment(pid):
+    if not is_admin(): return redirect('/login')
+    conn = get_db()
+    pay = conn.execute("SELECT * FROM payments WHERE id=?", (pid,)).fetchone()
+    if pay and pay['status']!= 'APPROVED':
+        conn.execute("UPDATE payments SET status='APPROVED' WHERE id=?", (pid,))
+        conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(pay['amount']), int(pay['user_id'])))
+        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(pay['user_id']), int(pay['amount']), 'CREDIT', f'Payment Approved {pay["utr"]}', now_ist().strftime("%d/%m %H:%M")))
+        conn.commit()
+    conn.close()
+    return redirect('/admin')
+
+@app.route('/admin/reject_payment/<int:pid>')
+@nocache
+def admin_reject_payment(pid):
+    if not is_admin(): return redirect('/login')
+    conn = get_db()
+    conn.execute("UPDATE payments SET status='REJECTED' WHERE id=?", (pid,))
+    conn.commit(); conn.close()
+    return redirect('/admin')
+
+@app.route('/admin/approve_withdraw/<int:wid>')
+@nocache
+def admin_approve_withdraw(wid):
+    if not is_admin(): return redirect('/login')
+    conn = get_db()
+    conn.execute("UPDATE withdrawals SET status='APPROVED' WHERE id=?", (wid,))
+    conn.commit(); conn.close()
+    return redirect('/admin')
+
+@app.route('/admin/reject_withdraw/<int:wid>')
+@nocache
+def admin_reject_withdraw(wid):
+    if not is_admin(): return redirect('/login')
+    conn = get_db()
+    w = conn.execute("SELECT * FROM withdrawals WHERE id=?", (wid,)).fetchone()
+    if w and w['status'] == 'PENDING':
+        conn.execute("UPDATE withdrawals SET status='REJECTED' WHERE id=?", (wid,))
+        conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(w['amount']), int(w['user_id'])))
+        conn.commit()
+    conn.close()
+    return redirect('/admin')
+
+@app.route('/admin/set_room', methods=['POST'])
+@nocache
+def admin_set_room():
+    if not is_admin(): return redirect('/login')
+    tid = request.form.get('tid')
+    room_id = request.form.get('room_id')
+    room_pass = request.form.get('room_pass')
+    conn = get_db()
+    conn.execute("UPDATE tournaments SET room_id=?, room_pass=? WHERE id=?", (room_id, room_pass, tid))
+    conn.commit(); conn.close()
+    return redirect('/admin')
 
 @app.route('/logout')
 def logout():
