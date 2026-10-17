@@ -225,6 +225,39 @@ def wallet():
         except: pass
         return f"Wallet Error: {e}", 500
 
+# ===== NEW: DEPOSIT HISTORY & WITHDRAW HISTORY =====
+@app.route('/deposit_history')
+@nocache
+def deposit_history():
+    if 'user_id' not in session: return redirect('/login')
+    conn = get_db()
+    try:
+        user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+        history = conn.execute("SELECT * FROM payments WHERE user_id=? ORDER BY id DESC", (int(session['user_id']),)).fetchall()
+        conn.close()
+        return render_template('deposit_history.html', history=history, user=user)
+    except Exception as e:
+        print(e); traceback.print_exc()
+        try: conn.close()
+        except: pass
+        return f"Error: {e}", 500
+
+@app.route('/withdraw_history')
+@nocache
+def withdraw_history():
+    if 'user_id' not in session: return redirect('/login')
+    conn = get_db()
+    try:
+        user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+        history = conn.execute("SELECT * FROM withdrawals WHERE user_id=? ORDER BY id DESC", (int(session['user_id']),)).fetchall()
+        conn.close()
+        return render_template('withdraw_history.html', history=history, user=user)
+    except Exception as e:
+        print(e); traceback.print_exc()
+        try: conn.close()
+        except: pass
+        return f"Error: {e}", 500
+
 @app.route('/get_qr')
 @nocache
 def get_qr():
@@ -364,7 +397,6 @@ def my_tournaments():
 @nocache
 def admin_panel():
     ADMIN_PASSWORD = "101210"
-    # 1. Admin login check - password enter chesava?
     if 'is_admin_logged' not in session:
         if request.method == 'POST':
             pwd = request.form.get('admin_password','')
@@ -373,10 +405,8 @@ def admin_panel():
                 return redirect('/admin')
             else:
                 return """<html><head><meta name='viewport' content='width=device-width'><style>body{font-family:Arial;background:#0f172a;display:flex;justify-content:center;align-items:center;height:100vh;margin:0} .box{background:#fff;padding:30px;border-radius:16px;width:300px;text-align:center} input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:1px solid #ddd} button{width:100%;padding:12px;background:#111827;color:#fff;border:none;border-radius:8px;font-weight:900} </style></head><body><div class='box'><h3>🔐 ADMIN LOGIN</h3><p style='color:red'>Wrong Password!</p><form method='POST'><input type='password' name='admin_password' placeholder='Enter Admin Password' required><button>LOGIN</button></form><a href='/'>Back Home</a></div></body></html>"""
-        # Password adige page
         return """<html><head><meta name='viewport' content='width=device-width'><style>body{font-family:Arial;background:#0f172a;display:flex;justify-content:center;align-items:center;height:100vh;margin:0} .box{background:#fff;padding:30px;border-radius:16px;width:300px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3)} input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:1px solid #ddd} button{width:100%;padding:12px;background:#111827;color:#fff;border:none;border-radius:8px;font-weight:900;cursor:pointer} </style></head><body><div class='box'><h3>🔐 ADMIN LOGIN</h3><p>Enter Password to Access Admin</p><form method='POST'><input type='password' name='admin_password' placeholder='Admin Password' required><button>LOGIN TO ADMIN</button></form><a href='/' style='display:block;margin-top:15px;color:#6b7280'>Back to Home</a></div></body></html>"""
 
-    # 2. Admin logged in - Asalu admin panel
     conn = get_db()
     try:
         if request.method == 'POST':
@@ -413,36 +443,58 @@ def admin_panel():
             elif action == 'cancel_tournament':
                 tid = request.form.get('tournament_id')
                 if tid:
-                    joined_users = conn.execute("SELECT user_id FROM joined WHERE tournament_id=?", (int(tid),)).fetchall()
-                    tour = conn.execute("SELECT fee FROM tournaments WHERE id=?", (int(tid),)).fetchone()
-                    fee = int(tour['fee']) if tour else 0
-                    for ju in joined_users: conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (fee, int(ju[0])))
-                    conn.execute("DELETE FROM joined WHERE tournament_id=?", (int(tid),))
-                    conn.execute("UPDATE tournaments SET status='CANCELLED' WHERE id=?", (int(tid),)); conn.commit()
+                    try:
+                        joined_users = conn.execute("SELECT user_id FROM joined WHERE tournament_id=?", (int(tid),)).fetchall()
+                        tour = conn.execute("SELECT fee FROM tournaments WHERE id=?", (int(tid),)).fetchone()
+                        fee = int(tour['fee']) if tour else 0
+                        for ju in joined_users: conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (fee, int(ju[0])))
+                        conn.execute("DELETE FROM joined WHERE tournament_id=?", (int(tid),))
+                        conn.execute("UPDATE tournaments SET status='CANCELLED' WHERE id=?", (int(tid),)); conn.commit()
+                    except: conn.rollback()
             elif action == 'delete_tournament':
                 tid = request.form.get('tournament_id')
-                if tid: conn.execute("DELETE FROM tournaments WHERE id=?", (int(tid),)); conn.execute("DELETE FROM joined WHERE tournament_id=?", (int(tid),)); conn.commit()
+                if tid: 
+                    try:
+                        conn.execute("DELETE FROM tournaments WHERE id=?", (int(tid),)); conn.execute("DELETE FROM joined WHERE tournament_id=?", (int(tid),)); conn.commit()
+                    except: conn.rollback()
+            # ===== FIXED: BAD GATEWAY FIX =====
             elif action == 'approve_payment':
                 pid = request.form.get('payment_id')
                 if pid:
-                    p = conn.execute("SELECT * FROM payments WHERE id=?", (int(pid),)).fetchone()
-                    if p and p['status'] == 'PENDING':
-                        conn.execute("UPDATE payments SET status='APPROVED' WHERE id=?", (int(pid),))
-                        conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(p['amount']), int(p['user_id'])))
-                        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)",(int(p['user_id']), int(p['amount']), 'CREDIT', f"Payment Approved {p['utr']}", now_ist().strftime("%d/%m %H:%M"))); conn.commit()
+                    try:
+                        p = conn.execute("SELECT * FROM payments WHERE id=?", (int(pid),)).fetchone()
+                        if p and p['status'] == 'PENDING':
+                            conn.execute("UPDATE payments SET status='APPROVED' WHERE id=?", (int(pid),))
+                            conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(p['amount']), int(p['user_id'])))
+                            try:
+                                conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)",(int(p['user_id']), int(p['amount']), 'CREDIT', f"Payment {p['utr']}", now_ist().strftime("%d/%m %H:%M")))
+                            except: pass
+                            conn.commit()
+                    except Exception as e:
+                        print(f"Approve Error: {e}"); conn.rollback()
             elif action == 'reject_payment':
                 pid = request.form.get('payment_id')
-                if pid: conn.execute("UPDATE payments SET status='REJECTED' WHERE id=?", (int(pid),)); conn.commit()
+                if pid: 
+                    try:
+                        conn.execute("UPDATE payments SET status='REJECTED' WHERE id=?", (int(pid),)); conn.commit()
+                    except: conn.rollback()
             elif action == 'approve_withdrawal':
                 wid = request.form.get('withdrawal_id')
-                if wid: conn.execute("UPDATE withdrawals SET status='APPROVED' WHERE id=?", (int(wid),)); conn.commit()
+                if wid: 
+                    try:
+                        conn.execute("UPDATE withdrawals SET status='APPROVED' WHERE id=?", (int(wid),)); conn.commit()
+                    except: conn.rollback()
             elif action == 'reject_withdrawal':
                 wid = request.form.get('withdrawal_id')
                 if wid:
-                    w = conn.execute("SELECT * FROM withdrawals WHERE id=?", (int(wid),)).fetchone()
-                    if w and w['status']=='PENDING':
-                        conn.execute("UPDATE withdrawals SET status='REJECTED' WHERE id=?", (int(wid),))
-                        conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(w['amount']), int(w['user_id']))); conn.commit()
+                    try:
+                        w = conn.execute("SELECT * FROM withdrawals WHERE id=?", (int(wid),)).fetchone()
+                        if w and w['status']=='PENDING':
+                            conn.execute("UPDATE withdrawals SET status='REJECTED' WHERE id=?", (int(wid),))
+                            conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(w['amount']), int(w['user_id']))); conn.commit()
+                    except Exception as e:
+                        print(f"Reject WD Error: {e}"); conn.rollback()
+
         matches = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
         pending_payments = conn.execute("SELECT * FROM payments WHERE status='PENDING' ORDER BY id DESC").fetchall()
         pending_withdrawals = conn.execute("SELECT * FROM withdrawals WHERE status='PENDING' ORDER BY id DESC").fetchall()
