@@ -81,12 +81,12 @@ a { text-decoration: none; }
     margin-bottom:15px;
     border:1px solid gold;
 }
+.save-txt{font-size:11px;color:#10b981;margin-top:8px;font-weight:700}
 </style>
 </head>
 <body>
 <div class="box">
     <h2>📝 REGISTER</h2>
-
     {% if ref_code %}
     <div class="refer-banner">
         🎉 <b>Referral Applied!</b><br>
@@ -94,29 +94,25 @@ a { text-decoration: none; }
         <small>You & your friend get Rs 20 Bonus!</small>
     </div>
     {% endif %}
-
     {% if error %}
     <div class="error">⚠️ {{ error }}</div>
     {% endif %}
-
     <form method="POST" action="/register" autocomplete="off" id="regForm">
         <input type="tel" name="phone" id="phone" placeholder="📱 10 Digit Phone" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" required autocomplete="off"><br>
         <input type="text" name="username" id="username" placeholder="🎮 Username / Free Fire Name" required autocomplete="off"><br>
         <input type="password" name="password" id="password" placeholder="🔑 Password (min 4)" minlength="4" required autocomplete="new-password"><br>
         <div class="show-pass" onclick="togglePass()">👁️ Show Password</div>
         <button type="submit" id="regBtn">REGISTER</button>
+        <div class="save-txt">✅ Once Register = 10 Years No Login Needed</div>
     </form>
-
     {% if ref_code %}
     <span class="small">✅ Using Refer Code {{ ref_code }} - You will get ₹20 Bonus after register!</span>
     {% else %}
     <span class="small">🎁 Referral bonus ₹20 - Join using Friend's Refer Link to get ₹20!</span>
     {% endif %}
-
     <br>
     <a href="/login" style="color:#111827; font-weight:bold;">Already have account? Login</a>
 </div>
-
 <script>
 document.getElementById('regForm').addEventListener('submit', function(e){
     const phone = document.getElementById('phone').value.trim();
@@ -128,19 +124,15 @@ document.getElementById('regForm').addEventListener('submit', function(e){
     document.getElementById('regBtn').innerText = 'CREATING...';
     document.getElementById('regBtn').disabled = true;
 });
-
 function togglePass(){
     const p = document.getElementById('password');
     p.type = p.type === 'password' ? 'text' : 'password';
 }
-
-// BACK BUTTON FIX
 history.pushState(null, null, location.href);
 window.onpopstate = function () { history.go(1); };
 if(window.performance && performance.navigation.type == 2){
     location.reload(true);
 }
 </script>
-
 </body>
 </html>
