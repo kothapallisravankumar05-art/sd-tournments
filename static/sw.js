@@ -15,11 +15,11 @@ self.addEventListener('activate', event => {
   );
 });
 
-// THIS IS THE MAIN FIX FOR TABS
+// TABS FIX + NOTIFICATION CLICK
 self.addEventListener('fetch', event => {
   const request = event.request;
   
-  // 1. NEVER cache HTML navigation - Always go to network (Fixes Tabs)
+  // 1. NEVER cache HTML navigation - Always network (Fixes Tabs)
   if (request.mode === 'navigate' || request.headers.get('accept').includes('text/html')) {
     event.respondWith(
       fetch(request).catch(() => caches.match('/'))
@@ -31,6 +31,26 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(request).then(response => {
       return response || fetch(request);
+    })
+  );
+});
+
+// 🔔 NOTIFICATION CLICK - NEW
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.openWindow('/')
+  );
+});
+
+self.addEventListener('push', event => {
+  const data = event.data ? event.data.json() : {title:'SD TOURNAMENTS', body:'🔥 New Match Live!'};
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/static/icon.png',
+      badge: '/static/icon.png',
+      vibrate: [200,100,200]
     })
   );
 });
