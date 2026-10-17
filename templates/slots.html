@@ -1,107 +1,70 @@
-@app.route('/slots/<int:tid>')
-@nocache
-def slots_page(tid):
-    if 'user_id' not in session: 
-        return redirect('/login')
-    conn = get_db()
-    # FIX: tournments - n lekunda - Nee DB lo adhe undi
-    t = conn.execute("SELECT * FROM tournments WHERE id=?", (tid,)).fetchone()
-    if not t:
-        conn.close()
-        return redirect('/')
-    
-    # Taken slots - username first 6 letters
-    rows = conn.execute("SELECT slot_no, user_id FROM joined WHERE tournament_id=?", (tid,)).fetchall()
-    taken_slots = {}
-    for r in rows:
-        try:
-            slot_no = r['slot_no'] if 'slot_no' in r else r[0]
-            uid = r['user_id'] if 'user_id' in r else r[1]
-            u = conn.execute("SELECT username FROM users WHERE id=?", (uid,)).fetchone()
-            if u:
-                name = u['username'] if 'username' in u else u[0]
-                taken_slots[int(slot_no)] = str(name)[:6]
-            else:
-                taken_slots[int(slot_no)] = "Taken"
-        except:
-            pass
-    
-    already = None
-    if 'user_id' in session:
-        already = conn.execute("SELECT * FROM joined WHERE tournament_id=? AND user_id=?", (tid, session['user_id'])).fetchone()
-    
-    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-    conn.close()
-    return render_template('slots.html', tour=t, t=t, user=user, taken_slots=taken_slots, total_slots=len(taken_slots), already=already)
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Select Slot - SD TOURNAMENTS</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{background:#ffffff;color:#111827;padding:12px;min-height:100vh}
+.header{padding:10px 0;border-bottom:1px solid #e5e7eb;margin-bottom:12px}
+.title{font-weight:900;font-size:18px}
+.sub{font-size:12px;color:#6b7280;margin-top:4px}
+.grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}
+.slot{width:65px;height:65px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:14px;text-decoration:none;cursor:pointer;transition:0.2s}
+.slot.free{background:#ffffff;border:2px solid #111827;color:#111827}
+.slot.free:hover{background:#111827;color:#fff;transform:scale(1.05)}
+.slot.taken{background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;cursor:not-allowed}
+.slot.taken small{font-size:9px;font-weight:700;margin-top:2px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55px}
+.legend{display:flex;gap:12px;margin:15px 0;font-size:11px;color:#6b7280}
+.dot{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:4px}
+.info-box{background:#f9fafb;border:1px solid #e5e7eb;padding:12px;border-radius:12px;margin-top:15px}
+.btn-back{display:block;text-align:center;margin-top:18px;background:#f3f4f6;padding:12px;border-radius:10px;text-decoration:none;color:#111827;font-weight:900;border:1px solid #e5e7eb}
+.already-box{background:#d1fae5;color:#065f46;padding:12px;border-radius:10px;text-align:center;font-weight:900;margin-top:15px}
+</style>
+</head>
+<body>
 
-@app.route('/join/<int:tid>', methods=['GET','POST'])
-@nocache
-def join_tournament(tid):
-    if 'user_id' not in session: 
-        return redirect('/login')
-    conn = get_db()
-    # FIX: tournments table
-    tour = conn.execute("SELECT * FROM tournments WHERE id=?", (tid,)).fetchone()
-    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-    
-    if not tour or not user:
-        conn.close()
-        return redirect('/')
-    
-    already = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
-    if already:
-        conn.close()
-        return redirect('/my_tournaments')
+<div class="header">
+<div class="title">{{t.game}} - {{t.type}}</div>
+<div class="sub">🗓 {{t.time | time12}} | 💰 Prize ₹{{t.prize}} | 🎯 Entry ₹{{t.fee}} | Map: {{t.map}}</div>
+<div class="sub">👥 {{t.joined}}/{{t.total}} Joined | {{t.total - t.joined}} Spots Left</div>
+</div>
 
-    if request.method == 'GET':
-        slot_no = request.args.get('slot') or request.args.get('slot_no') or 1
-        try: slot_no = int(slot_no)
-        except: slot_no = 1
-        conn.close()
-        return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_no)
+{% if already %}
+<div class="already-box">✅ Already Joined - Slot {{already['slot_no'] if already['slot_no'] else already[0]}}<br><a href="/my_tournaments" style="color:#065f46;text-decoration:underline">Go to My Tournaments</a></div>
+{% endif %}
 
-    # POST - Slot + FF ID + Name + Payment
-    game_id = request.form.get('game_id','').strip()
-    game_name = request.form.get('game_name','').strip()
-    slot_no = request.form.get('slot_no') or 1
-    try: slot_no = int(slot_no)
-    except: slot_no = 1
+<div class="legend">
+<div><span class="dot" style="background:#fff;border:1px solid #111827"></span> Available</div>
+<div><span class="dot" style="background:#f3f4f6"></span> Taken</div>
+</div>
 
-    if not game_id or not game_name:
-        conn.close()
-        return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_no, error="Game ID & IGN Required Bro!")
+<div class="grid">
+{% for i in range(1, t.total + 1) %}
+  {% if i in taken_slots %}
+    <div class="slot taken">
+      <span>{{i}}</span>
+      <small>{{taken_slots[i]}}</small>
+    </div>
+  {% else %}
+    <a href="/confirm_join/{{t.id}}?slot_no={{i}}" class="slot free">
+      <span>{{i}}</span>
+      <small style="font-size:9px;color:#6b7280">FREE</small>
+    </a>
+  {% endif %}
+{% endfor %}
+</div>
 
-    if int(user['balance'] or 0) < int(tour['fee'] or 0):
-        conn.close()
-        return redirect('/wallet')
-    
-    # Slot taken check
-    taken = conn.execute("SELECT id FROM joined WHERE tournament_id=? AND slot_no=?", (tid, slot_no)).fetchone()
-    if taken:
-        conn.close()
-        return redirect(f'/slots/{tid}')
+<div class="info-box">
+<div style="font-weight:900;font-size:12px;margin-bottom:6px">📌 HOW TO JOIN:</div>
+<div style="font-size:11px;color:#6b7280;line-height:1.6">
+1. Oka free slot ni click chey<br>
+2. Game ID & IGN enter chey<br>
+3. Confirm cheste balance cut ayi joined avthav
+</div>
+</div>
 
-    # JOIN NOW - Deduct + Insert
-    conn.execute("INSERT INTO joined (user_id, tournament_id, slot_no, game_id, game_name) VALUES (?,?,?,?,?)", (session['user_id'], tid, slot_no, game_id, game_name))
-    conn.execute("UPDATE tournments SET joined=joined+1 WHERE id=?", (tid,))
-    conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (int(tour['fee']), session['user_id']))
-    conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (session['user_id'], int(tour['fee']), 'DEBIT', f'Join T{tid} S{slot_no} {game_id}', now_ist().strftime("%d/%m %H:%M")))
-    conn.commit()
-    conn.close()
-    return redirect('/my_tournaments')
+<a href="/" class="btn-back">← Back to Home</a>
 
-@app.route('/confirm_join/<int:tid>')
-@nocache
-def confirm_join(tid):
-    if 'user_id' not in session: 
-        return redirect('/login')
-    slot_no = request.args.get('slot_no') or request.args.get('slot') or 1
-    try: slot_no = int(slot_no)
-    except: slot_no = 1
-    conn = get_db()
-    tour = conn.execute("SELECT * FROM tournments WHERE id=?", (tid,)).fetchone()
-    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-    conn.close()
-    if not tour: 
-        return redirect('/')
-    return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_no)
+</body>
+</html>
