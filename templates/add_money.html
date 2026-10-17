@@ -6,7 +6,7 @@
 </head>
 <body style="background:#0a1628;color:white;font-family:sans-serif;text-align:center;padding:20px">
 <h2 style="color:gold">💰 Add Money</h2>
-<p style="color:#888;font-size:13px">Min ₹10 - UTR Require</p>
+<p style="color:#888;font-size:13px">Min ₹20 - UTR Require</p>
 <input type="number" id="amt" placeholder="Amount Ex: 100" style="padding:15px;width:85%;border-radius:10px;border:none;font-size:18px;text-align:center;max-width:350px"><br><br>
 <button onclick="payUPI()" style="background:#00ff88;color:black;padding:15px 50px;border:none;border-radius:12px;font-size:20px;font-weight:bold;cursor:pointer">PAY WITH UPI</button>
 <div id="box" style="margin-top:25px"></div>
@@ -19,9 +19,9 @@ function payUPI(){
    if(!d.ok){alert("Error - Try again");return}
    window.location.href=d.upi_link;
    document.getElementById('box').innerHTML=`<div style="background:#162435;padding:20px;border-radius:15px;max-width:380px;margin:0 auto;border:1px solid #00ff88">
-   <p style="color:#00ff88;font-weight:bold">✅ PhonePe/GPay !</p><p style="color:#aaa;font-size:13px">UTR Copy Here</p>
+   <p style="color:#00ff88;font-weight:bold">PhonePe/GPay !</p><p style="color:#aaa;font-size:13px">UTR Copy Here</p>
    <input id="utr" placeholder="12 digit UTR " style="padding:14px;width:90%;border-radius:8px;border:none;text-align:center;font-weight:bold;letter-spacing:1px;text-transform:uppercase"><br><br>
-   <button onclick="verify()" style="background:gold;color:black;padding:14px 40px;border-radius:10px;font-weight:900;border:none;cursor:pointer">✅ VERIFY PAYMENT</button>
+   <button onclick="verify()" style="background:gold;color:black;padding:14px 40px;border-radius:10px;font-weight:900;border:none;cursor:pointer"> VERIFY PAYMENT</button>
    <p style="color:#666;font-size:11px;margin-top:10px">DONT ENTER USED UTR!</p></div>`;
  });
 }
