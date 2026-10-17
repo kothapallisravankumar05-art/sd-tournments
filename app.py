@@ -253,6 +253,7 @@ def debug_page():
     html += "<br><a href='/'>Home</a> | <a href='/nuke'>Nuke</a> | <a href='/force'>Force</a>"
     return html
 
+# ✅ FINAL FIXED - RESULTS TAB WORKING
 @app.route('/')
 @nocache
 def index():
@@ -271,12 +272,27 @@ def index():
     t = conn.execute("SELECT * FROM tournments WHERE status IN ('UPCOMING','LIVE') AND time >= ? ORDER BY time ASC", (grace,)).fetchall()
     if len(t) == 0:
         t = conn.execute("SELECT * FROM tournments WHERE status IN ('UPCOMING','LIVE') ORDER BY time ASC LIMIT 50").fetchall()
+    
+    completed = conn.execute("SELECT * FROM tournments WHERE status='COMPLETED' ORDER BY time DESC LIMIT 100").fetchall()
+    live = conn.execute("SELECT * FROM tournments WHERE status='LIVE' ORDER BY time ASC LIMIT 50").fetchall()
+    
+    results_data = {}
+    try:
+        all_results = conn.execute("SELECT r.*, u.username FROM results r LEFT JOIN users u ON r.user_id=u.id WHERE r.status='APPROVED' ORDER BY r.kills DESC").fetchall()
+        for r in all_results:
+            mid = r['match_id']
+            if mid not in results_data:
+                results_data[mid] = []
+            results_data[mid].append(dict(r))
+    except Exception as e:
+        print(f"Results error {e}")
+
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     if not user: session.clear(); conn.close(); return redirect('/login')
     my_joined = conn.execute("SELECT tournament_id FROM joined WHERE user_id=?", (session['user_id'],)).fetchall()
     my_joined_ids = [r[0] for r in my_joined]
     conn.close()
-    return render_template('index.html', tournments=t, tournaments=t, user=user, my_joined_ids=my_joined_ids, site_url=SITE_URL)
+    return render_template('index.html', tournments=t, tournaments=t, user=user, my_joined_ids=my_joined_ids, site_url=SITE_URL, completed=completed, live_matches=live, results_data=results_data)
 
 @app.route('/register', methods=['GET','POST'])
 @nocache
