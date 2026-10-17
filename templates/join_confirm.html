@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Join - Game ID - SD</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{background:#0f172a;color:#fff;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:15px}
+.box{background:#1e293b;border-radius:16px;padding:22px;width:100%;max-width:400px;border:2px solid #00ff88;box-shadow:0 0 20px #00ff8833}
+.h{color:#00ff88;text-align:center;font-weight:900;font-size:20px;margin-bottom:4px;letter-spacing:1px}
+.sub{text-align:center;color:#94a3b8;font-size:11px;margin-bottom:14px}
+.info{background:#0f172a;padding:12px;border-radius:10px;font-size:12px;color:#94a3b8;margin-bottom:16px;line-height:1.8;border:1px solid #334155}
+.info b{color:#fff}
+input{width:100%;padding:14px 12px;margin:8px 0;border-radius:10px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:14px;outline:none}
+input:focus{border-color:#00ff88}
+.btn{width:100%;padding:16px;background:#00ff88;color:#000;border:none;border-radius:10px;font-weight:900;font-size:16px;margin-top:12px;cursor:pointer;letter-spacing:0.5px}
+.btn:active{transform:scale(0.98)}
+.back{display:block;text-align:center;padding:12px;color:#94a3b8;text-decoration:none;font-size:13px;margin-top:12px;background:#0f172a;border-radius:8px;border:1px solid #1e293b}
+.err{background:#ff444422;border:1px solid #ff4444;color:#ff8888;padding:10px;border-radius:8px;text-align:center;font-size:12px;margin-bottom:12px}
+.slot-badge{display:inline-block;background:#00ff88;color:#000;padding:2px 8px;border-radius:20px;font-weight:900;font-size:11px}
+</style>
+</head>
+<body>
+
+<div class="box">
+<div class="h">🎮 JOIN CONFIRM</div>
+<div class="sub">Enter Your Game Details</div>
+
+<div class="info">
+🎯 <b>{{t.game}} {{t.type}} #{{t.id}}</b><br>
+⏰ {{t.time|time12}} | Prize <b style="color:gold">₹{{t.prize}}</b><br>
+📌 Slot: <span class="slot-badge">#{{slot_no}}</span> | Fee: <b style="color:#00ff88">₹{{t.fee}}</b><br>
+💰 Your Balance: <b>₹{{user.balance}}</b>
+</div>
+
+{% if error %}
+<div class="err">⚠️ {{error}}</div>
+{% endif %}
+
+<form method="POST">
+<input type="hidden" name="slot_no" value="{{slot_no}}">
+
+<input type="text" name="game_id" placeholder="🔥 Free Fire UID / BGMI Game ID *" required minlength="2" maxlength="30">
+
+<input type="text" name="game_name" placeholder="🎯 In-Game Name (IGN) *" required minlength="2" maxlength="30">
+
+<button class="btn">✅ CONFIRM JOIN - ₹{{t.fee}}</button>
+</form>
+
+<a href="/slots/{{t.id}}" class="back">← Back to Slot Select</a>
+
+<div style="text-align:center;margin-top:12px;font-size:10px;color:#475569">
+⚠️ Game ID wrong isthe prize radu!
+</div>
+
+</div>
+
+</body>
+</html>
