@@ -108,28 +108,22 @@ def generate_daily_matches(conn):
         now = now_ist()
         today = now.strftime("%Y-%m-%d")
         now_full = now.strftime("%Y-%m-%d %H:%M")
+        # ✅ FINAL - ONLY 40 MIN GAP - NO 20 MIN - NO DOUBLE
         exact_slots = ["09:00","09:40","10:20","11:00","11:40","12:20","13:00","13:40","14:20","15:00","15:40","16:20","17:00","17:40","18:20","19:00","19:40","20:20","21:00"]
         types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
         created=0
         for idx, slot in enumerate(exact_slots):
             full_time = f"{today} {slot}"
-            if full_time < now_full: continue
+            if full_time < now_full: 
+                continue
             dup = conn.execute("SELECT id FROM tournments WHERE time=?", (full_time,)).fetchone()
-            if dup: continue
+            if dup: 
+                continue
             g,t_type,fee,prize,total = types[idx % len(types)]
             per_kill = 8 if t_type=='Solo' else 0
-            conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",(g,t_type,'Bermuda',full_time,prize,fee,per_kill,total,0))
+            conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",
+                         (g,t_type,'Bermuda',full_time,prize,fee,per_kill,total,0))
             created+=1
-        if created < 3:
-            tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
-            for idx, slot in enumerate(exact_slots[:10]):
-                full_time = f"{tomorrow} {slot}"
-                dup = conn.execute("SELECT id FROM tournments WHERE time=?", (full_time,)).fetchone()
-                if dup: continue
-                g,t_type,fee,prize,total = types[idx % len(types)]
-                per_kill = 8 if t_type=='Solo' else 0
-                conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",(g,t_type,'Bermuda',full_time,prize,fee,per_kill,total,0))
-                created+=1
         conn.commit()
         return created
     except Exception as e:
@@ -572,7 +566,7 @@ def join_tournament(tid):
         except: pass
         return f"Join Error: {e} - <a href='/slots/{tid}'>Try Again</a>"
 
-# ✅ FINAL - FIX /matches 404 - ALL ALIASES
+# ✅ FINAL FIX - ALL ALIASES FOR MY MATCHES - NO 404
 @app.route('/my_tournments')
 @app.route('/my_tournaments')
 @app.route('/my_matches')
