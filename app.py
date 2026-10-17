@@ -78,6 +78,7 @@ def init_db():
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS results (id SERIAL PRIMARY KEY, match_id INTEGER, user_id INTEGER, kills INTEGER, status TEXT DEFAULT 'PENDING', screenshot TEXT, time TEXT)")
+            conn.execute("CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, user_id INTEGER, title TEXT, message TEXT, is_read INTEGER DEFAULT 0, time TEXT)")
         else:
             conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT UNIQUE, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
             conn.execute("CREATE TABLE IF NOT EXISTS tournments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
@@ -86,6 +87,7 @@ def init_db():
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY AUTOINCREMENT, match_id INTEGER, user_id INTEGER, kills INTEGER, status TEXT DEFAULT 'PENDING', screenshot TEXT, time TEXT)")
+            conn.execute("CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, title TEXT, message TEXT, is_read INTEGER DEFAULT 0, time TEXT)")
         conn.commit()
     except Exception as e: print(e)
     finally: conn.close()
@@ -110,6 +112,14 @@ def generate_referral_code_unique(conn):
         if not exists:
             return code
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
+def create_notification(conn, user_id, title, message):
+    try:
+        conn.execute("INSERT INTO notifications (user_id, title, message, is_read, time) VALUES (?,?,?,?,?)",
+                     (user_id, title, message, 0, now_ist().strftime("%d/%m %H:%M")))
+        conn.commit()
+    except Exception as e:
+        print(f"Notify error {e}")
 
 def generate_daily_matches(conn):
     try:
@@ -287,8 +297,13 @@ def index():
         return redirect('/login')
     my_joined = conn.execute("SELECT tournament_id FROM joined WHERE user_id=?", (session['user_id'],)).fetchall()
     my_joined_ids = [r[0] for r in my_joined]
+    # 🔔 UNREAD NOTIFICATIONS COUNT
+    try:
+        notif_count = conn.execute("SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0", (session['user_id'],)).fetchone()[0]
+    except:
+        notif_count = 0
     conn.close()
-    return render_template('index.html', tournaments=t, tournments=t, user=user, my_joined_ids=my_joined_ids, site_url=SITE_URL, completed=completed, live_matches=live, results_data=results_data)
+    return render_template('index.html', tournaments=t, tournments=t, user=user, my_joined_ids=my_joined_ids, site_url=SITE_URL, completed=completed, live_matches=live, results_data=results_data, notif_count=notif_count)
 
 @app.route('/register', methods=['GET','POST'])
 @nocache
@@ -306,20 +321,20 @@ def register():
             conn.execute("INSERT INTO users (username,password,phone,balance,referral_code,referred_by) VALUES (?,?,?,?,?,0)", (username,password,phone,0,ref_code_new))
             conn.commit()
             user = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
-            # ✅ REFERRAL 10Rs BOTH
             ref_code_session = session.get('ref_code')
             if ref_code_session:
                 ref_code_session = ref_code_session.upper().strip()
                 ref_user = conn.execute("SELECT id,balance FROM users WHERE referral_code=?", (ref_code_session,)).fetchone()
                 if ref_user and int(ref_user['id']) != int(user['id']):
-                    # Check already referred?
                     already_referred = int(user['referred_by'] or 0) != 0
                     if not already_referred:
-                        # 10 to referrer + 10 to new user
                         conn.execute("UPDATE users SET balance=balance+10 WHERE id=?", (int(ref_user['id']),))
                         conn.execute("UPDATE users SET balance=balance+10, referred_by=? WHERE id=?", (int(ref_user['id']), int(user['id'])))
                         conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(ref_user['id']), 10, 'CREDIT', f'Referral Bonus from {username}', now_ist().strftime("%d/%m %H:%M")))
                         conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(user['id']), 10, 'CREDIT', f'Referral Bonus from {ref_code_session}', now_ist().strftime("%d/%m %H:%M")))
+                        # 🔔 NOTIFICATION FOR BOTH
+                        create_notification(conn, int(ref_user['id']), "🎉 Referral Success!", f"{username} joined with your code! +₹10 added")
+                        create_notification(conn, int(user['id']), "🎉 Welcome Bonus!", f"You got ₹10 referral bonus from {ref_code_session}!")
                         conn.commit()
             session.permanent = True
             session['user_id'] = user['id']
@@ -357,7 +372,6 @@ def referral_redirect(code):
     session.permanent = True
     return redirect('/register')
 
-# ✅ NEW - REFERRAL DASHBOARD - 10RS BOTH
 @app.route('/referral')
 @nocache
 def referral_dashboard():
@@ -369,7 +383,6 @@ def referral_dashboard():
         conn.close()
         session.clear()
         return redirect('/login')
-    # Ensure referral_code exists
     if not user['referral_code']:
         new_code = generate_referral_code_unique(conn)
         conn.execute("UPDATE users SET referral_code=? WHERE id=?", (new_code, user['id']))
@@ -406,6 +419,52 @@ def referral_dashboard():
     </div></body></html>
     """
     return html
+
+# 🔔 NOTIFICATION ROUTES
+@app.route('/notifications')
+@nocache
+def notifications_page():
+    if 'user_id' not in session:
+        return redirect('/login')
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    notifs = conn.execute("SELECT * FROM notifications WHERE user_id=? ORDER BY id DESC LIMIT 50", (session['user_id'],)).fetchall()
+    conn.execute("UPDATE notifications SET is_read=1 WHERE user_id=?", (session['user_id'],))
+    conn.commit()
+    conn.close()
+    html = "<html><head><meta name='viewport' content='width=device-width, initial-scale=1'><style>body{font-family:sans-serif;background:#f9fafb;padding:15px} .card{background:white;padding:15px;border-radius:12px;margin-bottom:10px;border:1px solid #e5e7eb} .unread{border-left:4px solid #6c5ce7} h2{margin-bottom:15px}</style></head><body>"
+    html += f"<h2>🔔 Notifications</h2><a href='/' style='color:#6c5ce7;text-decoration:none'>← Back Home</a><br><br>"
+    if not notifs:
+        html += "<div class='card'>No notifications yet!</div>"
+    for n in notifs:
+        d = dict(n)
+        cls = "card unread" if d['is_read']==0 else "card"
+        html += f"<div class='{cls}'><b>{d['title']}</b><br><small>{d['message']}</small><br><small style='color:#999'>{d['time']}</small></div>"
+    html += "</body></html>"
+    return html
+
+@app.route('/api/notifications')
+@nocache
+def api_notifications():
+    if 'user_id' not in session:
+        return jsonify([])
+    conn = get_db()
+    notifs = conn.execute("SELECT * FROM notifications WHERE user_id=? ORDER BY id DESC LIMIT 20", (session['user_id'],)).fetchall()
+    conn.close()
+    return jsonify([dict(n) for n in notifs])
+
+@app.route('/api/notifications/count')
+@nocache
+def api_notif_count():
+    if 'user_id' not in session:
+        return jsonify({"count":0})
+    conn = get_db()
+    try:
+        cnt = conn.execute("SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0", (session['user_id'],)).fetchone()[0]
+    except:
+        cnt = 0
+    conn.close()
+    return jsonify({"count": int(cnt or 0)})
 
 @app.route('/account')
 @nocache
@@ -625,6 +684,7 @@ def join_tournament(tid):
         conn.execute("UPDATE tournments SET joined=joined+1 WHERE id=?", (tid,))
         conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (int(tour['fee']), session['user_id']))
         conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (session['user_id'], int(tour['fee']), 'DEBIT', f'Join T{tid} S{slot_no}', now_ist().strftime("%d/%m %H:%M")))
+        create_notification(conn, session['user_id'], "✅ Joined!", f"You joined {tour['type']} match at {tour['time']}. Room ID soon!")
         conn.commit()
         conn.close()
         return redirect('/my_tournments')
@@ -761,12 +821,23 @@ def admin_panel():
                 conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",(game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0)); conn.commit()
             elif action == 'set_room':
                 mid = request.form.get('mid'); room_id = request.form.get('room_id'); room_pass = request.form.get('room_pass')
-                if mid: conn.execute("UPDATE tournments SET room_id=?, room_pass=?, status='LIVE' WHERE id=?", (room_id, room_pass, int(mid))); conn.commit()
+                if mid: 
+                    conn.execute("UPDATE tournments SET room_id=?, room_pass=?, status='LIVE' WHERE id=?", (room_id, room_pass, int(mid)))
+                    # 🔔 NOTIFY JOINED USERS - ROOM READY
+                    joined_users = conn.execute("SELECT user_id FROM joined WHERE tournament_id=?", (int(mid),)).fetchall()
+                    for ju in joined_users:
+                        create_notification(conn, ju['user_id'] if isinstance(ju, dict) or hasattr(ju, '__getitem__') else ju[0], "🔴 Room Ready!", f"Match {mid} Room ID: {room_id} Pass: {room_pass} - Join Now!")
+                    conn.commit()
             elif action == 'generate_room_id':
                 mid = request.form.get('mid')
                 if mid:
                     rid = ''.join(random.choices(string.digits, k=6)); rpass = ''.join(random.choices(string.digits, k=4))
-                    conn.execute("UPDATE tournments SET room_id=?, room_pass=?, status='LIVE' WHERE id=?", (rid, rpass, int(mid))); conn.commit()
+                    conn.execute("UPDATE tournments SET room_id=?, room_pass=?, status='LIVE' WHERE id=?", (rid, rpass, int(mid)))
+                    joined_users = conn.execute("SELECT user_id FROM joined WHERE tournament_id=?", (int(mid),)).fetchall()
+                    for ju in joined_users:
+                        uid = ju['user_id'] if 'user_id' in ju else ju[0]
+                        create_notification(conn, int(uid), "🔴 Room Ready!", f"Match {mid} - ID:{rid} Pass:{rpass}")
+                    conn.commit()
             elif action == 'approve_result':
                 rid = request.form.get('result_id')
                 custom_kills = request.form.get('custom_kills') or request.form.get('new_kills') or "0"
@@ -815,6 +886,7 @@ def admin_panel():
                     if total_prize > 0:
                         conn.execute("UPDATE users SET balance=balance+?, total_wins=total_wins+1 WHERE id=?", (total_prize, int(winner_id)))
                         conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(winner_id), total_prize, 'CREDIT', f'Won Match {mid} {kills}K Prize {total_prize} Verified', now_ist().strftime("%d/%m %H:%M")))
+                        create_notification(conn, int(winner_id), "🏆 You Won!", f"Match {mid} - Prize ₹{total_prize} added! {kills} kills")
                     conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (int(mid),))
                     conn.commit()
             elif action == 'cancel_tournament':
@@ -839,7 +911,9 @@ def admin_panel():
                     p = conn.execute("SELECT * FROM payments WHERE id=?", (int(pid),)).fetchone()
                     if p and p['status'] == 'PENDING':
                         conn.execute("UPDATE payments SET status='APPROVED' WHERE id=?", (int(pid),))
-                        conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(p['amount']), int(p['user_id']))); conn.commit()
+                        conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(p['amount']), int(p['user_id'])))
+                        create_notification(conn, int(p['user_id']), "✅ Payment Approved", f"₹{p['amount']} added to wallet!")
+                        conn.commit()
             elif action == 'reject_payment':
                 pid = request.form.get('payment_id')
                 if pid: conn.execute("UPDATE payments SET status='REJECTED' WHERE id=?", (int(pid),)); conn.commit()
