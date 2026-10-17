@@ -16,6 +16,7 @@ DB_FILE = "/data/sd.db" if os.path.isdir("/data") else "sd.db"
 UPLOAD_FOLDER = "/data/uploads" if os.path.isdir("/data") else "static/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs('static', exist_ok=True)
+os.makedirs('static/uploads', exist_ok=True)
 MY_UPI_ID = os.getenv("UPI_ID", "9550043870@ibl")
 SITE_URL = "https://sd-tournments.onrender.com"
 ADMIN_USER_ID = 1
@@ -162,7 +163,6 @@ def login():
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
         if not user: 
-            # phone tho kuda check
             user = conn.execute("SELECT * FROM users WHERE phone=?", (u,)).fetchone()
         if not user: conn.close(); return render_template('login.html', error="Account Not Found!")
         if user['password']!= p: conn.close(); return render_template('login.html', error="Wrong Password!")
@@ -299,14 +299,13 @@ def verify_upi():
         except: pass
         return jsonify({"ok": False, "msg": f"Error: {e}"}), 500
 
-# ===== NEW FORGOT PASSWORD ROUTE =====
 @app.route('/forgot', methods=['GET','POST'])
 @nocache
 def forgot_password():
     if request.method == 'POST':
-        phone = (request.form.get('phone') or "").strip()
+        phone = (request.form.get('phone') or request.form.get('username') or "").strip()
         new_pass = (request.form.get('new_password') or "").strip()
-        confirm_pass = (request.form.get('confirm_password') or "").strip()
+        confirm_pass = (request.form.get('confirm_password') or new_pass).strip()
         
         if len(phone) < 4:
             return render_template('forgot.html', error="Phone/Username Enter Chey Bro!")
@@ -331,6 +330,7 @@ def forgot_password():
     
     return render_template('forgot.html')
 
+# ===== SLOTS WITH SELECTION =====
 @app.route('/slots/<int:tid>')
 @nocache
 def slots_page(tid):
@@ -339,20 +339,14 @@ def slots_page(tid):
     tour = conn.execute("SELECT * FROM tournaments WHERE id=?", (tid,)).fetchone()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     if not tour: conn.close(); return redirect('/')
-    already = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
+    
+    joined_users = conn.execute("SELECT j.slot_no, u.username FROM joined j JOIN users u ON j.user_id=u.id WHERE j.tournament_id=? ORDER BY j.slot_no", (tid,)).fetchall()
+    taken_slots = {row['slot_no']: row['username'] for row in joined_users}
+    
+    already = conn.execute("SELECT * FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
+    total = int(tour['total'] or 12)
     conn.close()
-    return f"""
-    <html><head><meta name='viewport' content='width=device-width'><style>
-    body{{font-family:Arial;background:#f9fafb;padding:20px}} .card{{background:#fff;padding:20px;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}}
-    .btn{{width:100%;padding:14px;background:#111827;color:#fff;border:none;border-radius:10px;font-weight:900;margin-top:15px;display:block;text-align:center;text-decoration:none}}
-    </style></head><body>
-    <div class='card'><h2>{tour['game']} - {tour['type']}</h2>
-    <p>Prize: ₹{tour['prize']} | Fee: ₹{tour['fee']}</p>
-    <p>{tour['joined']}/{tour['total']} Joined</p>
-    {"<p style='color:green;font-weight:900'>✅ ALREADY JOINED</p>" if already else f"<a class='btn' href='/join/{tid}'>JOIN NOW - ₹{tour['fee']}</a>"}
-    <a href='/' style='display:block;text-align:center;margin-top:10px;color:#6b7280'>Back to Home</a>
-    </div></body></html>
-    """
+    return render_template('slots.html', tour=tour, user=user, taken_slots=taken_slots, total_slots=total, already=already)
 
 @app.route('/leaderboard')
 @nocache
@@ -375,17 +369,25 @@ def submit_result():
     except: kills_i=0
     conn=get_db()
     try:
+        joined = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], int(match_id))).fetchone()
+        if not joined:
+            conn.close()
+            return redirect('/')
         fname=""
         if 'screenshot' in request.files:
             f=request.files['screenshot']
             if f and f.filename:
                 fname=f"{session['user_id']}_{match_id}_{random.randint(1000,9999)}.jpg"
                 f.save(os.path.join(UPLOAD_FOLDER,fname))
-        conn.execute("INSERT INTO results (match_id,user_id,kills,status,screenshot,time) VALUES (?,?,?,?,?,?)",(int(match_id),session['user_id'],kills_i,'PENDING',fname,now_ist().strftime("%d/%m %H:%M")))
+        existing = conn.execute("SELECT id FROM results WHERE match_id=? AND user_id=?", (int(match_id), session['user_id'])).fetchone()
+        if existing:
+            conn.execute("UPDATE results SET kills=?, screenshot=?, status='PENDING', time=? WHERE id=?", (kills_i, fname, now_ist().strftime("%d/%m %H:%M"), existing['id']))
+        else:
+            conn.execute("INSERT INTO results (match_id,user_id,kills,status,screenshot,time) VALUES (?,?,?,?,?,?)",(int(match_id),session['user_id'],kills_i,'PENDING',fname,now_ist().strftime("%d/%m %H:%M")))
         conn.commit()
     except Exception as e: print(e)
     finally: conn.close()
-    return redirect('/')
+    return redirect(f'/match_result/{match_id}')
 
 @app.route('/match_result/<int:mid>')
 @nocache
@@ -400,24 +402,44 @@ def match_result(mid):
 @nocache
 def join_tournament(tid):
     if 'user_id' not in session: return redirect('/login')
+    slot_no = request.args.get('slot') or request.form.get('slot_no') or request.args.get('slot_no')
+    try: slot_no = int(slot_no)
+    except: 
+        # auto slot if not selected
+        conn_tmp = get_db()
+        tour_tmp = conn_tmp.execute("SELECT joined,total FROM tournaments WHERE id=?", (tid,)).fetchone()
+        if tour_tmp:
+            slot_no = int(tour_tmp['joined'] or 0) + 1
+        else:
+            slot_no = 1
+        conn_tmp.close()
+    
     conn = get_db()
     try:
         tour = conn.execute("SELECT * FROM tournaments WHERE id=?", (tid,)).fetchone()
         user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
         if not tour or not user: conn.close(); return redirect('/')
         already = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
-        if already: conn.close(); return redirect('/')
+        if already: conn.close(); return redirect(f'/slots/{tid}')
         if int(user['balance'] or 0) < int(tour['fee'] or 0): conn.close(); return redirect('/wallet')
         if int(tour['joined'] or 0) >= int(tour['total'] or 10): conn.close(); return redirect('/')
-        slot = int(tour['joined'] or 0) + 1
-        conn.execute("INSERT INTO joined (user_id, tournament_id, slot_no) VALUES (?,?,?)", (session['user_id'], tid, slot))
+        slot_taken = conn.execute("SELECT id FROM joined WHERE tournament_id=? AND slot_no=?", (tid, slot_no)).fetchone()
+        if slot_taken:
+            # find next free
+            all_taken = conn.execute("SELECT slot_no FROM joined WHERE tournament_id=?", (tid,)).fetchall()
+            taken_set = set([r[0] for r in all_taken])
+            for i in range(1, int(tour['total'] or 48)+1):
+                if i not in taken_set:
+                    slot_no = i
+                    break
+        conn.execute("INSERT INTO joined (user_id, tournament_id, slot_no) VALUES (?,?,?)", (session['user_id'], tid, slot_no))
         conn.execute("UPDATE tournaments SET joined=joined+1 WHERE id=?", (tid,))
         conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (int(tour['fee']), session['user_id']))
-        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (session['user_id'], int(tour['fee']), 'DEBIT', f'Joined Tournament {tid}', now_ist().strftime("%d/%m %H:%M")))
+        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (session['user_id'], int(tour['fee']), 'DEBIT', f'Joined T{tid} Slot {slot_no}', now_ist().strftime("%d/%m %H:%M")))
         conn.commit(); conn.close()
-        return redirect('/')
+        return redirect('/my_tournaments')
     except Exception as e:
-        print(e); conn.close(); return redirect('/')
+        print(e); conn.close(); return redirect(f'/slots/{tid}')
 
 @app.route('/my_tournaments')
 @nocache
@@ -529,6 +551,41 @@ def admin_panel():
                             conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(w['amount']), int(w['user_id']))); conn.commit()
                     except Exception as e:
                         print(f"Reject WD Error: {e}"); conn.rollback()
+            elif action == 'approve_result':
+                rid = request.form.get('result_id')
+                if rid:
+                    try:
+                        r = conn.execute("SELECT * FROM results WHERE id=?", (int(rid),)).fetchone()
+                        if r and r['status']=='PENDING':
+                            tour = conn.execute("SELECT * FROM tournaments WHERE id=?", (int(r['match_id']),)).fetchone()
+                            per_kill = int(tour['per_kill'] or 0) if tour else 0
+                            prize = per_kill * int(r['kills'] or 0) if per_kill > 0 else 0
+                            conn.execute("UPDATE results SET status='APPROVED' WHERE id=?", (int(rid),))
+                            if prize > 0:
+                                conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (prize, int(r['user_id'])))
+                                conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(r['user_id']), prize, 'CREDIT', f'Kills {r["kills"]} in Match {r["match_id"]}', now_ist().strftime("%d/%m %H:%M")))
+                            conn.commit()
+                    except Exception as e:
+                        print(f"Approve Result Error: {e}"); conn.rollback()
+            elif action == 'reject_result':
+                rid = request.form.get('result_id')
+                if rid:
+                    try:
+                        conn.execute("UPDATE results SET status='REJECTED' WHERE id=?", (int(rid),)); conn.commit()
+                    except: conn.rollback()
+            elif action == 'declare_winner':
+                mid = request.form.get('match_id')
+                winner_id = request.form.get('winner_id')
+                if mid and winner_id:
+                    try:
+                        tour = conn.execute("SELECT * FROM tournaments WHERE id=?", (int(mid),)).fetchone()
+                        if tour:
+                            conn.execute("UPDATE users SET balance=balance+?, total_wins=total_wins+1 WHERE id=?", (int(tour['prize'] or 0), int(winner_id)))
+                            conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(winner_id), int(tour['prize'] or 0), 'CREDIT', f'Winner Match {mid}', now_ist().strftime("%d/%m %H:%M")))
+                            conn.execute("UPDATE tournaments SET status='COMPLETED' WHERE id=?", (int(mid),))
+                            conn.commit()
+                    except Exception as e:
+                        print(f"Winner Error: {e}"); conn.rollback()
 
         matches = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
         pending_payments = conn.execute("SELECT * FROM payments WHERE status='PENDING' ORDER BY id DESC").fetchall()
