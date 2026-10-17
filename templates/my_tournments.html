@@ -33,50 +33,36 @@ body{background:#0a0a0a;color:#fff;min-height:100vh;padding-bottom:80px}
 <body>
 <div class="header">
 <h2>🎮 MY TOURNAMENTS</h2>
-<p style="font-size:11px;color:#888;margin-top:4px">Your Joined Matches - Game ID Included</p>
+<p style="font-size:11px;color:#888;margin-top:4px">Your Joined Matches</p>
 </div>
-
 <div class="container">
 {% if joined %}
 {% for j in joined %}
 <div class="card {% if j.status=='LIVE' %}live{% else %}upcoming{% endif %}">
 <span class="badge {% if j.status=='LIVE' %}b-live{% elif j.status=='COMPLETED' %}b-comp{% else %}b-up{% endif %}">{{j.status}}</span>
-
 <div class="info">
 <b style="color:gold">#{{j.tournament_id}} {{j.game}} {{j.type}}</b><br>
 ⏰ Time: <b style="color:gold">{{j.time|time12}}</b><br>
-🎯 Your Slot: <span class="slot">#{{j.slot_no}}</span> | Map: {{j.map}}<br>
+🎯 Slot: <span class="slot">#{{j.slot_no}}</span> | Map: {{j.map}}<br>
 💰 Prize: <b style="color:gold">₹{{j.prize}}</b> | Fee: ₹{{j.fee}}<br>
-
 <div class="gamebox">
 <span>🎮 Game ID:</span> <b style="color:#00ff88">{{j.game_id if j.game_id else 'N/A'}}</b><br>
 <span>👤 IGN:</span> <b>{{j.game_name if j.game_name else 'N/A'}}</b>
 </div>
-
 {% if j.room_id %}
-<div class="room">
-🏠 Room ID: <b>{{j.room_id}}</b><br>
-🔑 Pass: <b>{{j.room_pass}}</b><br>
-<span style="font-size:11px;color:#00ff88">Copy & Join in Game - All The Best!</span>
-</div>
+<div class="room">🏠 Room ID: <b>{{j.room_id}}</b> | Pass: <b>{{j.room_pass}}</b></div>
 {% else %}
-<div style="color:#888;font-size:12px;margin-top:8px;background:#111;padding:8px;border-radius:6px">⏳ Room ID not yet given - Will be given 10 mins before match start</div>
+<div style="color:#888;font-size:12px;margin-top:8px;background:#111;padding:8px;border-radius:6px">⏳ Room ID will be given 10 mins before match</div>
 {% endif %}
 </div>
-
 {% if j.status=='COMPLETED' %}
 <a href="/match_result/{{j.tournament_id}}" class="btn btn-result">🏆 VIEW RESULT</a>
 {% endif %}
 </div>
 {% endfor %}
 {% else %}
-<div class="empty">
-<p style="font-size:50px">🎮</p>
-<p>No Tournaments Joined Yet!</p>
-<p style="font-size:12px;margin-top:8px">Go to Home and Join a Match</p>
-</div>
+<div class="empty"><p style="font-size:50px">🎮</p><p>No Tournaments Joined Yet!</p></div>
 {% endif %}
-
 <a href="/" class="btn btn-home">← BACK TO HOME</a>
 </div>
 </body>
