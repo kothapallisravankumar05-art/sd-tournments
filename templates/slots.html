@@ -1,42 +1,66 @@
 @app.route('/slots/<int:tid>')
 @nocache
 def slots_page(tid):
+    if 'user_id' not in session: 
+        return redirect('/login')
     conn = get_db()
-    t = conn.execute("SELECT * FROM tournaments WHERE id=?", (tid,)).fetchone()
+    # FIX: tournments - n lekunda - Nee DB lo adhe undi
+    t = conn.execute("SELECT * FROM tournments WHERE id=?", (tid,)).fetchone()
     if not t:
         conn.close()
         return redirect('/')
+    
+    # Taken slots - username first 6 letters
     rows = conn.execute("SELECT slot_no, user_id FROM joined WHERE tournament_id=?", (tid,)).fetchall()
     taken_slots = {}
     for r in rows:
-        u = conn.execute("SELECT username FROM users WHERE id=?", (r[1],)).fetchone()
-        taken_slots[r[0]] = u[0][:6] if u else "Taken"
+        try:
+            slot_no = r['slot_no'] if 'slot_no' in r else r[0]
+            uid = r['user_id'] if 'user_id' in r else r[1]
+            u = conn.execute("SELECT username FROM users WHERE id=?", (uid,)).fetchone()
+            if u:
+                name = u['username'] if 'username' in u else u[0]
+                taken_slots[int(slot_no)] = str(name)[:6]
+            else:
+                taken_slots[int(slot_no)] = "Taken"
+        except:
+            pass
+    
     already = None
     if 'user_id' in session:
-        already = conn.execute("SELECT slot_no FROM joined WHERE tournament_id=? AND user_id=?", (tid, session['user_id'])).fetchone()
+        already = conn.execute("SELECT * FROM joined WHERE tournament_id=? AND user_id=?", (tid, session['user_id'])).fetchone()
+    
+    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     conn.close()
-    return render_template('slots.html', tour=t, t=t, taken_slots=taken_slots, already=already)
+    return render_template('slots.html', tour=t, t=t, user=user, taken_slots=taken_slots, total_slots=len(taken_slots), already=already)
 
 @app.route('/join/<int:tid>', methods=['GET','POST'])
 @nocache
 def join_tournament(tid):
-    if 'user_id' not in session: return redirect('/login')
+    if 'user_id' not in session: 
+        return redirect('/login')
     conn = get_db()
-    tour = conn.execute("SELECT * FROM tournaments WHERE id=?", (tid,)).fetchone()
+    # FIX: tournments table
+    tour = conn.execute("SELECT * FROM tournments WHERE id=?", (tid,)).fetchone()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    
+    if not tour or not user:
+        conn.close()
+        return redirect('/')
+    
     already = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
     if already:
         conn.close()
         return redirect('/my_tournaments')
 
     if request.method == 'GET':
-        slot_no = request.args.get('slot') or 1
+        slot_no = request.args.get('slot') or request.args.get('slot_no') or 1
         try: slot_no = int(slot_no)
         except: slot_no = 1
         conn.close()
-        return render_template('join_confirm.html', t=tour, user=user, slot_no=slot_no)
+        return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_no)
 
-    # POST
+    # POST - Slot + FF ID + Name + Payment
     game_id = request.form.get('game_id','').strip()
     game_name = request.form.get('game_name','').strip()
     slot_no = request.form.get('slot_no') or 1
@@ -45,7 +69,7 @@ def join_tournament(tid):
 
     if not game_id or not game_name:
         conn.close()
-        return render_template('join_confirm.html', t=tour, user=user, slot_no=slot_no, error="Game ID & IGN Required Bro!")
+        return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_no, error="Game ID & IGN Required Bro!")
 
     if int(user['balance'] or 0) < int(tour['fee'] or 0):
         conn.close()
@@ -57,10 +81,27 @@ def join_tournament(tid):
         conn.close()
         return redirect(f'/slots/{tid}')
 
+    # JOIN NOW - Deduct + Insert
     conn.execute("INSERT INTO joined (user_id, tournament_id, slot_no, game_id, game_name) VALUES (?,?,?,?,?)", (session['user_id'], tid, slot_no, game_id, game_name))
-    conn.execute("UPDATE tournaments SET joined=joined+1 WHERE id=?", (tid,))
+    conn.execute("UPDATE tournments SET joined=joined+1 WHERE id=?", (tid,))
     conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (int(tour['fee']), session['user_id']))
     conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (session['user_id'], int(tour['fee']), 'DEBIT', f'Join T{tid} S{slot_no} {game_id}', now_ist().strftime("%d/%m %H:%M")))
     conn.commit()
     conn.close()
     return redirect('/my_tournaments')
+
+@app.route('/confirm_join/<int:tid>')
+@nocache
+def confirm_join(tid):
+    if 'user_id' not in session: 
+        return redirect('/login')
+    slot_no = request.args.get('slot_no') or request.args.get('slot') or 1
+    try: slot_no = int(slot_no)
+    except: slot_no = 1
+    conn = get_db()
+    tour = conn.execute("SELECT * FROM tournments WHERE id=?", (tid,)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    conn.close()
+    if not tour: 
+        return redirect('/')
+    return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_no)
