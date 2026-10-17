@@ -6,23 +6,55 @@
 <style>
 body{background:#0a0a0a;color:#fff;font-family:Arial;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;padding:15px}
 .card{background:#1a1a1a;padding:25px;border-radius:15px;width:100%;max-width:380px;border:1px solid #333;text-align:center}
-input{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:none;background:#222;color:#fff;box-sizing:border-box}
+input{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:none;background:#222;color:#fff;box-sizing:border-box;outline:none}
+input:focus{border:1px solid #00ff88}
 .btn{width:100%;padding:12px;background:#00ff88;color:#000;border:none;border-radius:8px;font-weight:900;margin-top:10px;cursor:pointer}
 a{color:#00ff88;text-decoration:none;font-size:13px}
 h2{color:gold}
+.error{background:#3a1a1a;color:#ff4444;padding:10px;border-radius:8px;font-size:13px;margin-bottom:10px;border:1px solid #ff4444}
+.success{background:#0a2a1a;color:#00ff88;padding:10px;border-radius:8px;font-size:13px;margin-bottom:10px;border:1px solid #00ff88;font-weight:700}
+.show-pass{font-size:11px;color:#888;text-align:right;cursor:pointer;margin-top:2px;user-select:none}
 </style>
 </head>
 <body>
 <div class="card">
 <h2>🔑 Forgot Password?</h2>
-<p style="color:#888;font-size:12px;margin-bottom:15px">Nee username/phone number enter new password pettu - Instant reset!</p>
-<form method="POST">
-<input name="username" placeholder="Username / Phone Number" required>
-<input name="new_password" type="password" placeholder="New Password" required>
-<button class="btn">RESET PASSWORD</button>
+<p style="color:#888;font-size:12px;margin-bottom:15px">Nee username/phone number enter chesi new password pettu - Instant reset!</p>
+
+{% if error %}
+<div class="error">⚠️ {{ error }}</div>
+{% endif %}
+
+{% if success %}
+<div class="success">{{ success }}</div>
+<a href="/login" style="display:block;background:#00ff88;color:#000;padding:12px;border-radius:8px;font-weight:900;margin-top:10px">GO TO LOGIN</a>
+{% else %}
+
+<form method="POST" id="forgotForm">
+<input name="phone" id="phoneInput" placeholder="Username / Phone Number" required>
+<input name="new_password" id="new_pass" type="password" placeholder="New Password (min 4)" minlength="4" required>
+<input name="confirm_password" id="confirm_pass" type="password" placeholder="Confirm New Password" minlength="4" required>
+<div class="show-pass" onclick="togglePass()">👁️ Show Password</div>
+<button class="btn" id="resetBtn">RESET PASSWORD</button>
 </form>
+
+{% endif %}
+
 <br>
 <a href="/login">← Back to Login</a>
 </div>
+
+<script>
+function togglePass(){
+    const p1 = document.getElementById('new_pass');
+    const p2 = document.getElementById('confirm_pass');
+    let type = p1.type === 'password' ? 'text' : 'password';
+    p1.type = type;
+    p2.type = type;
+}
+document.getElementById('forgotForm')?.addEventListener('submit', function(){
+    document.getElementById('resetBtn').innerText = 'RESETTING...';
+});
+</script>
 </body>
 </html>
