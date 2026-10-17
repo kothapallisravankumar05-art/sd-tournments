@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Tournments - SD TOURNMENTS</title>
+<title>My Tournaments - SD TOURNAMENTS</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
 body{background:#0a0a0a;color:#fff;min-height:100vh;padding-bottom:80px}
@@ -18,7 +18,10 @@ body{background:#0a0a0a;color:#fff;min-height:100vh;padding-bottom:80px}
 .b-comp{background:#888;color:#fff}
 .info{font-size:13px;line-height:1.7;color:#ccc}
 .info b{color:#fff}
-.room{color:#00ff88;font-weight:900;background:#003300;padding:4px 8px;border-radius:6px;margin-top:6px;display:inline-block}
+.room{color:#00ff88;font-weight:900;background:#003300;padding:6px 10px;border-radius:8px;margin-top:8px;display:block;border:1px dashed #00ff88}
+.gamebox{background:#0f172a;border:1px solid #334155;padding:8px 10px;border-radius:8px;margin-top:8px;font-size:12px;line-height:1.6}
+.gamebox span{color:#94a3b8}
+.gamebox b{color:#fff}
 .btn{display:block;text-align:center;padding:12px;border-radius:10px;text-decoration:none;font-weight:900;margin-top:10px;font-size:13px}
 .btn-home{background:#222;color:#fff;border:1px solid #333}
 .btn-result{background:gold;color:#000}
@@ -30,7 +33,7 @@ body{background:#0a0a0a;color:#fff;min-height:100vh;padding-bottom:80px}
 <body>
 <div class="header">
 <h2>🎮 MY TOURNAMENTS</h2>
-<p style="font-size:11px;color:#888;margin-top:4px">Your Joined Matches</p>
+<p style="font-size:11px;color:#888;margin-top:4px">Your Joined Matches - Game ID Included</p>
 </div>
 
 <div class="container">
@@ -40,18 +43,24 @@ body{background:#0a0a0a;color:#fff;min-height:100vh;padding-bottom:80px}
 <span class="badge {% if j.status=='LIVE' %}b-live{% elif j.status=='COMPLETED' %}b-comp{% else %}b-up{% endif %}">{{j.status}}</span>
 
 <div class="info">
-<b style="color:gold">#{{j.tournment_id}} {{j.game}} {{j.type}}</b><br>
-⏰ Time: <b style="color:gold">{{j.time|time12}}</b> ({{j.time}})<br>
+<b style="color:gold">#{{j.tournament_id}} {{j.game}} {{j.type}}</b><br>
+⏰ Time: <b style="color:gold">{{j.time|time12}}</b><br>
 🎯 Your Slot: <span class="slot">#{{j.slot_no}}</span> | Map: {{j.map}}<br>
 💰 Prize: <b style="color:gold">₹{{j.prize}}</b> | Fee: ₹{{j.fee}}<br>
 
+<div class="gamebox">
+<span>🎮 Game ID:</span> <b style="color:#00ff88">{{j.game_id if j.game_id else 'N/A'}}</b><br>
+<span>👤 IGN:</span> <b>{{j.game_name if j.game_name else 'N/A'}}</b>
+</div>
+
 {% if j.room_id %}
 <div class="room">
-🏠 Room ID: {{j.room_id}} | Pass: {{j.room_pass}}<br>
-<span style="font-size:11px">Copy & Join in Free Fire!</span>
+🏠 Room ID: <b>{{j.room_id}}</b><br>
+🔑 Pass: <b>{{j.room_pass}}</b><br>
+<span style="font-size:11px;color:#00ff88">Copy & Join in Game - All The Best!</span>
 </div>
 {% else %}
-<div style="color:#888;font-size:12px;margin-top:6px">⏳ Room ID not yet given - Will be given 10 mins before match</div>
+<div style="color:#888;font-size:12px;margin-top:8px;background:#111;padding:8px;border-radius:6px">⏳ Room ID not yet given - Will be given 10 mins before match start</div>
 {% endif %}
 </div>
 
