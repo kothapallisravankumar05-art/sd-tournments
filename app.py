@@ -363,12 +363,27 @@ def my_tournaments():
 @app.route('/admin', methods=['GET','POST'])
 @nocache
 def admin_panel():
-    if 'user_id' not in session: return redirect('/login')
-    if not is_admin(): return "<h2>Access Denied! Only Admin ID 1</h2><a href='/'>Home</a>", 403
+    ADMIN_PASSWORD = "101210"
+    # 1. Admin login check - password enter chesava?
+    if 'is_admin_logged' not in session:
+        if request.method == 'POST':
+            pwd = request.form.get('admin_password','')
+            if pwd == ADMIN_PASSWORD:
+                session['is_admin_logged'] = True
+                return redirect('/admin')
+            else:
+                return """<html><head><meta name='viewport' content='width=device-width'><style>body{font-family:Arial;background:#0f172a;display:flex;justify-content:center;align-items:center;height:100vh;margin:0} .box{background:#fff;padding:30px;border-radius:16px;width:300px;text-align:center} input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:1px solid #ddd} button{width:100%;padding:12px;background:#111827;color:#fff;border:none;border-radius:8px;font-weight:900} </style></head><body><div class='box'><h3>🔐 ADMIN LOGIN</h3><p style='color:red'>Wrong Password!</p><form method='POST'><input type='password' name='admin_password' placeholder='Enter Admin Password' required><button>LOGIN</button></form><a href='/'>Back Home</a></div></body></html>"""
+        # Password adige page
+        return """<html><head><meta name='viewport' content='width=device-width'><style>body{font-family:Arial;background:#0f172a;display:flex;justify-content:center;align-items:center;height:100vh;margin:0} .box{background:#fff;padding:30px;border-radius:16px;width:300px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3)} input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:1px solid #ddd} button{width:100%;padding:12px;background:#111827;color:#fff;border:none;border-radius:8px;font-weight:900;cursor:pointer} </style></head><body><div class='box'><h3>🔐 ADMIN LOGIN</h3><p>Enter Password to Access Admin</p><form method='POST'><input type='password' name='admin_password' placeholder='Admin Password' required><button>LOGIN TO ADMIN</button></form><a href='/' style='display:block;margin-top:15px;color:#6b7280'>Back to Home</a></div></body></html>"""
+
+    # 2. Admin logged in - Asalu admin panel
     conn = get_db()
     try:
         if request.method == 'POST':
             action = request.form.get('action')
+            if action == 'admin_logout':
+                session.pop('is_admin_logged', None)
+                return redirect('/')
             if action == 'auto_generate':
                 base_date = now_ist().replace(hour=9, minute=0, second=0, microsecond=0)
                 types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
@@ -428,12 +443,6 @@ def admin_panel():
                     if w and w['status']=='PENDING':
                         conn.execute("UPDATE withdrawals SET status='REJECTED' WHERE id=?", (int(wid),))
                         conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(w['amount']), int(w['user_id']))); conn.commit()
-            elif action == 'approve_result':
-                rid = request.form.get('result_id')
-                if rid: conn.execute("UPDATE results SET status='APPROVED' WHERE id=?", (int(rid),)); conn.commit()
-            elif action == 'reject_result':
-                rid = request.form.get('result_id')
-                if rid: conn.execute("UPDATE results SET status='REJECTED' WHERE id=?", (int(rid),)); conn.commit()
         matches = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
         pending_payments = conn.execute("SELECT * FROM payments WHERE status='PENDING' ORDER BY id DESC").fetchall()
         pending_withdrawals = conn.execute("SELECT * FROM withdrawals WHERE status='PENDING' ORDER BY id DESC").fetchall()
