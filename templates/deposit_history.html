@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deposit History</title>
+<style>
+body{background:#0f172a;color:#fff;font-family:Arial;margin:0;padding:15px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.card{background:#1e293b;padding:15px;border-radius:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;border-left:4px solid #334155}
+.APPROVED{color:#00ff88;font-weight:900;background:rgba(0,255,136,0.15);padding:5px 10px;border-radius:20px;font-size:12px}
+.PENDING{color:#f59e0b;font-weight:900;background:rgba(245,158,11,0.15);padding:5px 10px;border-radius:20px;font-size:12px}
+.REJECTED{color:#ef4444;font-weight:900;background:rgba(239,68,68,0.15);padding:5px 10px;border-radius:20px;font-size:12px}
+a{color:#00ff88;text-decoration:none} small{color:#94a3b8}
+</style>
+</head>
+<body>
+<div class="header"><h3>💰 Deposit History</h3><a href="/wallet">← Wallet</a></div>
+{% for h in history %}
+<div class="card">
+<div><b style="font-size:18px">₹{{ h['amount'] }}</b><br><small>UTR: {{ h['utr'] }}<br>{{ h['time'] }}</small></div>
+<div class="{{ h['status'] }}">{{ h['status'] }}</div>
+</div>
+{% else %}
+<p style="text-align:center;color:#64748b;margin-top:50px">No Deposits Yet<br><small>Add money to see history</small></p>
+{% endfor %}
+</body>
+</html>
