@@ -39,6 +39,8 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 .slot-mini.joined{background:#111827;color:#fff}
 .slot-mini.left{background:#f3f4f6;color:#9ca3af;border:1px dashed #d1d5db}
 .countdown{font-size:11px;color:#dc2626;font-weight:900}
+.notif-bell{position:relative;text-decoration:none;font-size:20px;padding:5px 10px;background:#f3f4f6;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}
+.notif-count{position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;font-size:10px;font-weight:900;padding:2px 6px;border-radius:10px;min-width:18px;text-align:center}
 @keyframes blink{0%{opacity:1}50%{opacity:0.5}100%{opacity:1}}
 .alert-popup{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:15px 20px;border-radius:12px;font-weight:900;z-index:9999;text-align:center;display:none;box-shadow:0 4px 20px rgba(0,0,0,0.2);width:90%;max-width:360px}
 </style>
@@ -47,9 +49,12 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 <div class="header">
 <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
 <div class="logo" id="mainLogo"><img src="/static/icon.png" style="width:32px;height:32px;border-radius:50%;border:2px solid #111827" onerror="this.style.display='none'"> SD TOURNAMENTS</div>
-<div>
+<div style="display:flex;align-items:center;gap:8px">
+<a href="/notifications" class="notif-bell" id="notifBell">🔔
+{% if notif_count and notif_count>0 %}<span class="notif-count" id="notifCount">{{notif_count}}</span>{% else %}<span class="notif-count" id="notifCount" style="display:none">0</span>{% endif %}
+</a>
 <a class="wallet" href="/wallet">₹ {{user.balance}} | Wallet</a>
-<a href="/logout" style="color:#ef4444;text-decoration:none;margin-left:10px;font-size:13px">Logout</a>
+<a href="/logout" style="color:#ef4444;text-decoration:none;margin-left:5px;font-size:13px">Logout</a>
 </div>
 </div>
 <div class="top-actions">
@@ -204,6 +209,53 @@ function updateCountdowns(){
 }
 setInterval(updateCountdowns, 30000);
 updateCountdowns();
+
+// 🔔 NOTIFICATION SYSTEM - NEW
+function askNotify(){
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+askNotify();
+
+function checkBrowserNotify(){
+  const now = new Date();
+  document.querySelectorAll('.card[data-time]').forEach(card=>{
+    const tStr = card.getAttribute('data-time');
+    if(!tStr) return;
+    try{
+      const matchTime = new Date(tStr.replace(' ', 'T')+':00');
+      const diff = (matchTime - now) / 60000;
+      if(diff > 4 && diff < 6){
+        if(Notification.permission === 'granted'){
+          const title = card.querySelector('.title')?.innerText || 'Match';
+          new Notification('🔥 SD Tournament Starting!', {body:`${title} in 5 mins!`, icon:'/static/icon.png'});
+          if(navigator.vibrate) navigator.vibrate([200,100,200]);
+        }
+        const alertBox = document.getElementById('liveAlert');
+        if(alertBox){
+          alertBox.innerText = `🔴 ${card.querySelector('.title')?.innerText || 'Match'} starting in 5 mins!`;
+          alertBox.style.display='block';
+          setTimeout(()=>{alertBox.style.display='none';}, 8000);
+        }
+      }
+    }catch(e){}
+  });
+}
+setInterval(checkBrowserNotify, 60000);
+checkBrowserNotify();
+
+// Live bell count auto update every 30s
+function updateNotifCount(){
+  fetch('/api/notifications/count').then(r=>r.json()).then(d=>{
+    const el = document.getElementById('notifCount');
+    if(!el) return;
+    if(d.count>0){ el.style.display='block'; el.innerText=d.count; }
+    else{ el.style.display='none'; }
+  }).catch(()=>{});
+}
+setInterval(updateNotifCount, 30000);
+updateNotifCount();
 </script>
 </body>
 </html>
