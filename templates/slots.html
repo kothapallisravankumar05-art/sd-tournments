@@ -12,17 +12,17 @@ body{background:#0f172a;color:#fff;min-height:100vh;padding-bottom:80px}
 .slot{background:#1e293b;border:2px solid #334155;border-radius:10px;padding:14px;text-align:center;font-weight:900;cursor:pointer;transition:0.2s}
 .slot.taken{background:#0f172a;border-style:dashed;opacity:0.4;color:#475569;cursor:not-allowed}
 .slot.selected{background:#00ff88;color:#000;border-color:#00ff88;box-shadow:0 0 10px #00ff88}
-.joinbtn{position:fixed;bottom:0;left:0;width:100%;background:#00ff88;color:#000;padding:18px;border:none;font-weight:900;font-size:18px;letter-spacing:1px}
+.joinbtn{position:fixed;bottom:0;left:0;width:100%;background:#00ff88;color:#000;padding:18px;border:none;font-weight:900;font-size:18px;letter-spacing:1px;cursor:pointer}
 .info{margin:15px;background:#1e293b;border-radius:10px;padding:12px;display:flex;justify-content:space-between;font-size:12px;color:#94a3b8}
 </style>
 </head>
 <body>
 
 <div class="top">
-<a href="/match/{{t.id}}" id="backBtn" style="color:#fff;text-decoration:none;font-size:22px">←</a>
+<a href="/" id="backBtn" style="color:#fff;text-decoration:none;font-size:22px">←</a>
 <div>
-<b>Select Position - Match #{{t.id}}</b><br>
-<span style="font-size:11px;color:#00ff88">{{t.time | time12}} | {{t.game}} - {{t.type}}</span>
+<b>Select Position - Match #{{tour.id if tour is defined else t.id}}</b><br>
+<span style="font-size:11px;color:#00ff88">{{ (tour.time if tour is defined else t.time) | time12}} | {{tour.game if tour is defined else t.game}} - {{tour.type if tour is defined else t.type}} | Prize ₹{{tour.prize if tour is defined else t.prize}}</span>
 </div>
 </div>
 
@@ -31,22 +31,36 @@ body{background:#0f172a;color:#fff;min-height:100vh;padding-bottom:80px}
 <div class="info">
 <div>💚 Available</div>
 <div style="display:flex;gap:10px"><span style="color:#00ff88">■ Selected</span> <span style="color:#475569">■ Taken</span></div>
-<div>{{t.total - taken_slots|length}} Left / {{t.total}}</div>
+<div>{{ (tour.total if tour is defined else t.total) - taken_slots|length}} Left / {{tour.total if tour is defined else t.total}}</div>
 </div>
 
-<form method="GET" action="/confirm_join/{{t.id}}" id="slotForm">
+{% if already is defined and already %}
+<div style="text-align:center;padding:20px;color:#00ff88;font-weight:900">
+✅ Already Joined - Slot #{{already['slot_no']}}<br><br>
+<a href="/" style="color:#fff;background:#1e293b;padding:10px 20px;border-radius:8px;text-decoration:none">Back Home</a>
+</div>
+{% else %}
+
+<form method="GET" action="/join/{{tour.id if tour is defined else t.id}}" id="slotForm">
 <div class="grid">
-{% for i in range(1, t.total+1) %}
-<label class="slot {% if i in taken_slots %}taken{% endif %}" id="s{{i}}" onclick="selectSlot({{i}})">
-{{i}}
-<input type="checkbox" value="{{i}}" style="display:none" {% if i in taken_slots %}disabled{% endif %}>
-</label>
+{% set total = tour.total if tour is defined else t.total %}
+{% for i in range(1, total+1) %}
+<div class="slot {% if i in taken_slots %}taken{% endif %}" id="s{{i}}" onclick="selectSlot({{i}})">
+{{i}}<br>
+{% if i in taken_slots %}
+<span style="font-size:8px">{{taken_slots[i][:6]}}</span>
+{% else %}
+<span style="font-size:8px">FREE</span>
+{% endif %}
+</div>
 {% endfor %}
 </div>
 
-<input type="hidden" name="slot_no" id="slotInput" required>
+<input type="hidden" name="slot" id="slotInput" required>
 <button class="joinbtn" type="submit" id="joinBtn" disabled style="opacity:0.5">SELECT A SLOT</button>
 </form>
+
+{% endif %}
 
 <script>
 let sel=null;
@@ -57,14 +71,8 @@ function selectSlot(n){
  document.getElementById('slotInput').value=n;
  document.getElementById('joinBtn').disabled=false;
  document.getElementById('joinBtn').style.opacity=1;
- document.getElementById('joinBtn').innerText='JOIN NOW - Slot #'+n;
+ document.getElementById('joinBtn').innerText='JOIN NOW - Slot #'+n+' - ₹{{tour.fee if tour is defined else t.fee}}';
 }
-
-// Back button 100% fix
-document.getElementById('backBtn').addEventListener('click', function(e){
-  e.preventDefault();
-  window.location.href='/match/{{t.id}}';
-});
 </script>
 
 </body>
