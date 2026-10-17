@@ -16,16 +16,16 @@ input{width:100%;padding:14px;border-radius:10px;border:none;margin:10px 0;font-
 .badge-PENDING{background:orange;color:#000}.badge-APPROVED{background:#00ff88;color:#000}.badge-REJECTED{background:#ff4444;color:#fff}
 .badge-CREDIT{background:#00ff88;color:#000}
 .refer-box{background:linear-gradient(135deg,#1a0033,#6600ff);border:1px solid #ff00ff}
-/* NEW HISTORY BUTTONS */
 .history-btns{display:flex;gap:10px;margin-bottom:15px}
 .history-btns a{flex:1;background:#1e293b;border:1px solid #334155;color:#fff;padding:13px;text-align:center;border-radius:12px;text-decoration:none;font-weight:800;font-size:13px}
+.logout-btn{display:block;background:#2a1a1a;border:1px solid #ff4444;color:#ff7777;text-align:center;padding:16px;border-radius:14px;text-decoration:none;font-weight:900;margin-top:25px;font-size:15px}
+.logout-btn:hover{background:#3a1f1f;color:#ff4444}
 </style>
 </head>
 <body>
 <a href="/" style="color:#00d4ff;text-decoration:none;font-weight:bold">← Back to Tournaments</a>
 <h2>💰 Wallet - ₹{{ user['balance'] if user else 0 }}</h2>
 
-<!-- NEW: DEPOSIT & WITHDRAW HISTORY BUTTONS -->
 <div class="history-btns">
 <a href="/deposit_history">📥 Deposit History</a>
 <a href="/withdraw_history">📤 Withdraw History</a>
@@ -72,6 +72,10 @@ input{width:100%;padding:14px;border-radius:10px;border:none;margin:10px 0;font-
 <button type="submit" class="btn btn-orange">REQUEST WITHDRAWAL</button>
 </form>
 </div>
+
+<!-- 🔴 LOGOUT - LAST LO -->
+<a href="/logout" class="logout-btn">🚪 LOGOUT</a>
+<p style="text-align:center;color:#445566;font-size:11px;margin-top:12px;margin-bottom:20px">SD TOURNAMENTS v3 • Secure</p>
 
 <script>
 let currentUpiLink = "";
