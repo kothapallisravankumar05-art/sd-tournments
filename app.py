@@ -13,7 +13,6 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "sd_final_2026")
 app.config['PERMANENT_SESSION_LIFETIME']=timedelta(days=3650)
 DB_FILE = "/data/sd.db" if os.path.isdir("/data") else "sd.db"
-# ✅ FIXED: Always static/uploads - /data lo file pothadi Render lo
 UPLOAD_FOLDER = "static/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs('static', exist_ok=True)
@@ -173,7 +172,6 @@ def nocache(view):
 @app.route('/health')
 def health(): return "OK", 200
 
-# ✅ FIXED: Screenshot serve routes
 @app.route('/uploads/<filename>')
 @nocache
 def serve_upload(filename):
@@ -623,7 +621,6 @@ def leaderboard():
         except: pass
         return redirect('/')
 
-# ✅ FINAL FIXED: Screenshot save with extension + old file keep
 @app.route('/submit_result', methods=['POST'])
 @nocache
 def submit_result():
@@ -641,7 +638,6 @@ def submit_result():
         fname=""
         if 'screenshot' in request.files:
             f=request.files['screenshot']
-            print(f"Upload file: {f.filename}")
             if f and f.filename and f.filename != '':
                 ext = f.filename.rsplit('.',1)[-1].lower() if '.' in f.filename else 'jpg'
                 if ext not in ['jpg','jpeg','png','webp']: ext='jpg'
@@ -649,7 +645,6 @@ def submit_result():
                 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
                 save_path = os.path.join(UPLOAD_FOLDER, fname)
                 f.save(save_path)
-                print(f"✅ Screenshot saved: {save_path} size {os.path.getsize(save_path)}")
         existing = conn.execute("SELECT id FROM results WHERE match_id=? AND user_id=?", (int(match_id), session['user_id'])).fetchone()
         if existing:
             old = conn.execute("SELECT screenshot FROM results WHERE id=?", (existing['id'],)).fetchone()
@@ -710,7 +705,14 @@ def admin_panel():
             elif action == 'approve_result':
                 rid = request.form.get('result_id')
                 if rid:
-                    conn.execute("UPDATE results SET status='APPROVED' WHERE id=?", (int(rid),)); conn.commit()
+                    r = conn.execute("SELECT r.*, t.per_kill FROM results r JOIN tournments t ON r.match_id=t.id WHERE r.id=?", (int(rid),)).fetchone()
+                    if r:
+                        conn.execute("UPDATE results SET status='APPROVED' WHERE id=?", (int(rid),))
+                        if r['per_kill'] and int(r['per_kill']) > 0 and int(r['kills']) > 0:
+                            kp = int(r['per_kill']) * int(r['kills'])
+                            conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (kp, int(r['user_id'])))
+                            conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(r['user_id']), kp, 'CREDIT', f'Kill Prize M{r["match_id"]} {r["kills"]}K', now_ist().strftime("%d/%m %H:%M")))
+                        conn.commit()
             elif action == 'reject_result':
                 rid = request.form.get('result_id')
                 if rid:
@@ -723,12 +725,18 @@ def admin_panel():
                 mid = request.form.get('match_id')
                 winner_id = request.form.get('winner_id')
                 if mid and winner_id:
-                    tour = conn.execute("SELECT prize FROM tournments WHERE id=?", (int(mid),)).fetchone()
+                    tour = conn.execute("SELECT prize, per_kill FROM tournments WHERE id=?", (int(mid),)).fetchone()
                     prize = int(tour['prize'] if tour and tour['prize'] else 0)
-                    if prize > 0:
-                        conn.execute("UPDATE users SET balance=balance+?, total_wins=total_wins+1 WHERE id=?", (prize, int(winner_id)))
-                        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(winner_id), prize, 'CREDIT', f'Won Match {mid}', now_ist().strftime("%d/%m %H:%M")))
-                        conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (int(mid),)); conn.commit()
+                    per_kill = int(tour['per_kill'] if tour and tour['per_kill'] else 0)
+                    wr = conn.execute("SELECT * FROM results WHERE match_id=? AND user_id=?", (int(mid), int(winner_id))).fetchone()
+                    kills = int(wr['kills'] if wr and wr['kills'] else 0)
+                    total_prize = prize + (per_kill * kills)
+                    if total_prize > 0:
+                        conn.execute("UPDATE users SET balance=balance+?, total_wins=total_wins+1 WHERE id=?", (total_prize, int(winner_id)))
+                        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(winner_id), total_prize, 'CREDIT', f'Won Match {mid} Prize {prize}+{per_kill}x{kills}={total_prize}', now_ist().strftime("%d/%m %H:%M")))
+                    conn.execute("UPDATE results SET status='APPROVED' WHERE match_id=? AND user_id=?", (int(mid), int(winner_id)))
+                    conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (int(mid),))
+                    conn.commit()
             elif action == 'cancel_tournament':
                 tid = request.form.get('tournament_id')
                 if tid:
