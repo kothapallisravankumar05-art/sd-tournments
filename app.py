@@ -103,35 +103,41 @@ def migrate_game_id():
 init_db()
 migrate_game_id()
 
-# ===== FINAL LOGIC - MATCHES UNDALI, TIME AYIPOYAKA + 0 JOINS = DELETE =====
+# ===== FIXED FINAL LOGIC =====
 def generate_daily_matches(conn):
     try:
-        today_str = now_ist().strftime("%Y-%m-%d")
-        now_str = now_ist().strftime("%Y-%m-%d %H:%M")
+        now = now_ist()
+        today_str = now.strftime("%Y-%m-%d")
+        now_str = now.strftime("%Y-%m-%d %H:%M")
         print(f"Generating for {today_str}, now={now_str}")
-        
-        # Future matches count - 8 kanna takkuva unte ne generate
         try:
-            row = conn.execute("SELECT COUNT(*) FROM tournments WHERE time LIKE ? AND status='UPCOMING' AND time >= ?", (f"{today_str}%", now_str)).fetchone()
-            future_count = int(row[0] if row else 0)
-            print(f"Future count today: {future_count}")
+            if IS_POSTGRES:
+                row = conn.execute("SELECT COUNT(*) as count FROM tournments WHERE time LIKE ? AND status='UPCOMING' AND time >= ?", (f"{today_str}%", now_str)).fetchone()
+                future_count = int(row['count'] if row and 'count' in row else 0)
+            else:
+                row = conn.execute("SELECT COUNT(*) FROM tournments WHERE time LIKE ? AND status='UPCOMING' AND time >= ?", (f"{today_str}%", now_str)).fetchone()
+                future_count = int(row[0] if row else 0)
+            print(f"Future count: {future_count}")
             if future_count >= 8:
-                print("Enough future matches, skip")
                 return 0
         except Exception as e:
             print(f"Count error {e}")
 
-        base_9am = now_ist().replace(hour=9, minute=0, second=0, microsecond=0)
-        types = [
-            ("Free Fire","Clash Squad",30,40,2),
-            ("Free Fire","Duo",30,80,4),
-            ("Free Fire","Squad",25,150,8),
-            ("Free Fire","Solo",15,1000,48)
-        ]
+        start_time = now.replace(second=0, microsecond=0) + timedelta(minutes=10)
+        nine_am = now.replace(hour=9, minute=0, second=0, microsecond=0)
+        if start_time < nine_am:
+            start_time = nine_am
+        if start_time.hour >= 21:
+            start_time = (now + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+            print(f"After 9PM, starting tomorrow {start_time}")
+
+        types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
         created = 0
         for i in range(19):
-            t = base_9am + timedelta(minutes=i*40)
-            if t.hour > 21 or (t.hour == 21 and t.minute > 0):
+            t = start_time + timedelta(minutes=i*40)
+            if t.day == start_time.day and t.hour > 21:
+                break
+            if t.day != start_time.day and t.hour > 21:
                 break
             time_str = t.strftime("%Y-%m-%d %H:%M")
             dup = conn.execute("SELECT id FROM tournments WHERE time=?", (time_str,)).fetchone()
@@ -143,7 +149,7 @@ def generate_daily_matches(conn):
                         (game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0))
             created += 1
         conn.commit()
-        print(f"✅ GENERATED {created} Matches for {today_str}")
+        print(f"✅ GENERATED {created} from {start_time}")
         return created
     except Exception as e:
         print(f"Gen Error: {e}")
@@ -152,34 +158,25 @@ def generate_daily_matches(conn):
 
 def cleanup_expired_matches(conn):
     try:
-        now_str = now_ist().strftime("%Y-%m-%d %H:%M")
-        print(f"Cleanup checking expired before {now_str}")
-        
-        # LOGIC: Time ayipoyaka + evaru join avvakapothe DELETE
-        expired_empty = conn.execute("SELECT id, time FROM tournments WHERE time < ? AND joined=0 AND status='UPCOMING'", (now_str,)).fetchall()
-        print(f"Found {len(expired_empty)} expired empty to DELETE")
-        
+        one_hour_ago = (now_ist() - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
+        print(f"Cleanup before {one_hour_ago}")
+        expired_empty = conn.execute("SELECT id, time FROM tournments WHERE time < ? AND joined=0 AND status='UPCOMING'", (one_hour_ago,)).fetchall()
+        print(f"Found {len(expired_empty)} empty to DELETE")
         for tour in expired_empty:
             try:
                 tid = tour['id'] if 'id' in tour else tour[0]
                 conn.execute("DELETE FROM tournments WHERE id=?", (tid,))
                 conn.execute("DELETE FROM joined WHERE tournament_id=?", (tid,))
-                print(f"Deleted expired empty ID {tid}")
-            except Exception as e:
-                print(f"Delete error {e}")
-
-        # Time ayipoyaka + join ayithe COMPLETED (delete kadu)
-        expired_with = conn.execute("SELECT id FROM tournments WHERE time < ? AND joined>0 AND status='UPCOMING'", (now_str,)).fetchall()
-        print(f"Found {len(expired_with)} expired with joins to COMPLETE")
+            except: pass
+        expired_with = conn.execute("SELECT id FROM tournments WHERE time < ? AND joined>0 AND status='UPCOMING'", (one_hour_ago,)).fetchall()
+        print(f"Found {len(expired_with)} to COMPLETE")
         for tour in expired_with:
             try:
                 tid = tour['id'] if 'id' in tour else tour[0]
                 conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (tid,))
             except: pass
-
         if expired_empty or expired_with:
             conn.commit()
-            print(f"✅ Cleanup: Deleted {len(expired_empty)} empty, Completed {len(expired_with)}")
     except Exception as e:
         print(f"Cleanup Error: {e}")
         traceback.print_exc()
@@ -208,33 +205,29 @@ def nuke_all():
             conn.execute("DELETE FROM joined")
             conn.execute("DELETE FROM tournments")
             conn.commit()
-        print("🔥 FULL NUKE DONE")
-    except Exception as e:
-        print(f"Nuke error {e}")
+    except:
         try:
             conn.execute("DELETE FROM joined")
             conn.execute("DELETE FROM tournments")
             conn.commit()
         except: pass
     conn.close()
-    return "<h1>🔥 FULL NUKED (Emergency)! <a href='/force'>Force</a></h1>"
+    return "<h1>🔥 NUKED! <a href='/force'>Force</a></h1>"
 
 @app.route('/cleanup')
 @nocache
 def cleanup_only_expired():
     conn = get_db()
     try:
-        now_str = now_ist().strftime("%Y-%m-%d %H:%M")
-        empty = conn.execute("SELECT COUNT(*) FROM tournments WHERE time < ? AND joined=0 AND status='UPCOMING'", (now_str,)).fetchone()
-        empty_cnt = int(empty[0] if empty else 0)
-        conn.execute("DELETE FROM tournments WHERE time < ? AND joined=0 AND status='UPCOMING'", (now_str,))
-        conn.execute("UPDATE tournments SET status='COMPLETED' WHERE time < ? AND joined>0 AND status='UPCOMING'", (now_str,))
+        one_hour_ago = (now_ist() - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
+        conn.execute("DELETE FROM tournments WHERE time < ? AND joined=0 AND status='UPCOMING'", (one_hour_ago,))
+        conn.execute("UPDATE tournments SET status='COMPLETED' WHERE time < ? AND joined>0 AND status='UPCOMING'", (one_hour_ago,))
         conn.commit()
         conn.close()
-        return f"<h1>✅ Cleaned {empty_cnt} expired empty only - Future safe!<br><a href='/'>Home</a> | <a href='/debug'>Debug</a></h1>"
+        return f"<h1>✅ Cleaned expired (1h old)<br><a href='/'>Home</a></h1>"
     except Exception as e:
         conn.close()
-        return f"Error {e} <a href='/'>Home</a>"
+        return f"Error {e}"
 
 @app.route('/force')
 @nocache
@@ -242,14 +235,17 @@ def force_generate():
     conn = get_db()
     try:
         c = generate_daily_matches(conn)
-        row = conn.execute("SELECT COUNT(*) FROM tournments WHERE status='UPCOMING' AND time >= ?", (now_ist().strftime("%Y-%m-%d %H:%M"),)).fetchone()
-        cnt = int(row[0] if row else 0)
+        if IS_POSTGRES:
+            row = conn.execute("SELECT COUNT(*) as count FROM tournments WHERE status='UPCOMING' AND time >= ?", (now_ist().strftime("%Y-%m-%d %H:%M"),)).fetchone()
+            cnt = int(row['count'] if row else 0)
+        else:
+            row = conn.execute("SELECT COUNT(*) FROM tournments WHERE status='UPCOMING' AND time >= ?", (now_ist().strftime("%Y-%m-%d %H:%M"),)).fetchone()
+            cnt = int(row[0] if row else 0)
         conn.close()
-        return f"<h1>Force Done! Generated {c}, Future Total {cnt}<br><a href='/'>Go Home</a> | <a href='/debug'>Debug</a> | <a href='/cleanup'>Cleanup Expired Only</a></h1>"
+        return f"<h1>Generated {c}, Future {cnt}<br><a href='/'>Home</a> | <a href='/debug'>Debug</a></h1>"
     except Exception as e:
-        print(f"Force error {e}")
         conn.close()
-        return f"<h1>Error {e} <a href='/'>Home</a></h1>"
+        return f"<h1>Error {e}</h1>"
 
 @app.route('/debug')
 @nocache
@@ -260,7 +256,7 @@ def debug_page():
     html = "<h2>DB Tournaments:</h2>"
     for r in rows:
         html += f"{dict(r)}<br>"
-    html += "<br><a href='/'>Home</a> | <a href='/nuke'>Nuke All</a> | <a href='/force'>Force</a> | <a href='/cleanup'>Cleanup Expired Only</a>"
+    html += "<br><a href='/'>Home</a> | <a href='/nuke'>Nuke</a> | <a href='/force'>Force</a>"
     return html
 
 @app.route('/')
@@ -274,16 +270,19 @@ def index():
     except Exception as e:
         print(f"Index error {e}")
     now_str = now_ist().strftime("%Y-%m-%d %H:%M")
+    today_str = now_ist().strftime("%Y-%m-%d")
     t = conn.execute("SELECT * FROM tournments WHERE status='UPCOMING' AND time >= ? ORDER BY time ASC", (now_str,)).fetchall()
     if len(t) == 0:
-        today_str = now_ist().strftime("%Y-%m-%d")
         t = conn.execute("SELECT * FROM tournments WHERE status='UPCOMING' AND time LIKE ? ORDER BY time ASC", (f"{today_str}%",)).fetchall()
+    if len(t) == 0:
+        t = conn.execute("SELECT * FROM tournments WHERE status='UPCOMING' ORDER BY time ASC LIMIT 30").fetchall()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     if not user: session.clear(); conn.close(); return redirect('/login')
     my_joined = conn.execute("SELECT tournament_id FROM joined WHERE user_id=?", (session['user_id'],)).fetchall()
     my_joined_ids = [r[0] for r in my_joined]
     conn.close()
-    return render_template('index.html', tournments=t, user=user, my_joined_ids=my_joined_ids, site_url=SITE_URL)
+    # FIX: Send both names - tournaments and tournments - so HTML never fails
+    return render_template('index.html', tournments=t, tournaments=t, user=user, my_joined_ids=my_joined_ids, site_url=SITE_URL)
 
 @app.route('/register', methods=['GET','POST'])
 @nocache
