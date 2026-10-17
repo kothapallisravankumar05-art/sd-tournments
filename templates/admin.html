@@ -140,11 +140,11 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 🔫 Kills: <b style="color:#00ff88;font-size:20px">{{r.kills}}</b> | <span class="badge badge-pending">{{r.status}}</span> | {{r.time}}<br>
 {% if r.screenshot %}
 <div style="margin-top:10px">
-<a href="/static/uploads/{{r.screenshot}}" target="_blank" style="color:#00ff88;font-weight:900">📸 SCREENSHOT CHUDU</a><br>
-<img src="/static/uploads/{{r.screenshot}}" style="max-width:220px;max-height:220px;border-radius:10px;margin-top:8px;border:2px solid gold;cursor:pointer" onclick="window.open(this.src)" onerror="this.parentElement.innerHTML='<span style=color:#ff4444>No image found</span>'">
+<a href="/static/uploads/{{r.screenshot}}" target="_blank" style="color:#00ff88;font-weight:900">📸 SCREENSHOT CHUDU</a> | <a href="/uploads/{{r.screenshot}}" target="_blank" style="color:gold">ALT LINK</a><br>
+<img src="/static/uploads/{{r.screenshot}}" style="max-width:240px;max-height:320px;border-radius:10px;margin-top:8px;border:2px solid gold;cursor:pointer;display:block" onclick="window.open(this.src)" onerror="this.onerror=null; this.src='/uploads/{{r.screenshot}}'; this.onerror=function(){this.outerHTML='<div style=color:#ff4444;background:#222;padding:10px;border-radius:8px;margin-top:8px>❌ File not found: {{r.screenshot}}<br><small>Render lo delete ayyindi - User malli upload cheyali. Old result REJECT chey.</small></div>'}">
 </div>
 {% else %}
-<span style="color:#ff4444;font-size:12px">⚠️ No Screenshot uploaded</span>
+<span style="color:#ff4444;font-size:12px">⚠️ No Screenshot uploaded - Kills matrame</span>
 {% endif %}
 </div>
 <div style="display:flex;flex-direction:column;gap:8px;min-width:180px">
