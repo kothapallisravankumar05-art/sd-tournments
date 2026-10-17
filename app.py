@@ -574,9 +574,13 @@ def join_tournament(tid):
         except: pass
         return f"Join Error: {e} - <a href='/slots/{tid}'>Try Again</a>"
 
-# ✅ FIXED - SINGLE FUNCTION FOR BOTH SPELLINGS - NO REDIRECT LOOP
+# ✅ FINAL FIX - ALL ALIASES FOR MY MATCHES - NO 404
 @app.route('/my_tournments')
 @app.route('/my_tournaments')
+@app.route('/my_matches')
+@app.route('/my_match')
+@app.route('/mymatches')
+@app.route('/my-matches')
 @nocache
 def my_tournments():
     if 'user_id' not in session: return redirect('/login')
@@ -586,7 +590,6 @@ def my_tournments():
         data = conn.execute("SELECT j.*, t.game, t.type, t.time, t.map, t.prize, t.fee, t.per_kill, t.status, t.room_id, t.room_pass FROM joined j JOIN tournments t ON j.tournament_id=t.id WHERE j.user_id=? ORDER BY j.id DESC", (session['user_id'],)).fetchall()
         user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
         conn.close()
-        # ✅ Try both template names
         try:
             return render_template('my_tournaments.html', joined=data, user=user)
         except:
@@ -619,39 +622,46 @@ def leaderboard():
 @nocache
 def submit_result():
     if 'user_id' not in session: return redirect('/login')
-    match_id = request.form.get('match_id') or 0
-    conn=get_db()
+    match_id = request.form.get('match_id') or request.form.get('tournament_id') or 0
+    try: match_id = int(match_id)
+    except: return f"<h3>Invalid Match ID <a href='/my_tournments'>Back</a></h3>"
+    conn = get_db()
     try:
-        joined = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], int(match_id))).fetchone()
-        if not joined: 
+        joined = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], match_id)).fetchone()
+        if not joined:
             conn.close()
-            return redirect('/')
-        fname=""
+            return f"<h3>⚠️ Join kaledu bro! <a href='/'>Home</a></h3>"
+        fname = ""
         if 'screenshot' in request.files:
-            f=request.files['screenshot']
-            if f and f.filename and f.filename != '':
+            f = request.files['screenshot']
+            if f and f.filename and f.filename.strip() != '':
                 ext = f.filename.rsplit('.',1)[-1].lower() if '.' in f.filename else 'jpg'
-                if ext not in ['jpg','jpeg','png','webp']: ext='jpg'
-                fname=f"{session['user_id']}_{match_id}_{random.randint(1000,9999)}.{ext}"
+                if ext not in ['jpg','jpeg','png','webp','bmp']: ext='jpg'
+                fname = f"{session['user_id']}_{match_id}_{random.randint(1000,99999)}.{ext}"
                 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                os.makedirs("static/uploads", exist_ok=True)
                 f.save(os.path.join(UPLOAD_FOLDER, fname))
         if not fname:
-            ex = conn.execute("SELECT screenshot FROM results WHERE match_id=? AND user_id=?", (int(match_id), session['user_id'])).fetchone()
-            if not ex or not ex['screenshot']:
+            ex = conn.execute("SELECT screenshot FROM results WHERE match_id=? AND user_id=?", (match_id, session['user_id'])).fetchone()
+            if ex and ex['screenshot']:
+                fname = ex['screenshot']
+            else:
                 conn.close()
-                return f"<h3>⚠️ Screenshot compulsory bro! <a href='/my_tournments'>Back</a></h3>"
-        existing = conn.execute("SELECT id, screenshot FROM results WHERE match_id=? AND user_id=?", (int(match_id), session['user_id'])).fetchone()
+                return f"<h3>⚠️ Screenshot select chey bro! <a href='/my_tournments'>Back</a></h3>"
+        existing = conn.execute("SELECT id FROM results WHERE match_id=? AND user_id=?", (match_id, session['user_id'])).fetchone()
         if existing:
-            final_fname = fname if fname else existing['screenshot']
-            conn.execute("UPDATE results SET kills=0, screenshot=?, status='PENDING', time=? WHERE id=?", (final_fname, now_ist().strftime("%d/%m %H:%M"), existing['id']))
+            conn.execute("UPDATE results SET kills=0, screenshot=?, status='PENDING', time=? WHERE id=?", (fname, now_ist().strftime("%d/%m %H:%M"), existing['id']))
         else:
-            conn.execute("INSERT INTO results (match_id,user_id,kills,status,screenshot,time) VALUES (?,?,?,?,?,?)",(int(match_id),session['user_id'],0,'PENDING',fname,now_ist().strftime("%d/%m %H:%M")))
+            conn.execute("INSERT INTO results (match_id,user_id,kills,status,screenshot,time) VALUES (?,?,?,?,?,?)",(match_id,session['user_id'],0,'PENDING',fname,now_ist().strftime("%d/%m %H:%M")))
         conn.commit()
-    except Exception as e: 
+        conn.close()
+        return redirect(f'/match_result/{match_id}')
+    except Exception as e:
         print(f"Submit error {e}")
         traceback.print_exc()
-    finally: conn.close()
-    return redirect(f'/match_result/{match_id}')
+        try: conn.close()
+        except: pass
+        return f"<h3>Error {e} <a href='/my_tournments'>Back</a></h3>"
 
 @app.route('/match_result/<int:mid>')
 @nocache
