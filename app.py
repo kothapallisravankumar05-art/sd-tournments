@@ -104,6 +104,7 @@ init_db()
 migrate_game_id()
 
 # ===== EXACT 40 MIN FIXED TIMES - 9:00, 9:40, 10:20... =====
+# ===== EXACT 40 MIN FIXED TIMES - CORRECTED 24HR STORAGE + 12HR DISPLAY =====
 def generate_daily_matches(conn):
     try:
         now = now_ist()
@@ -111,17 +112,18 @@ def generate_daily_matches(conn):
         now_full = now.strftime("%Y-%m-%d %H:%M")
         print(f"Generating exact times for {today} after {now_full}")
 
-        exact_slots = ["09:00","09:40","10:20","11:00","11:40","12:20","1:00","1:40","2:20","3:00","3:40","4:20","5:00","5:40","6:20","7:00","7:40","8:20","9:00"]
+        # CORRECTED - ANNI 24HR FORMAT LO - 09:00 to 21:00
+        exact_slots = ["09:00","09:40","10:20","11:00","11:40","12:20","13:00","13:40","14:20","15:00","15:40","16:20","17:00","17:40","18:20","19:00","19:40","20:20","21:00"]
+        
         types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
         
         created=0
         for idx, slot in enumerate(exact_slots):
-            full_time = f"{today} {slot}"
-            if full_time < now_full: # past ayithe skip
+            full_time = f"{today} {slot}"  # DB lo 24hr format - 2026-04-13 15:40
+            if full_time < now_full: 
                 continue
             dup = conn.execute("SELECT id FROM tournments WHERE time=?", (full_time,)).fetchone()
             if dup:
-                print(f"Skip dup {full_time}")
                 continue
             g,t_type,fee,prize,total = types[idx % len(types)]
             per_kill = 8 if t_type=='Solo' else 0
