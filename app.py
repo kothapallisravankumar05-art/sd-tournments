@@ -282,11 +282,15 @@ def index():
     except Exception as e:
         print(f"Results error {e}")
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-    if not user: session.clear(); conn.close(); return redirect('/login')
+    if not user:
+        session.clear()
+        conn.close()
+        return redirect('/login')
     my_joined = conn.execute("SELECT tournament_id FROM joined WHERE user_id=?", (session['user_id'],)).fetchall()
     my_joined_ids = [r[0] for r in my_joined]
-        conn.close()
-    return render_template('index.html', tournaments=t, user=user, my_joined_ids=my_joined_ids, site_url=SITE_URL, completed=completed, live_matches=live, results_data=results_data)
+    conn.close()
+    return render_template('index.html', tournaments=t, tournments=t, user=user, my_joined_ids=my_joined_ids, site_url=SITE_URL, completed=completed, live_matches=live, results_data=results_data)
+
 @app.route('/register', methods=['GET','POST'])
 @nocache
 def register():
@@ -570,7 +574,9 @@ def join_tournament(tid):
         except: pass
         return f"Join Error: {e} - <a href='/slots/{tid}'>Try Again</a>"
 
+# ✅ FIXED - SINGLE FUNCTION FOR BOTH SPELLINGS - NO REDIRECT LOOP
 @app.route('/my_tournments')
+@app.route('/my_tournaments')
 @nocache
 def my_tournments():
     if 'user_id' not in session: return redirect('/login')
@@ -580,19 +586,18 @@ def my_tournments():
         data = conn.execute("SELECT j.*, t.game, t.type, t.time, t.map, t.prize, t.fee, t.per_kill, t.status, t.room_id, t.room_pass FROM joined j JOIN tournments t ON j.tournament_id=t.id WHERE j.user_id=? ORDER BY j.id DESC", (session['user_id'],)).fetchall()
         user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
         conn.close()
-        return render_template('my_tournments.html', joined=data, user=user)
+        # ✅ Try both template names
+        try:
+            return render_template('my_tournaments.html', joined=data, user=user)
+        except:
+            return render_template('my_tournments.html', joined=data, user=user)
     except Exception as e:
         print(f"my_tournments error {e}")
         traceback.print_exc()
         try:
             if conn: conn.close()
         except: pass
-        return f"<h3>My Tournments Error: {e}</h3><a href='/'>Home</a>"
-
-@app.route('/my_tournments')
-@nocache
-def my_tournments_alias(): 
-    return redirect('/my_tournments')
+        return f"<h3>My Tournaments Error: {e}</h3><a href='/'>Home</a>"
 
 @app.route('/leaderboard')
 @nocache
@@ -610,7 +615,6 @@ def leaderboard():
         except: pass
         return redirect('/')
 
-# ✅ ONLY SCREENSHOT - NO KILLS INPUT FROM USER - 100% SECURE
 @app.route('/submit_result', methods=['POST'])
 @nocache
 def submit_result():
