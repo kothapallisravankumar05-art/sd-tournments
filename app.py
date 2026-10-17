@@ -286,7 +286,7 @@ def index():
     my_joined = conn.execute("SELECT tournament_id FROM joined WHERE user_id=?", (session['user_id'],)).fetchall()
     my_joined_ids = [r[0] for r in my_joined]
     conn.close()
-    return render_template('index.html', tournments=t, tournaments=t, user=user, my_joined_ids=my_joined_ids, site_url=SITE_URL, completed=completed, live_matches=live, results_data=results_data)
+    return render_template('index.html', tournments=t, tournments=t, user=user, my_joined_ids=my_joined_ids, site_url=SITE_URL, completed=completed, live_matches=live, results_data=results_data)
 
 @app.route('/register', methods=['GET','POST'])
 @nocache
@@ -532,7 +532,7 @@ def join_tournament(tid):
         already = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
         if already:
             conn.close()
-            return redirect('/my_tournaments')
+            return redirect('/my_tournments')
         if request.method == 'GET':
             slot_no = request.args.get('slot') or request.args.get('slot_no') or 1
             try: slot_no = int(slot_no)
@@ -563,7 +563,7 @@ def join_tournament(tid):
         conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (session['user_id'], int(tour['fee']), 'DEBIT', f'Join T{tid} S{slot_no}', now_ist().strftime("%d/%m %H:%M")))
         conn.commit()
         conn.close()
-        return redirect('/my_tournaments')
+        return redirect('/my_tournments')
     except Exception as e:
         print(f"join error {e}")
         traceback.print_exc()
@@ -571,9 +571,9 @@ def join_tournament(tid):
         except: pass
         return f"Join Error: {e} - <a href='/slots/{tid}'>Try Again</a>"
 
-@app.route('/my_tournaments')
+@app.route('/my_tournments')
 @nocache
-def my_tournaments():
+def my_tournments():
     if 'user_id' not in session: return redirect('/login')
     conn = None
     try:
@@ -581,19 +581,19 @@ def my_tournaments():
         data = conn.execute("SELECT j.*, t.game, t.type, t.time, t.map, t.prize, t.fee, t.per_kill, t.status, t.room_id, t.room_pass FROM joined j JOIN tournments t ON j.tournament_id=t.id WHERE j.user_id=? ORDER BY j.id DESC", (session['user_id'],)).fetchall()
         user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
         conn.close()
-        return render_template('my_tournaments.html', joined=data, user=user)
+        return render_template('my_tournments.html', joined=data, user=user)
     except Exception as e:
-        print(f"my_tournaments error {e}")
+        print(f"my_tournments error {e}")
         traceback.print_exc()
         try:
             if conn: conn.close()
         except: pass
-        return f"<h3>My Tournaments Error: {e}</h3><a href='/'>Home</a>"
+        return f"<h3>My Tournments Error: {e}</h3><a href='/'>Home</a>"
 
 @app.route('/my_tournments')
 @nocache
 def my_tournments_alias(): 
-    return redirect('/my_tournaments')
+    return redirect('/my_tournments')
 
 @app.route('/leaderboard')
 @nocache
@@ -636,7 +636,7 @@ def submit_result():
             ex = conn.execute("SELECT screenshot FROM results WHERE match_id=? AND user_id=?", (int(match_id), session['user_id'])).fetchone()
             if not ex or not ex['screenshot']:
                 conn.close()
-                return f"<h3>⚠️ Screenshot compulsory bro! <a href='/my_tournaments'>Back</a></h3>"
+                return f"<h3>⚠️ Screenshot compulsory bro! <a href='/my_tournments'>Back</a></h3>"
         existing = conn.execute("SELECT id, screenshot FROM results WHERE match_id=? AND user_id=?", (int(match_id), session['user_id'])).fetchone()
         if existing:
             final_fname = fname if fname else existing['screenshot']
