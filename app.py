@@ -142,6 +142,7 @@ def register():
                     conn.execute("UPDATE users SET balance=balance+10 WHERE id=?", (ref_user['id'],))
                     conn.execute("UPDATE users SET balance=balance+10, referred_by=? WHERE id=?", (ref_user['id'], user['id']))
                     conn.commit()
+            session.permanent = True
             session['user_id'] = user['id']
             session.pop('ref_code', None)
             conn.close()
@@ -162,6 +163,7 @@ def login():
         user = conn.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
         if not user: conn.close(); return render_template('login.html', error="Account Not Found!")
         if user['password']!= p: conn.close(); return render_template('login.html', error="Wrong Password!")
+        session.permanent = True
         session['user_id'] = user['id']
         conn.close()
         return redirect('/')
@@ -225,7 +227,6 @@ def wallet():
         except: pass
         return f"Wallet Error: {e}", 500
 
-# ===== NEW: DEPOSIT HISTORY & WITHDRAW HISTORY =====
 @app.route('/deposit_history')
 @nocache
 def deposit_history():
@@ -457,7 +458,6 @@ def admin_panel():
                     try:
                         conn.execute("DELETE FROM tournaments WHERE id=?", (int(tid),)); conn.execute("DELETE FROM joined WHERE tournament_id=?", (int(tid),)); conn.commit()
                     except: conn.rollback()
-            # ===== FIXED: BAD GATEWAY FIX =====
             elif action == 'approve_payment':
                 pid = request.form.get('payment_id')
                 if pid:
