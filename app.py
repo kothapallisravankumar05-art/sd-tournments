@@ -103,46 +103,56 @@ def migrate_game_id():
 init_db()
 migrate_game_id()
 
-# ===== FINAL FIX - 40 MIN GAP - NO SKIP =====
+# ===== EXACT 40 MIN FIXED TIMES - 9:00, 9:40, 10:20... =====
 def generate_daily_matches(conn):
     try:
         now = now_ist()
-        # 20 min old matches anni delete - Force 40 gap kosam
-        try:
-            conn.execute("DELETE FROM tournments WHERE time LIKE ? AND joined=0 AND status='UPCOMING' AND time >= ? AND (CAST(substr(time, 12, 2) AS INTEGER) % 40 != 20 OR CAST(substr(time, 12, 2) AS INTEGER) % 40 != 0)", (f"{now.strftime('%Y-%m-%d')}%", now.strftime("%Y-%m-%d %H:%M")))
-        except:
-            pass
-        # Simple - today 20min gap matches delete
-        try:
-            # Postgres lo ilanti complex query vaddu - direct delete in nuke
-            pass
-        except: pass
-
-        start_time = now.replace(second=0, microsecond=0) + timedelta(minutes=10)
-        nine_am = now.replace(hour=9, minute=0, second=0, microsecond=0)
-        if start_time < nine_am:
-            start_time = nine_am
-        if start_time.hour >= 21:
-            start_time = (now + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
-            print(f"After 9PM - tomorrow {start_time}")
-
+        today_str = now.strftime("%Y-%m-%d")
+        now_str = now.strftime("%Y-%m-%d %H:%M")
+        
+        # Fixed schedule - Exact numbers
+        fixed_times = [
+            "09:00", "09:40", "10:20", "11:00", "11:40", 
+            "12:20", "1:00", "1:40", "2:20", "3:00",
+            "3:40", "4:20", "5:00", "5:40", "6:20",
+            "7:00", "7:40", "8:20", "9:00"
+        ]
+        
         types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
         created = 0
-        for i in range(12): # 9AM to 9PM - 12 matches with 40 gap
-            t = start_time + timedelta(minutes=i*40)  # 40 MIN GAP PAKKA
-            if t.hour > 21 or (t.hour == 21 and t.minute > 0):
-                break
-            time_str = t.strftime("%Y-%m-%d %H:%M")
+        
+        for i, ft in enumerate(fixed_times):
+            time_str = f"{today_str} {ft}"
+            # Future matches only - Past ayithe skip
+            if time_str < now_str:
+                continue
+            # Already unda?
             dup = conn.execute("SELECT id FROM tournments WHERE time=?", (time_str,)).fetchone()
             if dup:
                 continue
+            
             game, typ, fee, prize, total = types[i % len(types)]
             per_kill = 8 if typ == 'Solo' else 0
             conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",
                         (game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0))
             created += 1
+        
+        # Tomorrow kuda generate chey - 9PM tarvata emi lekapothe
+        if created < 3:
+            tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+            for i, ft in enumerate(fixed_times[:8]): # Tomorrow morning 8 matches
+                time_str = f"{tomorrow} {ft}"
+                dup = conn.execute("SELECT id FROM tournments WHERE time=?", (time_str,)).fetchone()
+                if dup:
+                    continue
+                game, typ, fee, prize, total = types[i % len(types)]
+                per_kill = 8 if typ == 'Solo' else 0
+                conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",
+                            (game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0))
+                created += 1
+                
         conn.commit()
-        print(f"✅ 40MIN GAP - GENERATED {created} from {start_time}")
+        print(f"✅ EXACT 40MIN - GENERATED {created} - Times: {fixed_times}")
         return created
     except Exception as e:
         print(f"Gen Error: {e}")
