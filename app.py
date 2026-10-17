@@ -103,29 +103,10 @@ def migrate_game_id():
 init_db()
 migrate_game_id()
 
-# ===== FIXED DAILY 9AM-9PM 40MIN 19 MATCHES - TODAY COUNT ONLY =====
 def generate_daily_matches(conn):
     try:
         today_str = now_ist().strftime("%Y-%m-%d")
-        # TODAY COUNT ONLY - BUG FIX
-        try:
-            row = conn.execute("SELECT COUNT(*) FROM tournments WHERE time LIKE ? AND status='UPCOMING'", (f"{today_str}%",)).fetchone()
-            # PGWrapper DictRow
-            if row is None:
-                existing_today = 0
-            else:
-                try:
-                    existing_today = int(row[0])
-                except:
-                    existing_today = int(list(row.values())[0])
-        except Exception as e:
-            print(f"Count err {e}")
-            existing_today = 0
-            
-        print(f"Today {today_str} existing: {existing_today}")
-        if existing_today >= 15:
-            return
-
+        print(f"Generating for {today_str}")
         base_9am = now_ist().replace(hour=9, minute=0, second=0, microsecond=0)
         types = [
             ("Free Fire","Clash Squad",30,40,2),
@@ -148,30 +129,25 @@ def generate_daily_matches(conn):
                         (game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0))
             created += 1
         conn.commit()
-        print(f"✅ GENERATED {created} Matches for {today_str}")
+        print(f"✅ GENERATED {created} Matches")
+        return created
     except Exception as e:
-        print(f"Daily Gen Error: {e}")
+        print(f"Gen Error: {e}")
         traceback.print_exc()
+        return 0
 
-# ===== FIXED CLEANUP - 12 HOURS - SINGLE FUNCTION =====
 def cleanup_expired_matches(conn):
     try:
-        twelve_hours_ago = (now_ist() - timedelta(hours=12)).strftime("%Y-%m-%d %H:%M")
-        expired = conn.execute("SELECT id, joined FROM tournments WHERE time < ? AND status='UPCOMING'", (twelve_hours_ago,)).fetchall()
+        # 48 HOURS - No delete for today
+        two_days_ago = (now_ist() - timedelta(hours=48)).strftime("%Y-%m-%d %H:%M")
+        expired = conn.execute("SELECT id FROM tournments WHERE time < ? AND status='UPCOMING'", (two_days_ago,)).fetchall()
         for tour in expired:
             try:
                 tid = tour['id'] if 'id' in tour else tour[0]
-                j = tour['joined'] if 'joined' in tour else tour[1]
-                if int(j or 0) == 0:
-                    conn.execute("DELETE FROM tournments WHERE id=?", (tid,))
-                    conn.execute("DELETE FROM joined WHERE tournament_id=?", (tid,))
-                else:
-                    conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (tid,))
-            except:
-                pass
+                conn.execute("DELETE FROM tournments WHERE id=?", (tid,))
+            except: pass
         if expired:
             conn.commit()
-            print(f"Cleaned {len(expired)} old (12h+)")
     except Exception as e:
         print(f"Cleanup Error: {e}")
 
@@ -186,24 +162,55 @@ def nocache(view):
 @app.route('/health')
 def health(): return "OK", 200
 
-@app.errorhandler(500)
-def handle_500(e):
-    traceback.print_exc()
-    return f"<h3>500 Error</h3><pre>{traceback.format_exc()}</pre>", 500
+@app.route('/nuke')
+@nocache
+def nuke_all():
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM joined")
+        conn.execute("DELETE FROM tournments")
+        conn.commit()
+        print("🔥 NUKE ALL DONE")
+    except Exception as e:
+        print(f"Nuke error {e}")
+    conn.close()
+    return redirect('/force')
 
 @app.route('/force')
 @nocache
 def force_generate():
     conn = get_db()
     try:
-        conn.execute("DELETE FROM tournments WHERE status='UPCOMING'")
-        conn.commit()
-        print("Force deleted all UPCOMING")
+        # Only delete if >20
+        row = conn.execute("SELECT COUNT(*) FROM tournments WHERE status='UPCOMING'").fetchone()
+        cnt = int(row[0] if row else 0)
+        print(f"Force check count {cnt}")
+        if cnt < 5:
+            c = generate_daily_matches(conn)
+            conn.close()
+            return f"<h1>Generated {c} matches! <a href='/'>Go Home</a></h1>"
+        else:
+            conn.close()
+            return f"<h1>Already {cnt} matches exist! <a href='/'>Go Home</a> | <a href='/nuke'>Nuke All</a></h1>"
     except Exception as e:
-        print(f"Force delete error {e}")
-    generate_daily_matches(conn)
+        print(f"Force error {e}")
+        try:
+            c = generate_daily_matches(conn)
+        except: c=0
+        conn.close()
+        return f"<h1>Error {e} but generated {c} <a href='/'>Home</a></h1>"
+
+@app.route('/debug')
+@nocache
+def debug_page():
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM tournments ORDER BY time ASC LIMIT 50").fetchall()
     conn.close()
-    return redirect('/')
+    html = "<h2>DB Tournaments:</h2>"
+    for r in rows:
+        html += f"{dict(r)}<br>"
+    html += "<br><a href='/'>Home</a> | <a href='/nuke'>Nuke</a> | <a href='/force'>Force</a>"
+    return html
 
 @app.route('/')
 @nocache
@@ -211,10 +218,13 @@ def index():
     if 'user_id' not in session: return redirect('/login')
     conn = get_db()
     try:
-        generate_daily_matches(conn)
-        cleanup_expired_matches(conn)
-    except Exception as e:
-        print(f"Index gen error {e}")
+        # Auto generate if less than 5
+        row = conn.execute("SELECT COUNT(*) FROM tournments WHERE status='UPCOMING'").fetchone()
+        cnt = int(row[0] if row else 0)
+        if cnt < 5:
+            generate_daily_matches(conn)
+    except: pass
+    # No cleanup for today - show all upcoming
     t = conn.execute("SELECT * FROM tournments WHERE status='UPCOMING' ORDER BY time ASC").fetchall()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     if not user: session.clear(); conn.close(); return redirect('/login')
@@ -223,6 +233,7 @@ def index():
     conn.close()
     return render_template('index.html', tournments=t, user=user, my_joined_ids=my_joined_ids, site_url=SITE_URL)
 
+# ... rest same as yours - copy from old file below ...
 @app.route('/register', methods=['GET','POST'])
 @nocache
 def register():
@@ -378,7 +389,7 @@ def verify_upi():
         amt_i = int(float(amount))
         conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?,'PENDING',?)", (session['user_id'], amt_i, utr, now_ist().strftime("%d/%m %H:%M")))
         conn.commit(); conn.close()
-        return jsonify({"ok": True, "msg": f"✅ ₹{amt_i} Submitted! Admin approve chestadu!"})
+        return jsonify({"ok": True, "msg": f"✅ ₹{amt_i} Submitted!"})
     except Exception as e:
         try:
             if conn: conn.close()
@@ -393,17 +404,17 @@ def forgot_password():
         new_pass = (request.form.get('new_password') or "").strip()
         confirm_pass = (request.form.get('confirm_password') or new_pass).strip()
         if len(phone) < 4: return render_template('forgot.html', error="Phone/Username Enter Chey Bro!")
-        if len(new_pass) < 4: return render_template('forgot.html', error="Password Min 4 Characters Undali!")
+        if len(new_pass) < 4: return render_template('forgot.html', error="Password Min 4 Characters!")
         if new_pass != confirm_pass: return render_template('forgot.html', error="Passwords Match Kavatledu!")
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE phone=?", (phone,)).fetchone()
         if not user: user = conn.execute("SELECT * FROM users WHERE username=?", (phone,)).fetchone()
         if not user:
             conn.close()
-            return render_template('forgot.html', error="Phone/Username Account Not Found!")
+            return render_template('forgot.html', error="Account Not Found!")
         conn.execute("UPDATE users SET password=? WHERE id=?", (new_pass, user['id']))
         conn.commit(); conn.close()
-        return render_template('forgot.html', success="✅ Password Changed! Login Again!")
+        return render_template('forgot.html', success="✅ Password Changed!")
     return render_template('forgot.html')
 
 @app.route('/slots/<int:tid>')
@@ -486,20 +497,13 @@ def my_tournments_alias(): return redirect('/my_tournaments')
 def leaderboard():
     conn = get_db()
     try:
-        try:
-            top = conn.execute("SELECT u.id, u.username, u.total_wins, u.balance, COALESCE(SUM(r.kills),0) as total_kills FROM users u LEFT JOIN results r ON r.user_id=u.id GROUP BY u.id ORDER BY u.total_wins DESC, total_kills DESC LIMIT 50").fetchall()
-        except:
-            top = conn.execute("SELECT id, username, total_wins, balance FROM users ORDER BY total_wins DESC LIMIT 50").fetchall()
+        top = conn.execute("SELECT id, username, total_wins, balance FROM users ORDER BY total_wins DESC LIMIT 50").fetchall()
         user = None; my_rank = 0
         if 'user_id' in session:
             user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-            all_users = conn.execute("SELECT id FROM users ORDER BY total_wins DESC").fetchall()
-            for idx, u in enumerate(all_users, 1):
-                if u['id'] == session['user_id']: my_rank = idx; break
         conn.close()
         return render_template('leaderboard.html', top=top, user=user, my_rank=my_rank)
-    except Exception as e:
-        print(f"Leaderboard Error: {e}"); traceback.print_exc()
+    except:
         try: conn.close()
         except: pass
         return redirect('/')
@@ -552,32 +556,18 @@ def admin_panel():
                 session['is_admin_logged'] = True
                 return redirect('/admin')
             else:
-                return "<html><head><meta name='viewport' content='width=device-width'><style>body{font-family:Arial;background:#0f172a;display:flex;justify-content:center;align-items:center;height:100vh;margin:0} .box{background:#fff;padding:30px;border-radius:16px;width:300px;text-align:center} input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:1px solid #ddd} button{width:100%;padding:12px;background:#111827;color:#fff;border:none;border-radius:8px;font-weight:900} </style></head><body><div class='box'><h3>ADMIN LOGIN</h3><p style='color:red'>Wrong Password!</p><form method='POST'><input type='password' name='admin_password' placeholder='Enter Admin Password' required><button>LOGIN</button></form><a href='/'>Back Home</a></div></body></html>"
-        return "<html><head><meta name='viewport' content='width=device-width'><style>body{font-family:Arial;background:#0f172a;display:flex;justify-content:center;align-items:center;height:100vh;margin:0} .box{background:#fff;padding:30px;border-radius:16px;width:300px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3)} input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:1px solid #ddd} button{width:100%;padding:12px;background:#111827;color:#fff;border:none;border-radius:8px;font-weight:900;cursor:pointer} </style></head><body><div class='box'><h3>ADMIN LOGIN</h3><p>Enter Password to Access Admin</p><form method='POST'><input type='password' name='admin_password' placeholder='Admin Password' required><button>LOGIN TO ADMIN</button></form><a href='/' style='display:block;margin-top:15px;color:#6b7280'>Back to Home</a></div></body></html>"
+                return "<html><body><h3>Wrong Password!</h3><form method='POST'><input type='password' name='admin_password'><button>LOGIN</button></form></body></html>"
+        return "<html><body><h3>ADMIN LOGIN</h3><form method='POST'><input type='password' name='admin_password' placeholder='Password'><button>LOGIN</button></form><a href='/'>Home</a></body></html>"
     conn = get_db()
     try:
         if request.method == 'POST':
             action = request.form.get('action')
-            if action == 'admin_logout':
-                session.pop('is_admin_logged', None)
-                return redirect('/')
             if action == 'auto_generate':
-                base_date = now_ist().replace(hour=9, minute=0, second=0, microsecond=0)
-                types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
-                for i in range(19):
-                    t = base_date + timedelta(minutes=i*40)
-                    if t.hour > 21: break
-                    time_str = t.strftime("%Y-%m-%d %H:%M")
-                    exists = conn.execute("SELECT id FROM tournments WHERE time=?", (time_str,)).fetchone()
-                    if not exists:
-                        game, typ, fee, prize, total = types[i % len(types)]
-                        conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",(game, typ, 'Bermuda', time_str, prize, fee, 8 if typ=='Solo' else 0, total, 0))
-                conn.commit()
+                generate_daily_matches(conn)
             elif action == 'add_tournament':
                 game = request.form.get('game','Free Fire'); typ = request.form.get('type','Squad')
                 fee = int(request.form.get('entry_fee') or 25); prize = int(request.form.get('prize') or 150)
-                teams = int(request.form.get('teams') or 12); ppt = int(request.form.get('players_per_team') or 4)
-                total = int(request.form.get('total_slots') or (teams*ppt)); per_kill = int(request.form.get('per_kill') or 0)
+                total = int(request.form.get('total_slots') or 8); per_kill = int(request.form.get('per_kill') or 0)
                 time_str = request.form.get('time') or now_ist().strftime("%Y-%m-%d %H:%M")
                 conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",(game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0)); conn.commit()
             elif action == 'set_room':
@@ -591,38 +581,26 @@ def admin_panel():
             elif action == 'cancel_tournament':
                 tid = request.form.get('tournament_id')
                 if tid:
-                    try:
-                        joined_users = conn.execute("SELECT j.user_id, j.slot_no, t.fee FROM joined j JOIN tournments t ON j.tournament_id=t.id WHERE j.tournament_id=?", (int(tid),)).fetchall()
-                        for ju in joined_users:
-                            fee = int(ju['fee'] or 0)
-                            conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (fee, int(ju['user_id'])))
-                            conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(ju['user_id']), fee, 'CREDIT', f'Refund Cancel T{tid} Slot {ju["slot_no"]}', now_ist().strftime("%d/%m %H:%M")))
-                        conn.execute("DELETE FROM joined WHERE tournament_id=?", (int(tid),))
-                        conn.execute("UPDATE tournments SET status='CANCELLED' WHERE id=?", (int(tid),)); conn.commit()
-                    except Exception as e: print(e); conn.rollback()
+                    joined_users = conn.execute("SELECT j.user_id, t.fee FROM joined j JOIN tournments t ON j.tournament_id=t.id WHERE j.tournament_id=?", (int(tid),)).fetchall()
+                    for ju in joined_users:
+                        conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (ju['fee'] or 0, ju['user_id']))
+                    conn.execute("DELETE FROM joined WHERE tournament_id=?", (int(tid),))
+                    conn.execute("UPDATE tournments SET status='CANCELLED' WHERE id=?", (int(tid),)); conn.commit()
             elif action == 'delete_tournament':
                 tid = request.form.get('tournament_id')
-                if tid: 
-                    try:
-                        joined_users = conn.execute("SELECT j.user_id, j.slot_no, t.fee FROM joined j JOIN tournments t ON j.tournament_id=t.id WHERE j.tournament_id=?", (int(tid),)).fetchall()
-                        for ju in joined_users:
-                            fee = int(ju['fee'] or 0)
-                            conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (fee, int(ju['user_id'])))
-                            conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(ju['user_id']), fee, 'CREDIT', f'Refund Delete T{tid} Slot {ju["slot_no"]}', now_ist().strftime("%d/%m %H:%M")))
-                        conn.execute("DELETE FROM joined WHERE tournament_id=?", (int(tid),))
-                        conn.execute("DELETE FROM tournments WHERE id=?", (int(tid),)); conn.commit()
-                    except Exception as e: print(e); conn.rollback()
+                if tid:
+                    joined_users = conn.execute("SELECT j.user_id, t.fee FROM joined j JOIN tournments t ON j.tournament_id=t.id WHERE j.tournament_id=?", (int(tid),)).fetchall()
+                    for ju in joined_users:
+                        conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (ju['fee'] or 0, ju['user_id']))
+                    conn.execute("DELETE FROM joined WHERE tournament_id=?", (int(tid),))
+                    conn.execute("DELETE FROM tournments WHERE id=?", (int(tid),)); conn.commit()
             elif action == 'approve_payment':
                 pid = request.form.get('payment_id')
                 if pid:
-                    try:
-                        p = conn.execute("SELECT * FROM payments WHERE id=?", (int(pid),)).fetchone()
-                        if p and p['status'] == 'PENDING':
-                            conn.execute("UPDATE payments SET status='APPROVED' WHERE id=?", (int(pid),))
-                            conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(p['amount']), int(p['user_id'])))
-                            conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)",(int(p['user_id']), int(p['amount']), 'CREDIT', f"Payment {p['utr']}", now_ist().strftime("%d/%m %H:%M")))
-                            conn.commit()
-                    except: conn.rollback()
+                    p = conn.execute("SELECT * FROM payments WHERE id=?", (int(pid),)).fetchone()
+                    if p and p['status'] == 'PENDING':
+                        conn.execute("UPDATE payments SET status='APPROVED' WHERE id=?", (int(pid),))
+                        conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(p['amount']), int(p['user_id']))); conn.commit()
             elif action == 'reject_payment':
                 pid = request.form.get('payment_id')
                 if pid: conn.execute("UPDATE payments SET status='REJECTED' WHERE id=?", (int(pid),)); conn.commit()
@@ -632,47 +610,17 @@ def admin_panel():
             elif action == 'reject_withdrawal':
                 wid = request.form.get('withdrawal_id')
                 if wid:
-                    try:
-                        w = conn.execute("SELECT * FROM withdrawals WHERE id=?", (int(wid),)).fetchone()
-                        if w and w['status']=='PENDING':
-                            conn.execute("UPDATE withdrawals SET status='REJECTED' WHERE id=?", (int(wid),))
-                            conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(w['amount']), int(w['user_id']))); conn.commit()
-                    except: conn.rollback()
-            elif action == 'approve_result':
-                rid = request.form.get('result_id')
-                if rid:
-                    try:
-                        r = conn.execute("SELECT * FROM results WHERE id=?", (int(rid),)).fetchone()
-                        if r and r['status']=='PENDING':
-                            tour = conn.execute("SELECT * FROM tournments WHERE id=?", (int(r['match_id']),)).fetchone()
-                            per_kill = int(tour['per_kill'] or 0) if tour else 0
-                            prize = per_kill * int(r['kills'] or 0) if per_kill > 0 else 0
-                            conn.execute("UPDATE results SET status='APPROVED' WHERE id=?", (int(rid),))
-                            if prize > 0:
-                                conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (prize, int(r['user_id'])))
-                                conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(r['user_id']), prize, 'CREDIT', f'Kills {r["kills"]} in Match {r["match_id"]}', now_ist().strftime("%d/%m %H:%M")))
-                            conn.commit()
-                    except: conn.rollback()
-            elif action == 'reject_result':
-                rid = request.form.get('result_id')
-                if rid: conn.execute("UPDATE results SET status='REJECTED' WHERE id=?", (int(rid),)); conn.commit()
-            elif action == 'declare_winner':
-                mid = request.form.get('match_id'); winner_id = request.form.get('winner_id')
-                if mid and winner_id:
-                    try:
-                        tour = conn.execute("SELECT * FROM tournments WHERE id=?", (int(mid),)).fetchone()
-                        if tour:
-                            conn.execute("UPDATE users SET balance=balance+?, total_wins=total_wins+1 WHERE id=?", (int(tour['prize'] or 0), int(winner_id)))
-                            conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(winner_id), int(tour['prize'] or 0), 'CREDIT', f'Winner Match {mid}', now_ist().strftime("%d/%m %H:%M")))
-                            conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (int(mid),)); conn.commit()
-                    except: conn.rollback()
+                    w = conn.execute("SELECT * FROM withdrawals WHERE id=?", (int(wid),)).fetchone()
+                    if w and w['status']=='PENDING':
+                        conn.execute("UPDATE withdrawals SET status='REJECTED' WHERE id=?", (int(wid),))
+                        conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(w['amount']), int(w['user_id']))); conn.commit()
         raw = conn.execute("SELECT * FROM tournments ORDER BY time ASC").fetchall()
         matches = []
         for mm in raw:
             d = dict(mm)
             try:
-                j = conn.execute("SELECT u.username, j.slot_no, j.game_id FROM joined j JOIN users u ON j.user_id=u.id WHERE j.tournament_id=? ORDER BY j.slot_no", (mm['id'],)).fetchall()
-                d['joined_list'] = ", ".join([f"{x['slot_no']}:{x['username']}({x['game_id']})" for x in j]) if j else ""
+                j = conn.execute("SELECT u.username, j.slot_no FROM joined j JOIN users u ON j.user_id=u.id WHERE j.tournament_id=?", (mm['id'],)).fetchall()
+                d['joined_list'] = ", ".join([f"{x['slot_no']}:{x['username']}" for x in j]) if j else ""
             except:
                 d['joined_list'] = ""
             matches.append(d)
@@ -686,7 +634,7 @@ def admin_panel():
         print(e); traceback.print_exc()
         try: conn.close()
         except: pass
-        return f"Admin Error: {e}<pre>{traceback.format_exc()}</pre>", 500
+        return f"Admin Error: {e}", 500
 
 @app.route('/logout')
 def logout():
