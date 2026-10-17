@@ -74,7 +74,7 @@ def init_db():
         if IS_POSTGRES:
             conn.execute("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
             conn.execute("CREATE TABLE IF NOT EXISTS tournments (id SERIAL PRIMARY KEY, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
-            conn.execute("CREATE TABLE IF NOT EXISTS joined (id SERIAL PRIMARY KEY, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0)")
+            conn.execute("CREATE TABLE IF NOT EXISTS joined (id SERIAL PRIMARY KEY, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0, game_id TEXT DEFAULT '', game_name TEXT DEFAULT '')")
             conn.execute("CREATE TABLE IF NOT EXISTS payments (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
@@ -83,7 +83,7 @@ def init_db():
         else:
             conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
             conn.execute("CREATE TABLE IF NOT EXISTS tournments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
-            conn.execute("CREATE TABLE IF NOT EXISTS joined (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0)")
+            conn.execute("CREATE TABLE IF NOT EXISTS joined (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0, game_id TEXT DEFAULT '', game_name TEXT DEFAULT '')")
             conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
@@ -91,7 +91,23 @@ def init_db():
             conn.commit()
     except Exception as e: print(e)
     finally: conn.close()
+
+def migrate_game_id():
+    conn = get_db()
+    try:
+        for q in ["ALTER TABLE joined ADD COLUMN game_id TEXT DEFAULT ''", "ALTER TABLE joined ADD COLUMN game_name TEXT DEFAULT ''"]:
+            try:
+                conn.execute(q)
+            except:
+                pass
+        conn.commit()
+    except:
+        pass
+    finally:
+        conn.close()
+
 init_db()
+migrate_game_id()
 
 def generate_daily_matches(conn):
     try:
@@ -350,6 +366,7 @@ def forgot_password():
         return render_template('forgot.html', success="✅ Password Changed! Login Again!")
     return render_template('forgot.html')
 
+# ===== SLOTS + JOIN FLOW - SINGLE DEFINITION ONLY =====
 @app.route('/slots/<int:tid>')
 @nocache
 def slots_page(tid):
@@ -391,11 +408,13 @@ def join_tournament(tid):
     conn = get_db()
     tour = conn.execute("SELECT * FROM tournments WHERE id=?", (tid,)).fetchone()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    if not tour or not user:
+        conn.close()
+        return redirect('/')
     already = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
     if already:
         conn.close()
-        return redirect('/my_tournments')
-
+        return redirect('/my_tournaments')
     if request.method == 'GET':
         slot_no = request.args.get('slot') or request.args.get('slot_no') or 1
         try:
@@ -404,8 +423,6 @@ def join_tournament(tid):
             slot_no = 1
         conn.close()
         return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_no)
-
-    # POST - Game ID tho join
     game_id = request.form.get('game_id','').strip()
     game_name = request.form.get('game_name','').strip()
     slot_no = request.form.get('slot_no') or 1
@@ -413,43 +430,49 @@ def join_tournament(tid):
         slot_no = int(slot_no)
     except:
         slot_no = 1
-
     if not game_id or not game_name:
         conn.close()
         return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_no, error="Game ID & IGN Enter Chey Bro!")
-
     if int(user['balance'] or 0) < int(tour['fee'] or 0):
         conn.close()
         return redirect('/wallet')
-
     taken = conn.execute("SELECT id FROM joined WHERE tournament_id=? AND slot_no=?", (tid, slot_no)).fetchone()
     if taken:
         conn.close()
         return redirect(f'/slots/{tid}')
-
     conn.execute("INSERT INTO joined (user_id, tournament_id, slot_no, game_id, game_name) VALUES (?,?,?,?,?)", (session['user_id'], tid, slot_no, game_id, game_name))
     conn.execute("UPDATE tournments SET joined=joined+1 WHERE id=?", (tid,))
     conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (int(tour['fee']), session['user_id']))
     conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (session['user_id'], int(tour['fee']), 'DEBIT', f'Joined T{tid} S{slot_no} ID:{game_id}', now_ist().strftime("%d/%m %H:%M")))
     conn.commit()
     conn.close()
-    return redirect('/my_tournments')
+    return redirect('/my_tournaments')
 
-# ===== FIXED LEADERBOARD - PRO TEMPLATE =====
+@app.route('/my_tournaments')
+@nocache
+def my_tournaments():
+    if 'user_id' not in session: 
+        return redirect('/login')
+    conn = get_db()
+    data = conn.execute("SELECT j.*, t.game, t.type, t.time, t.map, t.prize, t.fee, t.status, t.room_id, t.room_pass FROM joined j JOIN tournments t ON j.tournament_id=t.id WHERE j.user_id=? ORDER BY j.id DESC", (session['user_id'],)).fetchall()
+    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    conn.close()
+    return render_template('my_tournaments.html', joined=data, user=user)
+
+@app.route('/my_tournments')
+@nocache
+def my_tournments_alias():
+    return redirect('/my_tournaments')
+
 @app.route('/leaderboard')
 @nocache
 def leaderboard():
     conn = get_db()
     try:
         try:
-            top = conn.execute("""
-                SELECT u.id, u.username, u.total_wins, u.balance, COALESCE(SUM(r.kills),0) as total_kills 
-                FROM users u LEFT JOIN results r ON r.user_id=u.id 
-                GROUP BY u.id ORDER BY u.total_wins DESC, total_kills DESC LIMIT 50
-            """).fetchall()
+            top = conn.execute("SELECT u.id, u.username, u.total_wins, u.balance, COALESCE(SUM(r.kills),0) as total_kills FROM users u LEFT JOIN results r ON r.user_id=u.id GROUP BY u.id ORDER BY u.total_wins DESC, total_kills DESC LIMIT 50").fetchall()
         except:
             top = conn.execute("SELECT id, username, total_wins, balance FROM users ORDER BY total_wins DESC LIMIT 50").fetchall()
-
         user = None
         my_rank = 0
         if 'user_id' in session:
@@ -459,7 +482,6 @@ def leaderboard():
                 if u['id'] == session['user_id']:
                     my_rank = idx
                     break
-        
         conn.close()
         return render_template('leaderboard.html', top=top, user=user, my_rank=my_rank)
     except Exception as e:
@@ -508,62 +530,6 @@ def match_result(mid):
     conn.close()
     return render_template('match_result.html', t=tour, results=results) if tour else redirect('/')
 
-@app.route('/join/<int:tid>', methods=['POST','GET'])
-@nocache
-def join_tournament(tid):
-    if 'user_id' not in session: return redirect('/login')
-    slot_no = request.args.get('slot') or request.form.get('slot_no') or request.form.get('slot') or request.args.get('slot_no')
-    try: slot_no = int(slot_no)
-    except:
-        conn_tmp = get_db()
-        tour_tmp = conn_tmp.execute("SELECT joined,total FROM tournments WHERE id=?", (tid,)).fetchone()
-        slot_no = int(tour_tmp['joined'] or 0) + 1 if tour_tmp else 1
-        conn_tmp.close()
-    conn = get_db()
-    try:
-        tour = conn.execute("SELECT * FROM tournments WHERE id=?", (tid,)).fetchone()
-        user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-        if not tour or not user: conn.close(); return redirect('/')
-        already = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
-        if already: conn.close(); return redirect(f'/slots/{tid}')
-        if int(user['balance'] or 0) < int(tour['fee'] or 0): conn.close(); return redirect('/wallet')
-        if int(tour['joined'] or 0) >= int(tour['total'] or 10): conn.close(); return redirect('/')
-        slot_taken = conn.execute("SELECT id FROM joined WHERE tournament_id=? AND slot_no=?", (tid, slot_no)).fetchone()
-        if slot_taken:
-            all_taken = conn.execute("SELECT slot_no FROM joined WHERE tournament_id=?", (tid,)).fetchall()
-            taken_set = set([r[0] for r in all_taken])
-            for i in range(1, int(tour['total'] or 48)+1):
-                if i not in taken_set:
-                    slot_no = i
-                    break
-        conn.execute("INSERT INTO joined (user_id, tournament_id, slot_no) VALUES (?,?,?)", (session['user_id'], tid, slot_no))
-        conn.execute("UPDATE tournments SET joined=joined+1 WHERE id=?", (tid,))
-        conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (int(tour['fee']), session['user_id']))
-        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (session['user_id'], int(tour['fee']), 'DEBIT', f'Joined T{tid} Slot {slot_no}', now_ist().strftime("%d/%m %H:%M")))
-        conn.commit(); conn.close()
-        return redirect('/my_tournments')
-    except Exception as e:
-        print(e); conn.close(); return redirect(f'/slots/{tid}')
-
-@app.route('/my_tournments')
-@nocache
-def my_tournments():
-    if 'user_id' not in session: 
-        return redirect('/login')
-    conn = get_db()
-    data = conn.execute("""
-        SELECT j.tournament_id, j.slot_no, j.game_id, j.game_name, 
-               t.game, t.type, t.time, t.map, t.prize, t.fee, t.status, t.room_id, t.room_pass 
-        FROM joined j 
-        JOIN tournments t ON j.tournament_id=t.id 
-        WHERE j.user_id=? 
-        ORDER BY j.id DESC
-    """, (session['user_id'],)).fetchall()
-    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-    conn.close()
-    return render_template('my_tournments.html', joined=data, user=user)
-
-# ===== FIXED ADMIN - TIME ASC + JOINED LIST =====
 @app.route('/admin', methods=['GET','POST'])
 @nocache
 def admin_panel():
@@ -575,9 +541,8 @@ def admin_panel():
                 session['is_admin_logged'] = True
                 return redirect('/admin')
             else:
-                return """<html><head><meta name='viewport' content='width=device-width'><style>body{font-family:Arial;background:#0f172a;display:flex;justify-content:center;align-items:center;height:100vh;margin:0} .box{background:#fff;padding:30px;border-radius:16px;width:300px;text-align:center} input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:1px solid #ddd} button{width:100%;padding:12px;background:#111827;color:#fff;border:none;border-radius:8px;font-weight:900} </style></head><body><div class='box'><h3>🔐 ADMIN LOGIN</h3><p style='color:red'>Wrong Password!</p><form method='POST'><input type='password' name='admin_password' placeholder='Enter Admin Password' required><button>LOGIN</button></form><a href='/'>Back Home</a></div></body></html>"""
-        return """<html><head><meta name='viewport' content='width=device-width'><style>body{font-family:Arial;background:#0f172a;display:flex;justify-content:center;align-items:center;height:100vh;margin:0} .box{background:#fff;padding:30px;border-radius:16px;width:300px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3)} input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:1px solid #ddd} button{width:100%;padding:12px;background:#111827;color:#fff;border:none;border-radius:8px;font-weight:900;cursor:pointer} </style></head><body><div class='box'><h3>🔐 ADMIN LOGIN</h3><p>Enter Password to Access Admin</p><form method='POST'><input type='password' name='admin_password' placeholder='Admin Password' required><button>LOGIN TO ADMIN</button></form><a href='/' style='display:block;margin-top:15px;color:#6b7280'>Back to Home</a></div></body></html>"""
-
+                return "<html><head><meta name='viewport' content='width=device-width'><style>body{font-family:Arial;background:#0f172a;display:flex;justify-content:center;align-items:center;height:100vh;margin:0} .box{background:#fff;padding:30px;border-radius:16px;width:300px;text-align:center} input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:1px solid #ddd} button{width:100%;padding:12px;background:#111827;color:#fff;border:none;border-radius:8px;font-weight:900} </style></head><body><div class='box'><h3>ADMIN LOGIN</h3><p style='color:red'>Wrong Password!</p><form method='POST'><input type='password' name='admin_password' placeholder='Enter Admin Password' required><button>LOGIN</button></form><a href='/'>Back Home</a></div></body></html>"
+        return "<html><head><meta name='viewport' content='width=device-width'><style>body{font-family:Arial;background:#0f172a;display:flex;justify-content:center;align-items:center;height:100vh;margin:0} .box{background:#fff;padding:30px;border-radius:16px;width:300px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3)} input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:1px solid #ddd} button{width:100%;padding:12px;background:#111827;color:#fff;border:none;border-radius:8px;font-weight:900;cursor:pointer} </style></head><body><div class='box'><h3>ADMIN LOGIN</h3><p>Enter Password to Access Admin</p><form method='POST'><input type='password' name='admin_password' placeholder='Admin Password' required><button>LOGIN TO ADMIN</button></form><a href='/' style='display:block;margin-top:15px;color:#6b7280'>Back to Home</a></div></body></html>"
     conn = get_db()
     try:
         if request.method == 'POST':
@@ -700,7 +665,6 @@ def admin_panel():
                     except Exception as e:
                         print(f"Winner Error: {e}"); conn.rollback()
 
-        # FIXED: ORDER BY TIME ASC + JOINED LIST
         raw = conn.execute("SELECT * FROM tournments ORDER BY time ASC").fetchall()
         matches = []
         for mm in raw:
@@ -711,7 +675,6 @@ def admin_panel():
             except:
                 d['joined_list'] = ""
             matches.append(d)
-
         pending_payments = conn.execute("SELECT * FROM payments WHERE status='PENDING' ORDER BY id DESC").fetchall()
         pending_withdrawals = conn.execute("SELECT * FROM withdrawals WHERE status='PENDING' ORDER BY id DESC").fetchall()
         try: pending_results = conn.execute("SELECT r.*, u.username FROM results r LEFT JOIN users u ON r.user_id=u.id WHERE r.status='PENDING' ORDER BY r.id DESC").fetchall()
