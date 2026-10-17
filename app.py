@@ -103,30 +103,40 @@ def migrate_game_id():
 init_db()
 migrate_game_id()
 
-# ===== FINAL FIXED - EXACT TIMES - 24HR DB + 12HR DISPLAY =====
+# ===== FINAL FIXED - EXACT TIMES - 24HR DB + 12HR DISPLAY + TOMORROW BACKUP =====
 def generate_daily_matches(conn):
     try:
         now = now_ist()
         today = now.strftime("%Y-%m-%d")
         now_full = now.strftime("%Y-%m-%d %H:%M")
         
-        # FIXED: Anni 24HR lo - 09:00 to 21:00 - Exact 40 min gap
         exact_slots = ["09:00","09:40","10:20","11:00","11:40","12:20","13:00","13:40","14:20","15:00","15:40","16:20","17:00","17:40","18:20","19:00","19:40","20:20","21:00"]
-        
         types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
         created=0
         for idx, slot in enumerate(exact_slots):
             full_time = f"{today} {slot}"
-            if full_time < now_full: # past matches skip
-                continue
+            if full_time < now_full: continue
             dup = conn.execute("SELECT id FROM tournments WHERE time=?", (full_time,)).fetchone()
-            if dup:
-                continue
+            if dup: continue
             g,t_type,fee,prize,total = types[idx % len(types)]
             per_kill = 8 if t_type=='Solo' else 0
             conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",
                          (g,t_type,'Bermuda',full_time,prize,fee,per_kill,total,0))
             created+=1
+        
+        # ✅ ADDED: Night 8:30 tarvata tomorrow morning kuda generate - App empty avvakudadu ani
+        if created < 3:
+            tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+            for idx, slot in enumerate(exact_slots[:10]): # Tomorrow 9AM to 3PM varaku
+                full_time = f"{tomorrow} {slot}"
+                dup = conn.execute("SELECT id FROM tournments WHERE time=?", (full_time,)).fetchone()
+                if dup: continue
+                g,t_type,fee,prize,total = types[idx % len(types)]
+                per_kill = 8 if t_type=='Solo' else 0
+                conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",
+                             (g,t_type,'Bermuda',full_time,prize,fee,per_kill,total,0))
+                created+=1
+
         conn.commit()
         print(f"✅ EXACT 40MIN 12HR READY - Created {created}")
         return created
