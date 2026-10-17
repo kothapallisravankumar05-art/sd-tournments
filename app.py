@@ -149,7 +149,7 @@ def generate_daily_matches(conn):
                         (game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0))
             created += 1
         conn.commit()
-        print(f"✅ GENERATED {created} from {start_time}")
+        print(f"GENERATED {created} from {start_time}")
         return created
     except Exception as e:
         print(f"Gen Error: {e}")
