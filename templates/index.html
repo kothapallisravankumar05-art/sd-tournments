@@ -46,7 +46,7 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 <body>
 <div class="header">
 <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
-<div class="logo" id="mainLogo"><img src="/static/icon.png" style="width:32px;height:32px;border-radius:50%;border:2px solid #111827"> SD TOURNAMENTS</div>
+<div class="logo" id="mainLogo"><img src="/static/icon.png" style="width:32px;height:32px;border-radius:50%;border:2px solid #111827" onerror="this.style.display='none'"> SD TOURNAMENTS</div>
 <div>
 <a class="wallet" href="/wallet">₹ {{user.balance}} | Wallet</a>
 <a href="/logout" style="color:#ef4444;text-decoration:none;margin-left:10px;font-size:13px">Logout</a>
@@ -68,8 +68,13 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 </div>
 
 <div id="upcoming" class="section active">
-{% for t in tournaments %}
-{% if not t.room_id and t.status!= 'COMPLETED' and t.status!='CANCELLED' %}
+<!-- FIXED: tournments (app.py) not tournaments -->
+{% if tournments|length == 0 %}
+<div style="text-align:center;padding:40px;color:#9ca3af">🔥 No Upcoming Matches - <a href="/force" style="background:#111827;color:#fff;padding:8px 12px;border-radius:6px;text-decoration:none">Force Generate</a><br><br><a href="/debug" style="color:#6b7280;font-size:12px">Debug DB - Check count</a></div>
+{% endif %}
+
+{% for t in tournments %}
+{% if not t.room_id and t.status != 'COMPLETED' and t.status != 'CANCELLED' %}
 <div class="card" data-time="{{t.time}}" data-joined="{{t.joined}}" data-total="{{t.total}}">
 <div style="padding:15px">
 <div class="card-top"><span class="badge up">UPCOMING</span><span style="font-size:11px;color:#065f46">{{t.joined}}/{{t.total}} Joined | <span style="color:#d97706">{{t.total - t.joined}} Left</span> | <span class="countdown" data-time="{{t.time}}"></span></span></div>
@@ -81,7 +86,7 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 {% endfor %}
 </div>
 {% if t.id in my_joined_ids %}
-<button class="btn btn-dis">JOINED</button>
+<button class="btn btn-dis">JOINED ✅</button>
 {% else %}
 <a href="/slots/{{t.id}}" class="btn btn-join">JOIN NOW - ₹{{t.fee}} | {{t.total - t.joined}} Spots Left</a>
 {% endif %}
@@ -89,14 +94,13 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 </div>
 {% endif %}
 {% endfor %}
-{% if tournaments|selectattr('status','equalto','UPCOMING')|list|length == 0 %}
-<div style="text-align:center;padding:40px;color:#9ca3af">🔥 No Upcoming Matches - New matches auto creating!</div>
-{% endif %}
 </div>
 
 <div id="ongoing" class="section">
-{% for t in tournaments %}
-{% if t.room_id and t.status!= 'COMPLETED' and t.status!='CANCELLED' %}
+{% set live_found = false %}
+{% for t in tournments %}
+{% if t.room_id and t.status != 'COMPLETED' and t.status != 'CANCELLED' %}
+{% set live_found = true %}
 <div class="card ongoing">
 <div class="live-banner">🔴 LIVE NOW - ROOM ID READY!</div>
 <div style="padding:15px">
@@ -121,11 +125,16 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 </div>
 {% endif %}
 {% endfor %}
+{% if not live_found %}
+<div style="text-align:center;padding:40px;color:#9ca3af">🔴 No Live Matches Now</div>
+{% endif %}
 </div>
 
 <div id="results" class="section">
-{% for t in tournaments %}
+{% set comp_found = false %}
+{% for t in tournments %}
 {% if t.status == 'COMPLETED' %}
+{% set comp_found = true %}
 <div class="card result">
 <div style="padding:15px">
 <div class="card-top"><span class="badge re">🏆 COMPLETED</span><span style="font-size:11px">{{t.time | time12}}</span></div>
@@ -134,9 +143,10 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 </div>
 </div>
 {% endif %}
-{% else %}
-<div style="text-align:center;padding:40px;color:#9ca3af">🏁 Results Coming Soon!</div>
 {% endfor %}
+{% if not comp_found %}
+<div style="text-align:center;padding:40px;color:#9ca3af">🏁 Results Coming Soon!</div>
+{% endif %}
 </div>
 
 <script>
@@ -175,28 +185,16 @@ if(mainLogo){
   });
 }
 
-// ===== AUTO COUNTDOWN + AUTO DELETE LOGIC =====
 function updateCountdowns(){
   const now = new Date();
   document.querySelectorAll('.countdown').forEach(el=>{
     const timeStr = el.getAttribute('data-time');
     if(!timeStr) return;
     try{
-      const matchTime = new Date(timeStr.replace(' ', 'T'));
+      const matchTime = new Date(timeStr.replace(' ', 'T') + ':00');
       const diff = matchTime - now;
       if(diff <= 0){
-        const card = el.closest('.card');
-        if(card){
-          const joined = parseInt(card.getAttribute('data-joined')||0);
-          const total = parseInt(card.getAttribute('data-total')||10);
-          if(joined >= total){
-            el.innerHTML = " FULL - LIVE SOON";
-          } else {
-            // auto hide - time ayipoyindi & full kadu
-            el.innerHTML = "⏰ EXPIRED";
-            setTimeout(()=>{ card.style.display='none'; }, 1000);
-          }
-        }
+        el.innerHTML = " ⏰ STARTED";
       } else {
         const mins = Math.floor(diff/60000);
         const hrs = Math.floor(mins/60);
@@ -208,9 +206,6 @@ function updateCountdowns(){
 }
 setInterval(updateCountdowns, 30000);
 updateCountdowns();
-
-// Auto refresh every 2 mins - expired matches delete avadaniki
-setInterval(()=>{ location.reload(); }, 120000);
 </script>
 </body>
 </html>
