@@ -7,7 +7,9 @@
 *{box-sizing:border-box}
 body{background:#0a0a0a;color:#fff;font-family:Arial;padding:10px;margin:0;padding-top: env(safe-area-inset-top);overflow-x:hidden;}
 .card{background:#1a1a1a;padding:15px;border-radius:10px;margin-bottom:15px;border:1px solid #333;max-width:100%;overflow:hidden;}
-.item{background:#222;padding:12px;margin:8px 0;border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.item{background:#222;padding:12px;margin:8px 0;border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-left:4px solid transparent}
+.item.urgent{border-left:4px solid #ff4444;background:#2a1a1a}
+.item.full{border-left:4px solid #00ff88;background:#1a2a1a}
 input,select{padding:10px;margin:5px;border-radius:5px;border:none;background:#333;color:#fff;width:100%;min-width:0;}
 button{padding:8px 15px;border:none;border-radius:5px;cursor:pointer;font-weight:bold}
 .btn-green{background:#00ff88;color:#000}
@@ -27,6 +29,11 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 #adminLogo{cursor:pointer;user-select:none}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;}
 @media(max-width:600px){.form-grid{grid-template-columns:1fr;}}
+.search-box{width:100%;padding:12px;border-radius:8px;background:#222;border:1px solid gold;color:#fff;margin-bottom:12px;font-weight:700}
+.time12{color:gold;font-weight:900;font-size:14px}
+.time24{color:#888;font-size:11px}
+.countdown{color:#ff6b6b;font-weight:900;font-size:11px}
+.joined-list{font-size:11px;color:#00ff88;margin-top:4px;background:#111;padding:6px;border-radius:4px}
 </style>
 </head>
 <body>
@@ -85,26 +92,38 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 <form method="POST">
 <input type="hidden" name="action" value="set_room">
 <div class="form-grid">
-<input name="mid" type="number" placeholder="Match ID" required>
-<input name="room_id" placeholder="Room ID" required>
-<input name="room_pass" placeholder="Password" required style="grid-column:1 / -1;">
+<input name="mid" type="number" placeholder="Match ID (Ex: 47)" required>
+<input name="room_id" placeholder="Room ID (Ex: 123456)" required>
+<input name="room_pass" placeholder="Password (Ex: 1234)" required style="grid-column:1 / -1;">
 </div>
 <button class="btn-red" style="width:100%;margin-top:8px;">SET ROOM & GO LIVE</button>
 </form>
 </div>
 
+<!-- SEARCH + LIST -->
 <div class="card">
-<h3>📋 All Tournaments ({{matches|length}})</h3>
+<h3>📋 All Tournaments ({{matches|length}}) - Home tho Same Time</h3>
+<input type="text" id="searchMatch" class="search-box" placeholder="🔍 Search: ID 47, Squad, 5:00 PM, 17:00...">
+<div id="matchList">
 {% for m in matches %}
-<div class="item">
-<span>ID: <b style="color:gold">{{m.id}}</b> | {{m.game}} {{m.type}} | Time: {{m.time}}<br>Joined: <b style="color:gold">{{m.joined}}/{{m.total}}</b> | Status: <b style="color:{% if m.status=='LIVE'%}#ff4444{% elif m.status=='CANCELLED'%}orange{% else %}#00ff88{% endif %}">{{m.status}}</b> | Room: <b style="color:#00ff88">{{m.room_id}} / {{m.room_pass}}</b> | Fee: ₹{{m.fee}} | Prize: ₹{{m.prize}}</span>
-<div style="display:flex;gap:5px;flex-wrap:wrap">
+<div class="item {% if m.joined >= m.total %}full{% endif %}" data-search="{{m.id}} {{m.game}} {{m.type}} {{m.time}} {{m.time|time12}} {{m.joined}}/{{m.total}}">
+<div style="flex:1;min-width:200px">
+<span style="font-size:13px">ID: <b style="color:gold;font-size:16px">#{{m.id}}</b> | {{m.game}} {{m.type}}<br>
+⏰ <span class="time12">{{m.time|time12}}</span> <span class="time24">({{m.time}})</span> | <span class="countdown" data-time="{{m.time}}"></span><br>
+👥 Joined: <b style="color:{% if m.joined>=m.total %}#00ff88{% else %}gold{% endif %}">{{m.joined}}/{{m.total}}</b> | Status: <b style="color:{% if m.status=='LIVE'%}#ff4444{% elif m.status=='CANCELLED'%}orange{% else %}#00ff88{% endif %}">{{m.status}}</b><br>
+🏠 Room: <b style="color:#00ff88">{{m.room_id or 'None'}} / {{m.room_pass or 'None'}}</b> | Fee: ₹{{m.fee}} | Prize: ₹{{m.prize}}<br>
+{% if m.joined >= m.total %}<span style="color:#00ff88;font-weight:900">🔥 FULL - ROOM IVVALI!</span>{% elif m.joined==0 %}<span style="color:#ff4444">⚠️ Empty - Time ayithe auto delete</span>{% endif %}
+</span>
+{% if m.joined_list %}<div class="joined-list">👥 {{m.joined_list}}</div>{% endif %}
+</div>
+<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
 <form method="POST" style="display:inline"><input type="hidden" name="action" value="generate_room_id"><input type="hidden" name="mid" value="{{m.id}}"><button class="btn-green" style="background:gold;color:#000;">🎲 AUTO ROOM</button></form>
 <form method="POST" style="display:inline"><input type="hidden" name="action" value="cancel_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-orange">CANCEL</button></form>
 <form method="POST" style="display:inline"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red">DELETE</button></form>
 </div>
 </div>
 {% endfor %}
+</div>
 </div>
 
 <div class="card" style="border:2px solid gold;">
@@ -178,6 +197,33 @@ document.getElementById('typeSelect').addEventListener('change', function(){
   calculateAll();
 });
 calculateAll();
+
+// SEARCH + COUNTDOWN
+document.getElementById('searchMatch').addEventListener('input', function(){
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('#matchList .item').forEach(el=>{
+    const s = el.getAttribute('data-search').toLowerCase();
+    el.style.display = s.includes(q) ? 'flex' : 'none';
+  });
+});
+function updateCountdowns(){
+  const now = new Date();
+  document.querySelectorAll('.countdown').forEach(el=>{
+    try{
+      const t = new Date(el.getAttribute('data-time').replace(' ', 'T'));
+      const diff = t - now;
+      if(diff<=0){ el.textContent='⏰ OVER'; el.closest('.item').classList.add('urgent'); }
+      else{
+        const m = Math.floor(diff/60000);
+        if(m<10){ el.textContent=`🔥 ${m}m LEFT - ROOM IVVU!`; el.closest('.item').classList.add('urgent'); }
+        else if(m<60) el.textContent=`⏳ ${m}m`;
+        else el.textContent=`⏳ ${Math.floor(m/60)}h ${m%60}m`;
+      }
+    }catch(e){}
+  });
+}
+setInterval(updateCountdowns, 10000);
+updateCountdowns();
 </script>
 </body>
 </html>
