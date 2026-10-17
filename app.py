@@ -112,28 +112,75 @@ migrate_game_id()
 def generate_daily_matches(conn):
     try:
         today_str = now_ist().strftime("%Y-%m-%d")
-        existing_today = conn.execute("SELECT COUNT(*) FROM tournments WHERE time LIKE ? AND status='UPCOMING'", (f"{today_str}%",)).fetchone()[0]
-        if existing_today >= 10:
+        tomorrow_str = (now_ist() + timedelta(days=1)).strftime("%Y-%m-%d")
+        
+        # Today count
+        today_count = conn.execute("SELECT COUNT(*) FROM tournments WHERE time LIKE ? AND status='UPCOMING'", (f"{today_str}%",)).fetchone()[0]
+        
+        # Already 19 unte no need
+        if today_count >= 18:
+            print(f"Today {today_str} already has {today_count} matches - Skip")
             return
-        base_date = now_ist().replace(hour=9, minute=0, second=0, microsecond=0)
-        if now_ist().hour >= 9:
-            base_date = now_ist().replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-            if base_date.minute != 0:
-                base_date = base_date.replace(minute=0)
-        types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
-        for i in range(19):
-            t = base_date + timedelta(minutes=i*40)
-            if t.day != base_date.day: break
-            if t < now_ist() + timedelta(minutes=5): continue
-            game, typ, fee, prize, total = types[i % len(types)]
-            time_str = t.strftime("%Y-%m-%d %H:%M")
-            exists = conn.execute("SELECT id FROM tournments WHERE time=? AND game=? AND type=?", (time_str, game, typ)).fetchone()
-            if not exists:
-                per_kill = 8 if typ=='Solo' else 0
-                conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",(game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0))
-        conn.commit()
-    except Exception as e: print(f"Daily Gen Error: {e}")
 
+        # Incomplete unte clean
+        if today_count > 0 and today_count < 10:
+            conn.execute("DELETE FROM tournments WHERE time LIKE ? AND status='UPCOMING' AND joined=0", (f"{today_str}%",))
+            conn.commit()
+            today_count = 0
+
+        base_9am = now_ist().replace(hour=9, minute=0, second=0, microsecond=0)
+        # If already past 9AM today, base is still today 9AM - Old matches ki JOIN avvakudadu ante skip logic pettu
+        # Kani nuvvu 9AM-9PM motham chupinchali ante - 9AM nundi generate cheyali
+
+        types = [
+            ("Free Fire","Clash Squad",30,40,2),
+            ("Free Fire","Duo",30,80,4),
+            ("Free Fire","Squad",25,150,8),
+            ("Free Fire","Solo",15,1000,48)
+        ]
+
+        created = 0
+        for i in range(19):
+            t = base_9am + timedelta(minutes=i*40)
+            if t.hour > 21 or (t.hour == 21 and t.minute > 0):  # 9PM varake
+                break
+            time_str = t.strftime("%Y-%m-%d %H:%M")
+            
+            exists = conn.execute("SELECT id FROM tournments WHERE time=?", (time_str,)).fetchone()
+            if exists:
+                continue
+                
+            game, typ, fee, prize, total = types[i % len(types)]
+            per_kill = 8 if typ == 'Solo' else 0
+            
+            conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",
+                        (game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0))
+            created += 1
+        
+        conn.commit()
+        print(f"✅ DAILY GENERATED {created} Matches for {today_str} - Total {today_count+created}")
+
+    except Exception as e:
+        print(f"Daily Gen Error: {e}")
+        traceback.print_exc()
+
+def cleanup_expired_matches(conn):
+    try:
+        # 2 hours back - Daily delete kakunda
+        two_hours_ago = (now_ist() - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M")
+        expired = conn.execute("SELECT id FROM tournments WHERE time < ? AND status='UPCOMING'", (two_hours_ago,)).fetchall()
+        for tour in expired:
+            cnt = conn.execute("SELECT COUNT(*) FROM joined WHERE tournament_id=?", (tour['id'],)).fetchone()[0]
+            if cnt == 0:
+                conn.execute("DELETE FROM tournments WHERE id=?", (tour['id'],))
+                conn.execute("DELETE FROM joined WHERE tournament_id=?", (tour['id'],))
+            else:
+                conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (tour['id'],))
+        if expired:
+            conn.commit()
+    except Exception as e:
+        print(f"Cleanup Error: {e}")
+        
 def cleanup_expired_matches(conn):
     try:
         now_str = now_ist().strftime("%Y-%m-%d %H:%M")
