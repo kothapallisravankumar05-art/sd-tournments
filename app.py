@@ -161,6 +161,9 @@ def login():
         p = (request.form.get('password') or "").strip()
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
+        if not user: 
+            # phone tho kuda check
+            user = conn.execute("SELECT * FROM users WHERE phone=?", (u,)).fetchone()
         if not user: conn.close(); return render_template('login.html', error="Account Not Found!")
         if user['password']!= p: conn.close(); return render_template('login.html', error="Wrong Password!")
         session.permanent = True
@@ -295,6 +298,38 @@ def verify_upi():
             if conn: conn.close()
         except: pass
         return jsonify({"ok": False, "msg": f"Error: {e}"}), 500
+
+# ===== NEW FORGOT PASSWORD ROUTE =====
+@app.route('/forgot', methods=['GET','POST'])
+@nocache
+def forgot_password():
+    if request.method == 'POST':
+        phone = (request.form.get('phone') or "").strip()
+        new_pass = (request.form.get('new_password') or "").strip()
+        confirm_pass = (request.form.get('confirm_password') or "").strip()
+        
+        if len(phone) < 4:
+            return render_template('forgot.html', error="Phone/Username Enter Chey Bro!")
+        if len(new_pass) < 4:
+            return render_template('forgot.html', error="Password Min 4 Characters Undali!")
+        if new_pass != confirm_pass:
+            return render_template('forgot.html', error="Passwords Match Kavatledu!")
+        
+        conn = get_db()
+        user = conn.execute("SELECT * FROM users WHERE phone=?", (phone,)).fetchone()
+        if not user:
+            user = conn.execute("SELECT * FROM users WHERE username=?", (phone,)).fetchone()
+        
+        if not user:
+            conn.close()
+            return render_template('forgot.html', error="Ee Phone/Username tho Account Ledu Bro!")
+        
+        conn.execute("UPDATE users SET password=? WHERE id=?", (new_pass, user['id']))
+        conn.commit()
+        conn.close()
+        return render_template('forgot.html', success="✅ Password Changed! Ippudu Login Avvu Bro!")
+    
+    return render_template('forgot.html')
 
 @app.route('/slots/<int:tid>')
 @nocache
