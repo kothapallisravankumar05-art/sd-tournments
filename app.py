@@ -100,8 +100,6 @@ def nocache(view):
         return resp
     return wrapper
 
-def is_admin(): return 'user_id' in session and session['user_id'] == ADMIN_USER_ID
-
 @app.route('/health')
 def health(): return "OK", 200
 
@@ -162,8 +160,7 @@ def login():
         p = (request.form.get('password') or "").strip()
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
-        if not user: 
-            user = conn.execute("SELECT * FROM users WHERE phone=?", (u,)).fetchone()
+        if not user: user = conn.execute("SELECT * FROM users WHERE phone=?", (u,)).fetchone()
         if not user: conn.close(); return render_template('login.html', error="Account Not Found!")
         if user['password']!= p: conn.close(); return render_template('login.html', error="Wrong Password!")
         session.permanent = True
@@ -235,32 +232,20 @@ def wallet():
 def deposit_history():
     if 'user_id' not in session: return redirect('/login')
     conn = get_db()
-    try:
-        user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-        history = conn.execute("SELECT * FROM payments WHERE user_id=? ORDER BY id DESC", (int(session['user_id']),)).fetchall()
-        conn.close()
-        return render_template('deposit_history.html', history=history, user=user)
-    except Exception as e:
-        print(e); traceback.print_exc()
-        try: conn.close()
-        except: pass
-        return f"Error: {e}", 500
+    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    history = conn.execute("SELECT * FROM payments WHERE user_id=? ORDER BY id DESC", (int(session['user_id']),)).fetchall()
+    conn.close()
+    return render_template('deposit_history.html', history=history, user=user)
 
 @app.route('/withdraw_history')
 @nocache
 def withdraw_history():
     if 'user_id' not in session: return redirect('/login')
     conn = get_db()
-    try:
-        user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-        history = conn.execute("SELECT * FROM withdrawals WHERE user_id=? ORDER BY id DESC", (int(session['user_id']),)).fetchall()
-        conn.close()
-        return render_template('withdraw_history.html', history=history, user=user)
-    except Exception as e:
-        print(e); traceback.print_exc()
-        try: conn.close()
-        except: pass
-        return f"Error: {e}", 500
+    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    history = conn.execute("SELECT * FROM withdrawals WHERE user_id=? ORDER BY id DESC", (int(session['user_id']),)).fetchall()
+    conn.close()
+    return render_template('withdraw_history.html', history=history, user=user)
 
 @app.route('/get_qr')
 @nocache
@@ -293,7 +278,6 @@ def verify_upi():
         conn.commit(); conn.close()
         return jsonify({"ok": True, "msg": f"✅ ₹{amt_i} Submitted! Admin approve chestadu!"})
     except Exception as e:
-        print(e); traceback.print_exc()
         try:
             if conn: conn.close()
         except: pass
@@ -306,31 +290,21 @@ def forgot_password():
         phone = (request.form.get('phone') or request.form.get('username') or "").strip()
         new_pass = (request.form.get('new_password') or "").strip()
         confirm_pass = (request.form.get('confirm_password') or new_pass).strip()
-        
-        if len(phone) < 4:
-            return render_template('forgot.html', error="Phone/Username Enter Chey Bro!")
-        if len(new_pass) < 4:
-            return render_template('forgot.html', error="Password Min 4 Characters Undali!")
-        if new_pass != confirm_pass:
-            return render_template('forgot.html', error="Passwords Match Kavatledu!")
-        
+        if len(phone) < 4: return render_template('forgot.html', error="Phone/Username Enter Chey Bro!")
+        if len(new_pass) < 4: return render_template('forgot.html', error="Password Min 4 Characters Undali!")
+        if new_pass != confirm_pass: return render_template('forgot.html', error="Passwords Match Kavatledu!")
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE phone=?", (phone,)).fetchone()
-        if not user:
-            user = conn.execute("SELECT * FROM users WHERE username=?", (phone,)).fetchone()
-        
+        if not user: user = conn.execute("SELECT * FROM users WHERE username=?", (phone,)).fetchone()
         if not user:
             conn.close()
             return render_template('forgot.html', error="Ee Phone/Username tho Account Ledu Bro!")
-        
         conn.execute("UPDATE users SET password=? WHERE id=?", (new_pass, user['id']))
-        conn.commit()
-        conn.close()
+        conn.commit(); conn.close()
         return render_template('forgot.html', success="✅ Password Changed! Ippudu Login Avvu Bro!")
-    
     return render_template('forgot.html')
 
-# ===== SLOTS WITH SELECTION =====
+# ===== SLOTS WITH SELECTION - FINAL =====
 @app.route('/slots/<int:tid>')
 @nocache
 def slots_page(tid):
@@ -339,14 +313,18 @@ def slots_page(tid):
     tour = conn.execute("SELECT * FROM tournaments WHERE id=?", (tid,)).fetchone()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     if not tour: conn.close(); return redirect('/')
-    
     joined_users = conn.execute("SELECT j.slot_no, u.username FROM joined j JOIN users u ON j.user_id=u.id WHERE j.tournament_id=? ORDER BY j.slot_no", (tid,)).fetchall()
     taken_slots = {row['slot_no']: row['username'] for row in joined_users}
-    
     already = conn.execute("SELECT * FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
-    total = int(tour['total'] or 12)
     conn.close()
-    return render_template('slots.html', tour=tour, user=user, taken_slots=taken_slots, total_slots=total, already=already)
+    return render_template('slots.html', tour=tour, t=tour, user=user, taken_slots=taken_slots, total_slots=len(taken_slots), already=already)
+
+@app.route('/confirm_join/<int:tid>')
+@nocache
+def confirm_join(tid):
+    slot_no = request.args.get('slot_no') or request.args.get('slot')
+    if not slot_no: return redirect(f'/slots/{tid}')
+    return redirect(f'/join/{tid}?slot={slot_no}')
 
 @app.route('/leaderboard')
 @nocache
@@ -402,18 +380,13 @@ def match_result(mid):
 @nocache
 def join_tournament(tid):
     if 'user_id' not in session: return redirect('/login')
-    slot_no = request.args.get('slot') or request.form.get('slot_no') or request.args.get('slot_no')
+    slot_no = request.args.get('slot') or request.form.get('slot_no') or request.form.get('slot') or request.args.get('slot_no')
     try: slot_no = int(slot_no)
-    except: 
-        # auto slot if not selected
+    except:
         conn_tmp = get_db()
         tour_tmp = conn_tmp.execute("SELECT joined,total FROM tournaments WHERE id=?", (tid,)).fetchone()
-        if tour_tmp:
-            slot_no = int(tour_tmp['joined'] or 0) + 1
-        else:
-            slot_no = 1
+        slot_no = int(tour_tmp['joined'] or 0) + 1 if tour_tmp else 1
         conn_tmp.close()
-    
     conn = get_db()
     try:
         tour = conn.execute("SELECT * FROM tournaments WHERE id=?", (tid,)).fetchone()
@@ -425,7 +398,6 @@ def join_tournament(tid):
         if int(tour['joined'] or 0) >= int(tour['total'] or 10): conn.close(); return redirect('/')
         slot_taken = conn.execute("SELECT id FROM joined WHERE tournament_id=? AND slot_no=?", (tid, slot_no)).fetchone()
         if slot_taken:
-            # find next free
             all_taken = conn.execute("SELECT slot_no FROM joined WHERE tournament_id=?", (tid,)).fetchall()
             taken_set = set([r[0] for r in all_taken])
             for i in range(1, int(tour['total'] or 48)+1):
