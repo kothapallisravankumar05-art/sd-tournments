@@ -9,7 +9,7 @@
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
 body{background:#ffffff!important; color:#111827; min-height:100vh}
 .header{background:#ffffff;padding:12px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10;flex-wrap:wrap;gap:8px;border-bottom:1px solid #e5e7eb;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
-.logo{font-weight:900;color:#111827;font-size:16px;display:flex;align-items:center;gap:8px}
+.logo{font-weight:900;color:#111827;font-size:16px;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
 .wallet{ background:#111827;color:#fff;padding:6px 12px;border-radius:20px;font-weight:900;text-decoration:none;font-size:13px}
 .top-actions{display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-top:8px}
 .action-btn{flex:1;text-align:center;padding:8px 5px;border-radius:20px;font-weight:900;font-size:11px;text-decoration:none;display:block}
@@ -45,7 +45,7 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 <body>
 <div class="header">
 <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
-<div class="logo"><img src="/static/icon.png" style="width:32px;height:32px;border-radius:50%;border:2px solid #111827"> SD TOURNAMENTS</div>
+<div class="logo" id="mainLogo"><img src="/static/icon.png" style="width:32px;height:32px;border-radius:50%;border:2px solid #111827"> SD TOURNAMENTS</div>
 <div>
 <a class="wallet" href="/wallet">₹ {{user.balance}} | Wallet</a>
 <a href="/logout" style="color:#ef4444;text-decoration:none;margin-left:10px;font-size:13px">Logout</a>
@@ -96,7 +96,7 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 <div class="card ongoing">
 <div class="live-banner">🔴 LIVE NOW - ROOM ID READY!</div>
 <div style="padding:15px">
-<div class="card-top"><span class="badge on">● LIVE</span><span style="font-size:11px;color:#dc2626">{{t.time | time12only}}</span></div>
+<div class="card-top"><span class="badge on">● LIVE</span><span style="font-size:11px;color:#dc2626">{{t.time | time12}}</span></div>
 <div class="title">{{t.game}} - {{t.type}}</div>
 {% if t.id in my_joined_ids %}
 <div class="room-box">
@@ -152,11 +152,23 @@ if(lastTab){
   const el = document.getElementById('tab-'+lastTab);
   if(el) showTab(lastTab, el);
 }
-</script>
-<script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
-    navigator.serviceWorker.register('/static/sw.js?v=3').then(function(reg){ console.log('SD Ready'); });
+    navigator.serviceWorker.register('/static/sw.js?v=3');
+  });
+}
+// 5 TAPS LOGO -> ADMIN SECRET
+let mainClicks = 0; let mainTimer = null;
+const mainLogo = document.getElementById('mainLogo');
+if(mainLogo){
+  mainLogo.addEventListener('click', function(){
+    mainClicks++; clearTimeout(mainTimer);
+    mainTimer = setTimeout(()=>{ mainClicks=0; }, 2500);
+    if(mainClicks >= 5){
+      mainClicks = 0;
+      if(navigator.vibrate) navigator.vibrate(80);
+      window.location.href = '/admin';
+    }
   });
 }
 </script>
