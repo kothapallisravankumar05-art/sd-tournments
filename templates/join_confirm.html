@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Join - Game ID - SD</title>
+<title>Join - Slot {{slot_no}} - SD TOURNAMENTS</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
 body{background:#0f172a;color:#fff;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:15px}
@@ -30,39 +30,32 @@ input:focus{border-color:#00ff88}
 <div class="sub">Enter Your Game Details</div>
 
 <div class="info">
-🎯 <b>{{t.game if t is defined else tour.game}} {{t.type if t is defined else tour.type}} #{{t.id if t is defined else tour.id}}</b><br>
-⏰ {{ (t.time if t is defined else tour.time) | time12}} | Prize <b style="color:gold">₹{{t.prize if t is defined else tour.prize}}</b><br>
-📌 Slot: <span class="slot-badge">#{{slot_no}}</span> | Fee: <b style="color:#00ff88">₹{{t.fee if t is defined else tour.fee}}</b><br>
-💰 Your Balance: <b style="color:{% if user.balance >= (t.fee if t is defined else tour.fee) %}#00ff88{% else %}#ff4444{% endif %}">₹{{user.balance}}</b>
+🎯 <b>{{t.game}} {{t.type}} #{{t.id}}</b><br>
+⏰ {{t.time | time12}} | Prize <b style="color:gold">₹{{t.prize}}</b><br>
+📌 Slot: <span class="slot-badge">#{{slot_no}}</span> | Fee: <b style="color:#00ff88">₹{{t.fee}}</b><br>
+💰 Balance: <b style="color:{% if user.balance|int >= t.fee|int %}#00ff88{% else %}#ff4444{% endif %}">₹{{user.balance}}</b>
 </div>
 
 {% if error %}
 <div class="err">⚠️ {{error}}</div>
 {% endif %}
 
-{% if user.balance < (t.fee if t is defined else tour.fee) %}
+{% if user.balance|int < t.fee|int %}
 <div class="warn">⚠️ Low Balance - Add Money First!</div>
-<a href="/wallet" class="add-btn">💸 ADD ₹{{ (t.fee if t is defined else tour.fee) - user.balance + 10 }} TO WALLET</a>
+<a href="/wallet" class="add-btn">💸 ADD ₹{{ t.fee|int - user.balance|int + 10 }} TO WALLET</a>
 {% endif %}
 
-<form method="POST" action="/join/{{t.id if t is defined else tour.id}}">
+<form method="POST" action="/join/{{t.id}}">
 <input type="hidden" name="slot_no" value="{{slot_no}}">
-
-<input type="text" name="game_id" placeholder="🔥 Free Fire UID / BGMI Game ID *" required minlength="2" maxlength="30">
-
-<input type="text" name="game_name" placeholder="🎯 In-Game Name (IGN) *" required minlength="2" maxlength="30">
-
-<button class="btn" {% if user.balance < (t.fee if t is defined else tour.fee) %}disabled{% endif %}>
-{% if user.balance >= (t.fee if t is defined else tour.fee) %}✅ CONFIRM JOIN - ₹{{t.fee if t is defined else tour.fee}}{% else %}❌ Insufficient Balance{% endif %}
+<input type="text" name="game_id" placeholder="🔥 Free Fire UID / BGMI Game ID *" required minlength="2" maxlength="30" value="{{ request.form.game_id if request.form }}">
+<input type="text" name="game_name" placeholder="🎯 In-Game Name (IGN) *" required minlength="2" maxlength="30" value="{{ request.form.game_name if request.form }}">
+<button class="btn" {% if user.balance|int < t.fee|int %}disabled{% endif %}>
+{% if user.balance|int >= t.fee|int %}✅ CONFIRM JOIN - ₹{{t.fee}}{% else %}❌ Insufficient Balance{% endif %}
 </button>
 </form>
 
-<a href="/slots/{{t.id if t is defined else tour.id}}" class="back">← Back to Slot Select</a>
-
-<div style="text-align:center;margin-top:12px;font-size:10px;color:#475569">
-⚠️ Game ID wrong isthe prize radu! Correct ID pettu
-</div>
-
+<a href="/slots/{{t.id}}" class="back">← Back to Slot Select</a>
+<div style="text-align:center;margin-top:12px;font-size:10px;color:#475569">⚠️ Wrong Game ID isthe prize radu!</div>
 </div>
 
 </body>
