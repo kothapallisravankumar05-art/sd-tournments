@@ -103,24 +103,21 @@ def migrate_game_id():
 init_db()
 migrate_game_id()
 
-# ===== EXACT 40 MIN FIXED TIMES - 9:00, 9:40, 10:20... =====
-# ===== EXACT 40 MIN FIXED TIMES - CORRECTED 24HR STORAGE + 12HR DISPLAY =====
+# ===== FINAL FIXED - EXACT TIMES - 24HR DB + 12HR DISPLAY =====
 def generate_daily_matches(conn):
     try:
         now = now_ist()
         today = now.strftime("%Y-%m-%d")
         now_full = now.strftime("%Y-%m-%d %H:%M")
-        print(f"Generating exact times for {today} after {now_full}")
-
-        # CORRECTED - ANNI 24HR FORMAT LO - 09:00 to 21:00
+        
+        # FIXED: Anni 24HR lo - 09:00 to 21:00 - Exact 40 min gap
         exact_slots = ["09:00","09:40","10:20","11:00","11:40","12:20","13:00","13:40","14:20","15:00","15:40","16:20","17:00","17:40","18:20","19:00","19:40","20:20","21:00"]
         
         types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
-        
         created=0
         for idx, slot in enumerate(exact_slots):
-            full_time = f"{today} {slot}"  # DB lo 24hr format - 2026-04-13 15:40
-            if full_time < now_full: 
+            full_time = f"{today} {slot}"
+            if full_time < now_full: # past matches skip
                 continue
             dup = conn.execute("SELECT id FROM tournments WHERE time=?", (full_time,)).fetchone()
             if dup:
@@ -130,9 +127,8 @@ def generate_daily_matches(conn):
             conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",
                          (g,t_type,'Bermuda',full_time,prize,fee,per_kill,total,0))
             created+=1
-            print(f"Created {full_time}")
         conn.commit()
-        print(f"✅ DONE Created {created} exact slots")
+        print(f"✅ EXACT 40MIN 12HR READY - Created {created}")
         return created
     except Exception as e:
         print(f"Gen Error {e}")
