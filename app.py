@@ -177,8 +177,7 @@ def health(): return "OK", 200
 def serve_upload(filename):
     try:
         return send_from_directory(UPLOAD_FOLDER, filename)
-    except Exception as e:
-        return f"File not found {filename}", 404
+    except: return f"File not found {filename}", 404
 
 @app.route('/static/uploads/<path:filename>')
 @nocache
@@ -188,8 +187,7 @@ def serve_static_upload(filename):
     except:
         try:
             return send_from_directory(UPLOAD_FOLDER, filename)
-        except Exception as e:
-            return f"Not found {filename}", 404
+        except: return f"Not found {filename}", 404
 
 @app.route('/nuke')
 @nocache
@@ -253,7 +251,6 @@ def debug_page():
     html += "<br><a href='/'>Home</a> | <a href='/nuke'>Nuke</a> | <a href='/force'>Force</a>"
     return html
 
-# ✅ FINAL FIXED - RESULTS TAB WORKING
 @app.route('/')
 @nocache
 def index():
@@ -272,10 +269,8 @@ def index():
     t = conn.execute("SELECT * FROM tournments WHERE status IN ('UPCOMING','LIVE') AND time >= ? ORDER BY time ASC", (grace,)).fetchall()
     if len(t) == 0:
         t = conn.execute("SELECT * FROM tournments WHERE status IN ('UPCOMING','LIVE') ORDER BY time ASC LIMIT 50").fetchall()
-    
     completed = conn.execute("SELECT * FROM tournments WHERE status='COMPLETED' ORDER BY time DESC LIMIT 100").fetchall()
     live = conn.execute("SELECT * FROM tournments WHERE status='LIVE' ORDER BY time ASC LIMIT 50").fetchall()
-    
     results_data = {}
     try:
         all_results = conn.execute("SELECT r.*, u.username FROM results r LEFT JOIN users u ON r.user_id=u.id WHERE r.status='APPROVED' ORDER BY r.kills DESC").fetchall()
@@ -286,7 +281,6 @@ def index():
             results_data[mid].append(dict(r))
     except Exception as e:
         print(f"Results error {e}")
-
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     if not user: session.clear(); conn.close(); return redirect('/login')
     my_joined = conn.execute("SELECT tournament_id FROM joined WHERE user_id=?", (session['user_id'],)).fetchall()
@@ -584,30 +578,10 @@ def my_tournaments():
     conn = None
     try:
         conn = get_db()
-        data = conn.execute("SELECT j.*, t.game, t.type, t.time, t.map, t.prize, t.fee, t.status, t.room_id, t.room_pass FROM joined j JOIN tournments t ON j.tournament_id=t.id WHERE j.user_id=? ORDER BY j.id DESC", (session['user_id'],)).fetchall()
+        data = conn.execute("SELECT j.*, t.game, t.type, t.time, t.map, t.prize, t.fee, t.per_kill, t.status, t.room_id, t.room_pass FROM joined j JOIN tournments t ON j.tournament_id=t.id WHERE j.user_id=? ORDER BY j.id DESC", (session['user_id'],)).fetchall()
         user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
         conn.close()
-        try:
-            return render_template('my_tournaments.html', joined=data, user=user)
-        except Exception as te:
-            print(f"Template missing {te}, showing fallback")
-            html = """
-            <html><head><meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>body{background:#0a0a0a;color:#fff;font-family:Arial;padding:12px}.card{background:#1a1a1a;padding:12px;border-radius:12px;margin:10px 0;border:1px solid #333}</style></head><body>
-            <h2 style="color:#00ff88">MY TOURNAMENTS</h2>
-            """
-            if not data:
-                html += "<p style='color:#888'>No tournaments joined yet<br><br><a href='/' style='color:#00ff88'>Join Now</a></p>"
-            for j in data:
-                d = dict(j)
-                html += f"<div class='card'><b>#{d.get('tournament_id')} {d.get('game')} {d.get('type')}</b><br>Slot #{d.get('slot_no')} | Time {d.get('time')}<br>Game ID: {d.get('game_id','N/A')} | IGN: {d.get('game_name','N/A')}<br>"
-                if d.get('room_id'):
-                    html += f"<div style='color:#00ff88;margin-top:6px'>Room: {d.get('room_id')} | Pass: {d.get('room_pass')}</div>"
-                else:
-                    html += "<div style='color:#888;font-size:12px;margin-top:6px'>Room ID will come 10 min before</div>"
-                html += "</div>"
-            html += "<br><a href='/' style='background:#fff;color:#000;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:900'>HOME</a></body></html>"
-            return html
+        return render_template('my_tournaments.html', joined=data, user=user)
     except Exception as e:
         print(f"my_tournaments error {e}")
         traceback.print_exc()
@@ -637,14 +611,12 @@ def leaderboard():
         except: pass
         return redirect('/')
 
+# ✅ ONLY SCREENSHOT - NO KILLS INPUT FROM USER - 100% SECURE
 @app.route('/submit_result', methods=['POST'])
 @nocache
 def submit_result():
     if 'user_id' not in session: return redirect('/login')
     match_id = request.form.get('match_id') or 0
-    kills = request.form.get('kills') or 0
-    try: kills_i=int(kills)
-    except: kills_i=0
     conn=get_db()
     try:
         joined = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], int(match_id))).fetchone()
@@ -659,16 +631,18 @@ def submit_result():
                 if ext not in ['jpg','jpeg','png','webp']: ext='jpg'
                 fname=f"{session['user_id']}_{match_id}_{random.randint(1000,9999)}.{ext}"
                 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-                save_path = os.path.join(UPLOAD_FOLDER, fname)
-                f.save(save_path)
-        existing = conn.execute("SELECT id FROM results WHERE match_id=? AND user_id=?", (int(match_id), session['user_id'])).fetchone()
+                f.save(os.path.join(UPLOAD_FOLDER, fname))
+        if not fname:
+            ex = conn.execute("SELECT screenshot FROM results WHERE match_id=? AND user_id=?", (int(match_id), session['user_id'])).fetchone()
+            if not ex or not ex['screenshot']:
+                conn.close()
+                return f"<h3>⚠️ Screenshot compulsory bro! <a href='/my_tournaments'>Back</a></h3>"
+        existing = conn.execute("SELECT id, screenshot FROM results WHERE match_id=? AND user_id=?", (int(match_id), session['user_id'])).fetchone()
         if existing:
-            old = conn.execute("SELECT screenshot FROM results WHERE id=?", (existing['id'],)).fetchone()
-            old_fname = old['screenshot'] if old and old['screenshot'] else ""
-            final_fname = fname if fname else old_fname
-            conn.execute("UPDATE results SET kills=?, screenshot=?, status='PENDING', time=? WHERE id=?", (kills_i, final_fname, now_ist().strftime("%d/%m %H:%M"), existing['id']))
+            final_fname = fname if fname else existing['screenshot']
+            conn.execute("UPDATE results SET kills=0, screenshot=?, status='PENDING', time=? WHERE id=?", (final_fname, now_ist().strftime("%d/%m %H:%M"), existing['id']))
         else:
-            conn.execute("INSERT INTO results (match_id,user_id,kills,status,screenshot,time) VALUES (?,?,?,?,?,?)",(int(match_id),session['user_id'],kills_i,'PENDING',fname,now_ist().strftime("%d/%m %H:%M")))
+            conn.execute("INSERT INTO results (match_id,user_id,kills,status,screenshot,time) VALUES (?,?,?,?,?,?)",(int(match_id),session['user_id'],0,'PENDING',fname,now_ist().strftime("%d/%m %H:%M")))
         conn.commit()
     except Exception as e: 
         print(f"Submit error {e}")
@@ -720,15 +694,26 @@ def admin_panel():
                     conn.execute("UPDATE tournments SET room_id=?, room_pass=?, status='LIVE' WHERE id=?", (rid, rpass, int(mid))); conn.commit()
             elif action == 'approve_result':
                 rid = request.form.get('result_id')
+                custom_kills = request.form.get('custom_kills') or request.form.get('new_kills') or "0"
                 if rid:
-                    r = conn.execute("SELECT r.*, t.per_kill FROM results r JOIN tournments t ON r.match_id=t.id WHERE r.id=?", (int(rid),)).fetchone()
-                    if r:
-                        conn.execute("UPDATE results SET status='APPROVED' WHERE id=?", (int(rid),))
-                        if r['per_kill'] and int(r['per_kill']) > 0 and int(r['kills']) > 0:
-                            kp = int(r['per_kill']) * int(r['kills'])
-                            conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (kp, int(r['user_id'])))
-                            conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(r['user_id']), kp, 'CREDIT', f'Kill Prize M{r["match_id"]} {r["kills"]}K', now_ist().strftime("%d/%m %H:%M")))
+                    try:
+                        k = int(custom_kills)
+                        if k<0: k=0
+                        if k>30: k=30
+                        conn.execute("UPDATE results SET kills=?, status='APPROVED' WHERE id=?", (k, int(rid)))
                         conn.commit()
+                    except: pass
+            elif action == 'update_kills':
+                rid = request.form.get('result_id')
+                new_kills = request.form.get('new_kills') or "0"
+                if rid:
+                    try:
+                        k = int(new_kills)
+                        if k<0: k=0
+                        if k>30: k=30
+                        conn.execute("UPDATE results SET kills=? WHERE id=?", (k, int(rid)))
+                        conn.commit()
+                    except: pass
             elif action == 'reject_result':
                 rid = request.form.get('result_id')
                 if rid:
@@ -740,17 +725,21 @@ def admin_panel():
             elif action == 'declare_winner':
                 mid = request.form.get('match_id')
                 winner_id = request.form.get('winner_id')
+                custom_kills = request.form.get('custom_kills') or "0"
                 if mid and winner_id:
                     tour = conn.execute("SELECT prize, per_kill FROM tournments WHERE id=?", (int(mid),)).fetchone()
                     prize = int(tour['prize'] if tour and tour['prize'] else 0)
                     per_kill = int(tour['per_kill'] if tour and tour['per_kill'] else 0)
-                    wr = conn.execute("SELECT * FROM results WHERE match_id=? AND user_id=?", (int(mid), int(winner_id))).fetchone()
-                    kills = int(wr['kills'] if wr and wr['kills'] else 0)
+                    try:
+                        kills = int(custom_kills)
+                        if kills<0: kills=0
+                        if kills>30: kills=30
+                    except: kills=0
+                    conn.execute("UPDATE results SET kills=?, status='APPROVED' WHERE match_id=? AND user_id=?", (kills, int(mid), int(winner_id)))
                     total_prize = prize + (per_kill * kills)
                     if total_prize > 0:
                         conn.execute("UPDATE users SET balance=balance+?, total_wins=total_wins+1 WHERE id=?", (total_prize, int(winner_id)))
-                        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(winner_id), total_prize, 'CREDIT', f'Won Match {mid} Prize {prize}+{per_kill}x{kills}={total_prize}', now_ist().strftime("%d/%m %H:%M")))
-                    conn.execute("UPDATE results SET status='APPROVED' WHERE match_id=? AND user_id=?", (int(mid), int(winner_id)))
+                        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(winner_id), total_prize, 'CREDIT', f'Won Match {mid} {kills}K Prize {total_prize} Verified', now_ist().strftime("%d/%m %H:%M")))
                     conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (int(mid),))
                     conn.commit()
             elif action == 'cancel_tournament':
