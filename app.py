@@ -103,25 +103,25 @@ def migrate_game_id():
 init_db()
 migrate_game_id()
 
-# ===== FINAL - 40 MIN GAP + SLOT + FF ID FLOW =====
+# ===== 40 MIN GAP CONFIRMED =====
 def generate_daily_matches(conn):
     try:
         now = now_ist()
         today_str = now.strftime("%Y-%m-%d")
         now_str = now.strftime("%Y-%m-%d %H:%M")
-        print(f"Generating for {today_str}, now={now_str}")
+        
+        # Old matches unte skip avthundi - So nuke cheyali
         try:
             if IS_POSTGRES:
                 row = conn.execute("SELECT COUNT(*) as count FROM tournments WHERE time LIKE ? AND status='UPCOMING' AND time >= ?", (f"{today_str}%", now_str)).fetchone()
-                future_count = int(row['count'] if row and 'count' in row else 0)
+                future_count = int(row['count'] if row else 0)
             else:
                 row = conn.execute("SELECT COUNT(*) FROM tournments WHERE time LIKE ? AND status='UPCOMING' AND time >= ?", (f"{today_str}%", now_str)).fetchone()
                 future_count = int(row[0] if row else 0)
-            print(f"Future count: {future_count}")
             if future_count >= 8:
+                print(f"Already {future_count} future matches - skip")
                 return 0
-        except Exception as e:
-            print(f"Count error {e}")
+        except: pass
 
         start_time = now.replace(second=0, microsecond=0) + timedelta(minutes=10)
         nine_am = now.replace(hour=9, minute=0, second=0, microsecond=0)
@@ -133,10 +133,8 @@ def generate_daily_matches(conn):
         types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
         created = 0
         for i in range(19):
-            t = start_time + timedelta(minutes=i*40)  # 40 MIN GAP PAKKA
-            if t.hour > 21 and t.day == start_time.day:
-                break
-            if t.day != start_time.day and t.hour > 21:
+            t = start_time + timedelta(minutes=i*40)  # 40 MIN GAP - IDHE MUKHYAM
+            if t.hour > 21:
                 break
             time_str = t.strftime("%Y-%m-%d %H:%M")
             dup = conn.execute("SELECT id FROM tournments WHERE time=?", (time_str,)).fetchone()
@@ -148,13 +146,12 @@ def generate_daily_matches(conn):
                         (game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0))
             created += 1
         conn.commit()
-        print(f"✅ GENERATED {created} with 40min gap from {start_time}")
+        print(f"✅ GENERATED {created} - 40min gap")
         return created
     except Exception as e:
         print(f"Gen Error: {e}")
-        traceback.print_exc()
         return 0
-
+        
 def cleanup_expired_matches(conn):
     try:
         one_hour_ago = (now_ist() - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
