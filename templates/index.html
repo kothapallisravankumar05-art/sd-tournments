@@ -54,7 +54,6 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 {% if notif_count and notif_count>0 %}<span class="notif-count" id="notifCount">{{notif_count}}</span>{% else %}<span class="notif-count" id="notifCount" style="display:none">0</span>{% endif %}
 </a>
 <a class="wallet" href="/wallet">₹ {{user.balance}} | Wallet</a>
-<a href="/logout" style="color:#ef4444;text-decoration:none;margin-left:5px;font-size:13px">Logout</a>
 </div>
 </div>
 <div class="top-actions">
@@ -210,7 +209,6 @@ function updateCountdowns(){
 setInterval(updateCountdowns, 30000);
 updateCountdowns();
 
-// 🔔 NOTIFICATION SYSTEM - NEW
 function askNotify(){
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
@@ -245,7 +243,6 @@ function checkBrowserNotify(){
 setInterval(checkBrowserNotify, 60000);
 checkBrowserNotify();
 
-// Live bell count auto update every 30s
 function updateNotifCount(){
   fetch('/api/notifications/count').then(r=>r.json()).then(d=>{
     const el = document.getElementById('notifCount');
