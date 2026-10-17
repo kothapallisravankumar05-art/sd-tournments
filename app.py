@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, make_response, jsonify
+from flask import Flask, render_template, request, redirect, session, make_response, jsonify, send_from_directory
 import os, random, string, sqlite3, traceback, urllib.parse
 from datetime import datetime, timedelta, timezone
 from functools import wraps
@@ -13,7 +13,8 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "sd_final_2026")
 app.config['PERMANENT_SESSION_LIFETIME']=timedelta(days=3650)
 DB_FILE = "/data/sd.db" if os.path.isdir("/data") else "sd.db"
-UPLOAD_FOLDER = "/data/uploads" if os.path.isdir("/data") else "static/uploads"
+# ✅ FIXED: Always static/uploads - /data lo file pothadi Render lo
+UPLOAD_FOLDER = "static/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs('static', exist_ok=True)
 os.makedirs('static/uploads', exist_ok=True)
@@ -133,14 +134,12 @@ def generate_daily_matches(conn):
                              (g,t_type,'Bermuda',full_time,prize,fee,per_kill,total,0))
                 created+=1
         conn.commit()
-        print(f"✅ Created {created}")
         return created
     except Exception as e:
         print(f"Gen Error {e}")
         traceback.print_exc()
         return 0
 
-# ✅ FIXED: LIVE kuda COMPLETED avvali
 def cleanup_expired_matches(conn):
     try:
         one_hour_ago = (now_ist() - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
@@ -173,6 +172,26 @@ def nocache(view):
 
 @app.route('/health')
 def health(): return "OK", 200
+
+# ✅ FIXED: Screenshot serve routes
+@app.route('/uploads/<filename>')
+@nocache
+def serve_upload(filename):
+    try:
+        return send_from_directory(UPLOAD_FOLDER, filename)
+    except Exception as e:
+        return f"File not found {filename}", 404
+
+@app.route('/static/uploads/<path:filename>')
+@nocache
+def serve_static_upload(filename):
+    try:
+        return send_from_directory("static/uploads", filename)
+    except:
+        try:
+            return send_from_directory(UPLOAD_FOLDER, filename)
+        except Exception as e:
+            return f"Not found {filename}", 404
 
 @app.route('/nuke')
 @nocache
@@ -236,7 +255,6 @@ def debug_page():
     html += "<br><a href='/'>Home</a> | <a href='/nuke'>Nuke</a> | <a href='/force'>Force</a>"
     return html
 
-# ✅ FIXED: LIVE + UPCOMING rendu Home lo kanipinchali
 @app.route('/')
 @nocache
 def index():
@@ -605,6 +623,7 @@ def leaderboard():
         except: pass
         return redirect('/')
 
+# ✅ FINAL FIXED: Screenshot save with extension + old file keep
 @app.route('/submit_result', methods=['POST'])
 @nocache
 def submit_result():
@@ -616,20 +635,33 @@ def submit_result():
     conn=get_db()
     try:
         joined = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], int(match_id))).fetchone()
-        if not joined: conn.close(); return redirect('/')
+        if not joined: 
+            conn.close()
+            return redirect('/')
         fname=""
         if 'screenshot' in request.files:
             f=request.files['screenshot']
-            if f and f.filename:
-                fname=f"{session['user_id']}_{match_id}_{random.randint(1000,9999)}.jpg"
-                f.save(os.path.join(UPLOAD_FOLDER,fname))
+            print(f"Upload file: {f.filename}")
+            if f and f.filename and f.filename != '':
+                ext = f.filename.rsplit('.',1)[-1].lower() if '.' in f.filename else 'jpg'
+                if ext not in ['jpg','jpeg','png','webp']: ext='jpg'
+                fname=f"{session['user_id']}_{match_id}_{random.randint(1000,9999)}.{ext}"
+                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                save_path = os.path.join(UPLOAD_FOLDER, fname)
+                f.save(save_path)
+                print(f"✅ Screenshot saved: {save_path} size {os.path.getsize(save_path)}")
         existing = conn.execute("SELECT id FROM results WHERE match_id=? AND user_id=?", (int(match_id), session['user_id'])).fetchone()
         if existing:
-            conn.execute("UPDATE results SET kills=?, screenshot=?, status='PENDING', time=? WHERE id=?", (kills_i, fname, now_ist().strftime("%d/%m %H:%M"), existing['id']))
+            old = conn.execute("SELECT screenshot FROM results WHERE id=?", (existing['id'],)).fetchone()
+            old_fname = old['screenshot'] if old and old['screenshot'] else ""
+            final_fname = fname if fname else old_fname
+            conn.execute("UPDATE results SET kills=?, screenshot=?, status='PENDING', time=? WHERE id=?", (kills_i, final_fname, now_ist().strftime("%d/%m %H:%M"), existing['id']))
         else:
             conn.execute("INSERT INTO results (match_id,user_id,kills,status,screenshot,time) VALUES (?,?,?,?,?,?)",(int(match_id),session['user_id'],kills_i,'PENDING',fname,now_ist().strftime("%d/%m %H:%M")))
         conn.commit()
-    except Exception as e: print(e)
+    except Exception as e: 
+        print(f"Submit error {e}")
+        traceback.print_exc()
     finally: conn.close()
     return redirect(f'/match_result/{match_id}')
 
@@ -675,11 +707,18 @@ def admin_panel():
                 if mid:
                     rid = ''.join(random.choices(string.digits, k=6)); rpass = ''.join(random.choices(string.digits, k=4))
                     conn.execute("UPDATE tournments SET room_id=?, room_pass=?, status='LIVE' WHERE id=?", (rid, rpass, int(mid))); conn.commit()
+            elif action == 'approve_result':
+                rid = request.form.get('result_id')
+                if rid:
+                    conn.execute("UPDATE results SET status='APPROVED' WHERE id=?", (int(rid),)); conn.commit()
+            elif action == 'reject_result':
+                rid = request.form.get('result_id')
+                if rid:
+                    conn.execute("UPDATE results SET status='REJECTED' WHERE id=?", (int(rid),)); conn.commit()
             elif action == 'complete_match':
                 tid = request.form.get('tournament_id')
                 if tid:
-                    conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (int(tid),))
-                    conn.commit()
+                    conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (int(tid),)); conn.commit()
             elif action == 'declare_winner':
                 mid = request.form.get('match_id')
                 winner_id = request.form.get('winner_id')
@@ -689,8 +728,7 @@ def admin_panel():
                     if prize > 0:
                         conn.execute("UPDATE users SET balance=balance+?, total_wins=total_wins+1 WHERE id=?", (prize, int(winner_id)))
                         conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(winner_id), prize, 'CREDIT', f'Won Match {mid}', now_ist().strftime("%d/%m %H:%M")))
-                        conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (int(mid),))
-                        conn.commit()
+                        conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (int(mid),)); conn.commit()
             elif action == 'cancel_tournament':
                 tid = request.form.get('tournament_id')
                 if tid:
