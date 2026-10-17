@@ -54,7 +54,7 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 </div>
 <div class="top-actions">
 <a href="/leaderboard" class="action-btn btn-gold">🏆 LEADERBOARD</a>
-<a href="/wallet" class="action-btn btn-pink">💸 REFER ₹10</a>
+<a href="/referral" class="action-btn btn-pink">💸 REFER ₹10</a>
 <a href="/account" class="action-btn btn-blue2">👤 ACCOUNT</a>
 </div>
 </div>
@@ -68,7 +68,6 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 </div>
 
 <div id="upcoming" class="section active">
-<!-- FIXED: tournments (app.py) not tournaments -->
 {% if tournments|length == 0 %}
 <div style="text-align:center;padding:40px;color:#9ca3af">🔥 No Upcoming Matches - <a href="/force" style="background:#111827;color:#fff;padding:8px 12px;border-radius:6px;text-decoration:none">Force Generate</a><br><br><a href="/debug" style="color:#6b7280;font-size:12px">Debug DB - Check count</a></div>
 {% endif %}
@@ -184,7 +183,6 @@ if(mainLogo){
     }
   });
 }
-
 function updateCountdowns(){
   const now = new Date();
   document.querySelectorAll('.countdown').forEach(el=>{
