@@ -1,93 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wallet - ₹{{ user.balance }}</title>
-<style>
-body{background:#0a0e1a;color:#fff;font-family:Arial;margin:0;padding:12px}
-.top{display:flex;justify-content:space-between;align-items:center;padding:10px}
-.card{background:#1a2332;padding:16px;border-radius:16px;margin-bottom:14px;border:1px solid #243044}
-.refer{background:linear-gradient(135deg,#4a1fb8,#6d28d9);padding:16px;border-radius:16px;margin-bottom:14px}
-input{width:100%;padding:14px;border-radius:10px;border:none;margin:8px 0;box-sizing:border-box;font-size:15px;outline:none}
-.btn-green{width:100%;padding:14px;background:#00ff88;color:#000;border:none;border-radius:10px;font-weight:900;cursor:pointer}
-.btn-yellow{width:100%;padding:14px;background:#fbbf24;color:#000;border:none;border-radius:10px;font-weight:900;cursor:pointer;margin-top:8px}
-.history-btns{display:flex;gap:10px;margin-bottom:14px}
-.history-btns a{flex:1;background:#1a2332;border:1px solid #334155;color:#fff;padding:12px;text-align:center;border-radius:12px;text-decoration:none;font-weight:700;font-size:13px}
-.copy-btn{background:#fbbf24;color:#000;padding:6px 12px;border-radius:8px;font-weight:900;border:none;cursor:pointer}
-</style>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Withdraw</title>
+    <style>
+        body { background: #0f172a; color: #fff; font-family: Arial; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding:15px; }
+        .box { background: #1e293b; padding: 25px; border-radius: 15px; width: 100%; max-width: 350px; text-align: center; border: 1px solid #334155; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h2 { color: gold; font-size: 20px; margin-bottom: 20px; }
+        input { padding: 14px; border-radius: 10px; border: none; margin: 8px 0; width: 90%; font-size: 16px; box-sizing: border-box; outline: none; }
+        button { padding: 14px 20px; background: #00ff88; color: #000; border: none; border-radius: 10px; font-weight: 900; width: 94%; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #00e67a; }
+        a { color: #00ff88; text-decoration: none; font-size: 14px; }
+        .btns{display:flex;gap:10px;margin-top:15px} .btns a{flex:1;background:#334155;color:#fff;padding:10px;border-radius:8px;text-align:center}
+    </style>
 </head>
 <body>
-
-<div class="top">
-<h3>💰 Wallet - ₹{{ user.balance if user else 0 }}</h3>
-<a href="/" style="color:#00ff88;text-decoration:none">← Home</a>
-</div>
-
-<!-- HISTORY BUTTONS - NEW -->
-<div class="history-btns">
-<a href="/deposit_history">📥 Deposit History</a>
-<a href="/withdraw_history">📤 Withdraw History</a>
-</div>
-
-<div class="refer">
-<h3 style="margin:0">💸 REFER & EARN ₹10</h3>
-<p style="font-size:13px;opacity:0.9">Invite Friend - You & Friend Both Get ₹10 Instant!</p>
-<div style="display:flex;gap:8px;background:#00000066;padding:10px;border-radius:10px;align-items:center">
-<input id="refLink" value="https://sd-tournments.onrender.com/refer/{{ user.referral_code }}" readonly style="background:transparent;color:#fff;border:none;margin:0;padding:0;font-size:12px">
-<button class="copy-btn" onclick="copyRef()">COPY</button>
-</div>
-<button class="btn-yellow" onclick="shareWA()">SHARE ON WHATSAPP</button>
-</div>
-
-<div class="card">
-<h3>💰 Add Money (Min ₹10)</h3>
-<input id="addAmt" type="number" value="50" placeholder="Amount">
-<button class="btn-green" onclick="showQR()">PAY ₹<span id="amtShow">50</span> - SHOW QR</button>
-<p style="text-align:center;font-size:11px;color:#64748b;margin-top:8px">Direct UPI App Open - No Number Needed ✅</p>
-<div id="qrBox" style="display:none;text-align:center;margin-top:10px"></div>
-<form id="utrForm" style="margin-top:10px;display:none">
-<input id="utrInput" placeholder="Enter UTR / Transaction ID" required>
-<button type="submit" class="btn-green" style="background:#3b82f6;color:#fff">VERIFY UTR</button>
-</form>
-</div>
-
-<div class="card">
-<h3>💸 Withdraw (Min ₹200)</h3>
-<form method="POST">
-<input name="amount" type="number" placeholder="Amount Min 200" required>
-<input name="upi_id" placeholder="Your UPI ID" required>
-<button class="btn-yellow" type="submit">REQUEST WITHDRAWAL</button>
-</form>
-</div>
-
-<script>
-let addAmt = document.getElementById('addAmt');
-let amtShow = document.getElementById('amtShow');
-addAmt.addEventListener('input',()=>{ amtShow.innerText=addAmt.value||50; });
-function copyRef(){
- let l=document.getElementById('refLink');
- l.select(); document.execCommand('copy');
- alert('Copied!');
-}
-function shareWA(){
- let link=document.getElementById('refLink').value;
- window.open('https://wa.me/?text='+encodeURIComponent('Join SD Tournament & Get ₹10 Bonus! '+link),'_blank');
-}
-function showQR(){
- let amt=addAmt.value||50;
- fetch('/get_qr?amount='+amt).then(r=>r.json()).then(d=>{
-   document.getElementById('qrBox').innerHTML='<img src="'+d.qr_url+'" style="width:200px;background:#fff;padding:10px;border-radius:10px"><br><a href="'+d.upi_link+'" style="display:block;margin-top:10px;background:#00ff88;color:#000;padding:10px;border-radius:8px;text-decoration:none;font-weight:900">OPEN UPI APP</a>';
-   document.getElementById('qrBox').style.display='block';
-   document.getElementById('utrForm').style.display='block';
- });
-}
-document.getElementById('utrForm').addEventListener('submit', function(e){
- e.preventDefault();
- let utr=document.getElementById('utrInput').value;
- let amt=addAmt.value||50;
- fetch('/verify_upi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({utr:utr,amount:amt})})
- .then(r=>r.json()).then(d=>{ alert(d.msg); if(d.ok) location.reload(); });
-});
-</script>
+    <div class="box">
+        <h2>Withdraw - Balance ₹{{ user.balance }}</h2>
+        <form method="POST" action="/wallet">
+            <input name="amount" type="number" placeholder="Amount Min 200" required>
+            <br>
+            <input name="upi_id" placeholder="Your UPI ID" required>
+            <br>
+            <button type="submit">REQUEST WITHDRAW</button>
+        </form>
+        <div class="btns">
+          <a href="/deposit_history">📥 Deposits</a>
+          <a href="/withdraw_history">📤 Withdraws</a>
+        </div>
+        <br>
+        <a href="/wallet">← Back to Wallet</a>
+    </div>
 </body>
 </html>
