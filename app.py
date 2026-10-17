@@ -103,24 +103,19 @@ def migrate_game_id():
 init_db()
 migrate_game_id()
 
-# ===== 40 MIN GAP CONFIRMED =====
+# ===== FINAL FIX - 40 MIN GAP - NO SKIP =====
 def generate_daily_matches(conn):
     try:
         now = now_ist()
-        today_str = now.strftime("%Y-%m-%d")
-        now_str = now.strftime("%Y-%m-%d %H:%M")
-        
-        # Old matches unte skip avthundi - So nuke cheyali
+        # 20 min old matches anni delete - Force 40 gap kosam
         try:
-            if IS_POSTGRES:
-                row = conn.execute("SELECT COUNT(*) as count FROM tournments WHERE time LIKE ? AND status='UPCOMING' AND time >= ?", (f"{today_str}%", now_str)).fetchone()
-                future_count = int(row['count'] if row else 0)
-            else:
-                row = conn.execute("SELECT COUNT(*) FROM tournments WHERE time LIKE ? AND status='UPCOMING' AND time >= ?", (f"{today_str}%", now_str)).fetchone()
-                future_count = int(row[0] if row else 0)
-            if future_count >= 8:
-                print(f"Already {future_count} future matches - skip")
-                return 0
+            conn.execute("DELETE FROM tournments WHERE time LIKE ? AND joined=0 AND status='UPCOMING' AND time >= ? AND (CAST(substr(time, 12, 2) AS INTEGER) % 40 != 20 OR CAST(substr(time, 12, 2) AS INTEGER) % 40 != 0)", (f"{now.strftime('%Y-%m-%d')}%", now.strftime("%Y-%m-%d %H:%M")))
+        except:
+            pass
+        # Simple - today 20min gap matches delete
+        try:
+            # Postgres lo ilanti complex query vaddu - direct delete in nuke
+            pass
         except: pass
 
         start_time = now.replace(second=0, microsecond=0) + timedelta(minutes=10)
@@ -129,12 +124,13 @@ def generate_daily_matches(conn):
             start_time = nine_am
         if start_time.hour >= 21:
             start_time = (now + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+            print(f"After 9PM - tomorrow {start_time}")
 
         types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
         created = 0
-        for i in range(19):
-            t = start_time + timedelta(minutes=i*40)  # 40 MIN GAP - IDHE MUKHYAM
-            if t.hour > 21:
+        for i in range(12): # 9AM to 9PM - 12 matches with 40 gap
+            t = start_time + timedelta(minutes=i*40)  # 40 MIN GAP PAKKA
+            if t.hour > 21 or (t.hour == 21 and t.minute > 0):
                 break
             time_str = t.strftime("%Y-%m-%d %H:%M")
             dup = conn.execute("SELECT id FROM tournments WHERE time=?", (time_str,)).fetchone()
@@ -146,10 +142,11 @@ def generate_daily_matches(conn):
                         (game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0))
             created += 1
         conn.commit()
-        print(f"✅ GENERATED {created} - 40min gap")
+        print(f"✅ 40MIN GAP - GENERATED {created} from {start_time}")
         return created
     except Exception as e:
         print(f"Gen Error: {e}")
+        traceback.print_exc()
         return 0
         
 def cleanup_expired_matches(conn):
@@ -204,7 +201,7 @@ def nuke_all():
             conn.commit()
         except: pass
     conn.close()
-    return "<h1>🔥 NUKED! <a href='/force'>Force</a></h1>"
+    return "<h1>🔥 NUKED - 20min gap deleted! <a href='/force'>Force 40min Now</a></h1>"
 
 @app.route('/cleanup')
 @nocache
@@ -234,7 +231,7 @@ def force_generate():
             row = conn.execute("SELECT COUNT(*) FROM tournments WHERE status='UPCOMING' AND time >= ?", (now_ist().strftime("%Y-%m-%d %H:%M"),)).fetchone()
             cnt = int(row[0] if row else 0)
         conn.close()
-        return f"<h1>Generated {c}, Future {cnt} - 40min gap<br><a href='/'>Home</a></h1>"
+        return f"<h1>✅ Generated {c} matches with 40min gap, Future Total {cnt}<br><a href='/'>Home</a> | <a href='/debug'>Debug</a></h1>"
     except Exception as e:
         conn.close()
         return f"<h1>Error {e}</h1>"
@@ -245,9 +242,10 @@ def debug_page():
     conn = get_db()
     rows = conn.execute("SELECT * FROM tournments ORDER BY time ASC LIMIT 50").fetchall()
     conn.close()
-    html = "<h2>DB Tournaments - 40min gap:</h2>"
+    html = "<h2>DB - 40min gap check:</h2>"
     for r in rows:
-        html += f"{dict(r)}<br>"
+        d = dict(r)
+        html += f"{d['time']} - {d['type']} - Fee {d['fee']}<br>"
     html += "<br><a href='/'>Home</a> | <a href='/nuke'>Nuke</a> | <a href='/force'>Force</a>"
     return html
 
@@ -258,9 +256,17 @@ def index():
     conn = get_db()
     try:
         cleanup_expired_matches(conn)
-        generate_daily_matches(conn)
+        # Only generate if less than 5 future matches - Force 40 gap
+        grace_check = (now_ist()).strftime("%Y-%m-%d %H:%M")
+        row = conn.execute("SELECT COUNT(*) FROM tournments WHERE time >= ? AND status='UPCOMING'", (grace_check,)).fetchone()
+        cnt = int(row[0] if row and row[0] else 0) if not IS_POSTGRES else int(row['count'] if row else 0)
+        if cnt < 5:
+            generate_daily_matches(conn)
     except Exception as e:
         print(f"Index error {e}")
+        try:
+            generate_daily_matches(conn)
+        except: pass
     grace = (now_ist() - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M")
     t = conn.execute("SELECT * FROM tournments WHERE status='UPCOMING' AND time >= ? ORDER BY time ASC", (grace,)).fetchall()
     if len(t) == 0:
