@@ -35,6 +35,8 @@ def time12_filter(t):
     except: return str(t)
 @app.template_filter('time')
 def time_filter(t): return time12_filter(t)
+@app.template_filter('time12only')
+def time12only_filter(t): return time12_filter(t)
 
 class PGWrapper:
     def __init__(self, conn): self.conn = conn
@@ -101,6 +103,7 @@ def is_admin(): return 'user_id' in session and session['user_id'] == ADMIN_USER
 
 @app.route('/health')
 def health(): return "OK", 200
+
 @app.errorhandler(500)
 def handle_500(e):
     traceback.print_exc()
@@ -258,6 +261,71 @@ def verify_upi():
             if conn: conn.close()
         except: pass
         return jsonify({"ok": False, "msg": f"Error: {e}"}), 500
+
+@app.route('/slots/<int:tid>')
+@nocache
+def slots_page(tid):
+    if 'user_id' not in session: return redirect('/login')
+    conn = get_db()
+    tour = conn.execute("SELECT * FROM tournaments WHERE id=?", (tid,)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    if not tour: conn.close(); return redirect('/')
+    already = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
+    conn.close()
+    return f"""
+    <html><head><meta name='viewport' content='width=device-width'><style>
+    body{{font-family:Arial;background:#f9fafb;padding:20px}} .card{{background:#fff;padding:20px;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}}
+    .btn{{width:100%;padding:14px;background:#111827;color:#fff;border:none;border-radius:10px;font-weight:900;margin-top:15px;display:block;text-align:center;text-decoration:none}}
+    </style></head><body>
+    <div class='card'><h2>{tour['game']} - {tour['type']}</h2>
+    <p>Prize: ₹{tour['prize']} | Fee: ₹{tour['fee']}</p>
+    <p>{tour['joined']}/{tour['total']} Joined</p>
+    {"<p style='color:green;font-weight:900'>✅ ALREADY JOINED</p>" if already else f"<a class='btn' href='/join/{tid}'>JOIN NOW - ₹{tour['fee']}</a>"}
+    <a href='/' style='display:block;text-align:center;margin-top:10px;color:#6b7280'>Back to Home</a>
+    </div></body></html>
+    """
+
+@app.route('/leaderboard')
+@nocache
+def leaderboard():
+    conn = get_db()
+    top = conn.execute("SELECT username, total_wins, balance FROM users ORDER BY total_wins DESC LIMIT 30").fetchall()
+    conn.close()
+    html = "<html><head><meta name='viewport' content='width=device-width'></head><body style='font-family:Arial;padding:15px'><h2>🏆 LEADERBOARD</h2>"
+    for i,r in enumerate(top,1): html+=f"<div style='padding:10px;border-bottom:1px solid #eee'>{i}. {r['username']} - {r['total_wins']} Wins</div>"
+    html+="<a href='/' style='display:block;margin-top:20px;text-align:center'>Back Home</a></body></html>"
+    return html
+
+@app.route('/submit_result', methods=['POST'])
+@nocache
+def submit_result():
+    if 'user_id' not in session: return redirect('/login')
+    match_id = request.form.get('match_id') or 0
+    kills = request.form.get('kills') or 0
+    try: kills_i=int(kills)
+    except: kills_i=0
+    conn=get_db()
+    try:
+        fname=""
+        if 'screenshot' in request.files:
+            f=request.files['screenshot']
+            if f and f.filename:
+                fname=f"{session['user_id']}_{match_id}_{random.randint(1000,9999)}.jpg"
+                f.save(os.path.join(UPLOAD_FOLDER,fname))
+        conn.execute("INSERT INTO results (match_id,user_id,kills,status,screenshot,time) VALUES (?,?,?,?,?,?)",(int(match_id),session['user_id'],kills_i,'PENDING',fname,now_ist().strftime("%d/%m %H:%M")))
+        conn.commit()
+    except Exception as e: print(e)
+    finally: conn.close()
+    return redirect('/')
+
+@app.route('/match_result/<int:mid>')
+@nocache
+def match_result(mid):
+    conn=get_db()
+    tour=conn.execute("SELECT * FROM tournaments WHERE id=?",(mid,)).fetchone()
+    results=conn.execute("SELECT r.*,u.username FROM results r LEFT JOIN users u ON r.user_id=u.id WHERE r.match_id=? ORDER BY r.kills DESC",(mid,)).fetchall()
+    conn.close()
+    return render_template('match_result.html', t=tour, results=results) if tour else redirect('/')
 
 @app.route('/join/<int:tid>', methods=['POST','GET'])
 @nocache
