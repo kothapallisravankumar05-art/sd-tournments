@@ -19,13 +19,15 @@ os.makedirs('static', exist_ok=True)
 os.makedirs('static/uploads', exist_ok=True)
 MY_UPI_ID = os.getenv("UPI_ID", "9550043870@ibl")
 SITE_URL = "https://sd-tournments.onrender.com"
-ADMIN_USER_ID = 1
 
 @app.template_filter('time12')
 def time12_filter(t):
     try:
         if not t: return ""
         s = str(t).strip()
+        # "2026-10-17 13:40" nunchi time teeyali
+        if " " in s:
+            s = s.split(" ")[-1]
         parts = s.split(":")
         if len(parts) < 2: return s
         h = int(parts[0]); m = int(parts[1])
@@ -92,6 +94,48 @@ def init_db():
     finally: conn.close()
 init_db()
 
+# ===== AUTO DAILY MATCHES + AUTO CLEANUP =====
+def generate_daily_matches(conn):
+    try:
+        today_str = now_ist().strftime("%Y-%m-%d")
+        existing_today = conn.execute("SELECT COUNT(*) FROM tournaments WHERE time LIKE ? AND status='UPCOMING'", (f"{today_str}%",)).fetchone()[0]
+        if existing_today >= 10:
+            return
+        base_date = now_ist().replace(hour=9, minute=0, second=0, microsecond=0)
+        if now_ist().hour >= 9:
+            base_date = now_ist().replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+            if base_date.minute != 0:
+                base_date = base_date.replace(minute=0)
+        types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
+        for i in range(19):
+            t = base_date + timedelta(minutes=i*40)
+            if t.day != base_date.day: break
+            if t < now_ist() + timedelta(minutes=5): continue
+            game, typ, fee, prize, total = types[i % len(types)]
+            time_str = t.strftime("%Y-%m-%d %H:%M")
+            exists = conn.execute("SELECT id FROM tournaments WHERE time=? AND game=? AND type=?", (time_str, game, typ)).fetchone()
+            if not exists:
+                per_kill = 8 if typ=='Solo' else 0
+                conn.execute("INSERT INTO tournaments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",(game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0))
+        conn.commit()
+    except Exception as e: print(f"Daily Gen Error: {e}")
+
+def cleanup_expired_matches(conn):
+    try:
+        now_str = now_ist().strftime("%Y-%m-%d %H:%M")
+        expired = conn.execute("SELECT id, joined, total FROM tournaments WHERE time < ? AND status='UPCOMING'", (now_str,)).fetchall()
+        for tour in expired:
+            joined = int(tour['joined'] or 0)
+            total = int(tour['total'] or 10)
+            if joined >= total:
+                conn.execute("UPDATE tournaments SET status='COMPLETED' WHERE id=?", (tour['id'],))
+            else:
+                conn.execute("DELETE FROM tournaments WHERE id=?", (tour['id'],))
+                conn.execute("DELETE FROM joined WHERE tournament_id=?", (tour['id'],))
+        if expired:
+            conn.commit()
+    except Exception as e: print(f"Cleanup Error: {e}")
+
 def nocache(view):
     @wraps(view)
     def wrapper(*args, **kwargs):
@@ -113,7 +157,11 @@ def handle_500(e):
 def index():
     if 'user_id' not in session: return redirect('/login')
     conn = get_db()
-    t = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
+    try:
+        generate_daily_matches(conn)
+        cleanup_expired_matches(conn)
+    except: pass
+    t = conn.execute("SELECT * FROM tournaments WHERE status='UPCOMING' ORDER BY time ASC").fetchall()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     if not user: session.clear(); conn.close(); return redirect('/login')
     my_joined = conn.execute("SELECT tournament_id FROM joined WHERE user_id=?", (session['user_id'],)).fetchall()
@@ -304,7 +352,6 @@ def forgot_password():
         return render_template('forgot.html', success="✅ Password Changed! Ippudu Login Avvu Bro!")
     return render_template('forgot.html')
 
-# ===== SLOTS WITH SELECTION - FINAL =====
 @app.route('/slots/<int:tid>')
 @nocache
 def slots_page(tid):
