@@ -107,56 +107,34 @@ migrate_game_id()
 def generate_daily_matches(conn):
     try:
         now = now_ist()
-        today_str = now.strftime("%Y-%m-%d")
-        now_str = now.strftime("%Y-%m-%d %H:%M")
-        
-        # Fixed schedule - Exact numbers
-        fixed_times = [
-            "09:00", "09:40", "10:20", "11:00", "11:40", 
-            "12:20", "1:00", "1:40", "2:20", "3:00",
-            "3:40", "4:20", "5:00", "5:40", "6:20",
-            "7:00", "7:40", "8:20", "9:00"
-        ]
-        
+        today = now.strftime("%Y-%m-%d")
+        now_full = now.strftime("%Y-%m-%d %H:%M")
+        print(f"Generating exact times for {today} after {now_full}")
+
+        exact_slots = ["09:00","09:40","10:20","11:00","11:40","12:20","1:00","1:40","2:20","3:00","3:40","4:20","5:00","5:40","6:20","7:00","7:40","8:20","9:00"]
         types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
-        created = 0
         
-        for i, ft in enumerate(fixed_times):
-            time_str = f"{today_str} {ft}"
-            # Future matches only - Past ayithe skip
-            if time_str < now_str:
+        created=0
+        for idx, slot in enumerate(exact_slots):
+            full_time = f"{today} {slot}"
+            if full_time < now_full: # past ayithe skip
                 continue
-            # Already unda?
-            dup = conn.execute("SELECT id FROM tournments WHERE time=?", (time_str,)).fetchone()
+            dup = conn.execute("SELECT id FROM tournments WHERE time=?", (full_time,)).fetchone()
             if dup:
+                print(f"Skip dup {full_time}")
                 continue
-            
-            game, typ, fee, prize, total = types[i % len(types)]
-            per_kill = 8 if typ == 'Solo' else 0
+            g,t_type,fee,prize,total = types[idx % len(types)]
+            per_kill = 8 if t_type=='Solo' else 0
             conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",
-                        (game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0))
-            created += 1
-        
-        # Tomorrow kuda generate chey - 9PM tarvata emi lekapothe
-        if created < 3:
-            tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
-            for i, ft in enumerate(fixed_times[:8]): # Tomorrow morning 8 matches
-                time_str = f"{tomorrow} {ft}"
-                dup = conn.execute("SELECT id FROM tournments WHERE time=?", (time_str,)).fetchone()
-                if dup:
-                    continue
-                game, typ, fee, prize, total = types[i % len(types)]
-                per_kill = 8 if typ == 'Solo' else 0
-                conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",
-                            (game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0))
-                created += 1
-                
+                         (g,t_type,'Bermuda',full_time,prize,fee,per_kill,total,0))
+            created+=1
+            print(f"Created {full_time}")
         conn.commit()
-        print(f"✅ EXACT 40MIN - GENERATED {created} - Times: {fixed_times}")
+        print(f"✅ DONE Created {created} exact slots")
         return created
     except Exception as e:
-        print(f"Gen Error: {e}")
-        traceback.print_exc()
+        print(f"Gen Error {e}")
+        import traceback; traceback.print_exc()
         return 0
         
 def cleanup_expired_matches(conn):
