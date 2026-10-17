@@ -22,7 +22,7 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 .badge-pending{background:orange;color:#000}
 .badge-approved{background:#00ff88;color:#000}
 .badge-rejected{background:#ff4444;color:#fff}
-.result-item{background:#111;border:1px solid gold;padding:12px;border-radius:10px;margin:8px 0;max-width:100%;overflow:hidden;}
+.result-item{background:#111;border:2px solid gold;padding:12px;border-radius:10px;margin:10px 0;max-width:100%;overflow:hidden;}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:15px}
 .stat-box{background:linear-gradient(135deg,#1a1a1a,#222);padding:15px;border-radius:10px;text-align:center;border:1px solid #333}
 .stat-box h2{margin:5px 0;color:gold}
@@ -116,24 +116,43 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 </div>
 <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
 <form method="POST" style="display:inline"><input type="hidden" name="action" value="generate_room_id"><input type="hidden" name="mid" value="{{m.id}}"><button class="btn-green" style="background:gold;color:#000;">🎲 AUTO ROOM</button></form>
-<form method="POST" style="display:inline" onsubmit="return confirm('⚠️ CANCEL + REFUND?\n\nMatch #{{m.id}} cancel chesthe joined {{m.joined}} users ki ₹{{m.fee}} refund vasthadi!\n\nConfirm?')"><input type="hidden" name="action" value="cancel_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-orange">CANCEL + REFUND</button></form>
-<form method="POST" style="display:inline" onsubmit="return confirm('⚠️ DELETE + REFUND?\n\nMatch #{{m.id}} delete chesthe joined {{m.joined}} users ki ₹{{m.fee}} refund vasthadi!\n\nConfirm DELETE?')"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red">DELETE + REFUND</button></form>
+<form method="POST" style="display:inline"><input type="hidden" name="action" value="complete_match"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-orange">🏁 COMPLETE</button></form>
+<form method="POST" style="display:inline" onsubmit="return confirm('⚠️ CANCEL + REFUND?\n\nMatch #{{m.id}} cancel chesthe joined {{m.joined}} users ki ₹{{m.fee}} refund vasthadi!\n\nConfirm?')"><input type="hidden" name="action" value="cancel_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-orange">CANCEL</button></form>
+<form method="POST" style="display:inline" onsubmit="return confirm('⚠️ DELETE + REFUND?\n\nMatch #{{m.id}} delete chesthe joined {{m.joined}} users ki ₹{{m.fee}} refund vasthadi!\n\nConfirm DELETE?')"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red">DELETE</button></form>
+<a href="/match_result/{{m.id}}" style="background:#333;color:#fff;padding:8px 12px;border-radius:6px;text-decoration:none;font-weight:900">RESULT</a>
 </div>
 </div>
 {% endfor %}
 </div>
 </div>
 
-<div class="card" style="border:2px solid gold;">
-<h3 style="color:gold;">🏆 Match Results ({{pending_results|length}} Pending)</h3>
+<div class="card" style="border:2px solid gold;background:linear-gradient(135deg,#1a1a1a,#2a2000);">
+<h3 style="color:gold;">🏆 Match Results - Screenshot Check Chesi Approve Chey ({{pending_results|length}} Pending)</h3>
+{% if pending_results|length==0 %}
+<p style="color:#888">No pending results - User submit cheste ikkada screenshot tho kanipisthadi</p>
+{% endif %}
 {% for r in pending_results %}
 <div class="result-item">
-ID: <b style="color:gold">{{r.id}}</b> | Match {{r.match_id}} | User {{r.user_id}} ({{r.username}})<br>
-Kills: <b style="color:gold;">{{r.kills}}</b> | {{r.status}} | {{r.time}}<br>
-{% if r.screenshot %}<a href="/static/uploads/{{r.screenshot}}" target="_blank" style="color:#00ff88;">📸 VIEW</a>{% endif %}
-<div style="margin-top:8px;">
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="approve_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-green">APPROVE</button></form>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="reject_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-red">REJECT</button></form>
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px">
+<div style="flex:1;min-width:200px">
+<b style="color:gold;font-size:16px">#{{r.id}} - Match #{{r.match_id}}</b><br>
+👤 <b style="color:#fff">{{r.username}} (ID {{r.user_id}})</b><br>
+🔫 Kills: <b style="color:#00ff88;font-size:20px">{{r.kills}}</b> | <span class="badge badge-pending">{{r.status}}</span> | {{r.time}}<br>
+{% if r.screenshot %}
+<div style="margin-top:10px">
+<a href="/static/uploads/{{r.screenshot}}" target="_blank" style="color:#00ff88;font-weight:900">📸 SCREENSHOT CHUDU</a><br>
+<img src="/static/uploads/{{r.screenshot}}" style="max-width:220px;max-height:220px;border-radius:10px;margin-top:8px;border:2px solid gold;cursor:pointer" onclick="window.open(this.src)" onerror="this.parentElement.innerHTML='<span style=color:#ff4444>No image found</span>'">
+</div>
+{% else %}
+<span style="color:#ff4444;font-size:12px">⚠️ No Screenshot uploaded</span>
+{% endif %}
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;min-width:180px">
+<form method="POST"><input type="hidden" name="action" value="approve_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-green" style="width:100%;padding:12px;font-size:14px">✅ APPROVE KILLS</button></form>
+<form method="POST"><input type="hidden" name="action" value="reject_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-red" style="width:100%;padding:10px">❌ REJECT</button></form>
+<form method="POST" onsubmit="return confirm('👑 WINNER?\n\n{{r.username}} ki Match #{{r.match_id}} prize credit avthadi + COMPLETED avthadi!')"><input type="hidden" name="action" value="declare_winner"><input type="hidden" name="match_id" value="{{r.match_id}}"><input type="hidden" name="winner_id" value="{{r.user_id}}"><button class="btn-gold" style="width:100%;padding:14px;font-size:13px;font-weight:900">👑 WINNER + PRIZE CREDIT</button></form>
+<a href="/match_result/{{r.match_id}}" style="background:#222;color:#fff;padding:10px;text-align:center;border-radius:8px;text-decoration:none;font-weight:900;border:1px solid #555">📊 FULL RESULT PAGE</a>
+</div>
 </div>
 </div>
 {% endfor %}
