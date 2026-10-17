@@ -33,7 +33,7 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 .time12{color:gold;font-weight:900;font-size:14px}
 .time24{color:#888;font-size:11px}
 .countdown{color:#ff6b6b;font-weight:900;font-size:11px}
-.joined-list{font-size:11px;color:#00ff88;margin-top:4px;background:#111;padding:6px;border-radius:4px}
+.joined-list{font-size:11px;color:#00ff88;margin-top:4px;background:#111;padding:6px;border-radius:4px;word-break:break-all;}
 </style>
 </head>
 <body>
@@ -52,11 +52,10 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 <p style="font-size:11px;color:#888;">CS Solo ₹30/₹40 (2) | CS Duo ₹30/₹80 (4) | CS Squad ₹25/₹150 (8) | Bermuda Solo ₹15/₹1000 (48) + ₹8/Kill</p>
 <form method="POST" style="margin-top:10px;">
 <input type="hidden" name="action" value="auto_generate">
-<button class="btn-gold" style="width:100%;padding:15px;font-size:14px;">🚀 GENERATE TODAY'S 19 TOURNAMENTS</button>
+<button class="btn-gold" style="width:100%;padding:15px;font-size:14px;">🚀 GENERATE TODAY'S 19 TOURNAMENTS (DAILY)</button>
 </form>
 </div>
 
-<!-- 1. ADD TOURNAMENT - FIXED BORDER + PER PERSON -->
 <div class="card" style="border:2px solid #00ff88;">
 <h3>➕ Add New Tournament - PER PERSON CUSTOM</h3>
 <form method="POST" id="tournamentForm">
@@ -100,9 +99,8 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 </form>
 </div>
 
-<!-- SEARCH + LIST -->
 <div class="card">
-<h3>📋 All Tournaments ({{matches|length}}) - Home tho Same Time</h3>
+<h3>📋 All Tournaments ({{matches|length}}) - Daily 9AM-9PM 40min Gap</h3>
 <input type="text" id="searchMatch" class="search-box" placeholder="🔍 Search: ID 47, Squad, 5:00 PM, 17:00...">
 <div id="matchList">
 {% for m in matches %}
@@ -112,14 +110,14 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 ⏰ <span class="time12">{{m.time|time12}}</span> <span class="time24">({{m.time}})</span> | <span class="countdown" data-time="{{m.time}}"></span><br>
 👥 Joined: <b style="color:{% if m.joined>=m.total %}#00ff88{% else %}gold{% endif %}">{{m.joined}}/{{m.total}}</b> | Status: <b style="color:{% if m.status=='LIVE'%}#ff4444{% elif m.status=='CANCELLED'%}orange{% else %}#00ff88{% endif %}">{{m.status}}</b><br>
 🏠 Room: <b style="color:#00ff88">{{m.room_id or 'None'}} / {{m.room_pass or 'None'}}</b> | Fee: ₹{{m.fee}} | Prize: ₹{{m.prize}}<br>
-{% if m.joined >= m.total %}<span style="color:#00ff88;font-weight:900">🔥 FULL - ROOM IVVALI!</span>{% elif m.joined==0 %}<span style="color:#ff4444">⚠️ Empty - Time ayithe auto delete</span>{% endif %}
+{% if m.joined >= m.total %}<span style="color:#00ff88;font-weight:900">🔥 FULL - ROOM IVVALI!</span>{% elif m.joined==0 %}<span style="color:#ff4444">⚠️ Empty - Time ayithe auto delete (2hr)</span>{% endif %}
 </span>
 {% if m.joined_list %}<div class="joined-list">👥 {{m.joined_list}}</div>{% endif %}
 </div>
 <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
 <form method="POST" style="display:inline"><input type="hidden" name="action" value="generate_room_id"><input type="hidden" name="mid" value="{{m.id}}"><button class="btn-green" style="background:gold;color:#000;">🎲 AUTO ROOM</button></form>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="cancel_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-orange">CANCEL</button></form>
-<form method="POST" style="display:inline"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red">DELETE</button></form>
+<form method="POST" style="display:inline" onsubmit="return confirm('⚠️ CANCEL + REFUND?\n\nMatch #{{m.id}} cancel chesthe joined {{m.joined}} users ki ₹{{m.fee}} refund vasthadi!\n\nConfirm?')"><input type="hidden" name="action" value="cancel_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-orange">CANCEL + REFUND</button></form>
+<form method="POST" style="display:inline" onsubmit="return confirm('⚠️ DELETE + REFUND?\n\nMatch #{{m.id}} delete chesthe joined {{m.joined}} users ki ₹{{m.fee}} refund vasthadi!\n\nConfirm DELETE?')"><input type="hidden" name="action" value="delete_tournament"><input type="hidden" name="tournament_id" value="{{m.id}}"><button class="btn-red">DELETE + REFUND</button></form>
 </div>
 </div>
 {% endfor %}
@@ -197,8 +195,6 @@ document.getElementById('typeSelect').addEventListener('change', function(){
   calculateAll();
 });
 calculateAll();
-
-// SEARCH + COUNTDOWN
 document.getElementById('searchMatch').addEventListener('input', function(){
   const q = this.value.toLowerCase();
   document.querySelectorAll('#matchList .item').forEach(el=>{
