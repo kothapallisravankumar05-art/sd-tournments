@@ -27,9 +27,9 @@ input:focus{border-color:#00ff88}
 <div class="sub">Enter Your Game Details</div>
 
 <div class="info">
-🎯 <b>{{t.game}} {{t.type}} #{{t.id}}</b><br>
-⏰ {{t.time|time12}} | Prize <b style="color:gold">₹{{t.prize}}</b><br>
-📌 Slot: <span class="slot-badge">#{{slot_no}}</span> | Fee: <b style="color:#00ff88">₹{{t.fee}}</b><br>
+🎯 <b>{{t.game if t is defined else tour.game}} {{t.type if t is defined else tour.type}} #{{t.id if t is defined else tour.id}}</b><br>
+⏰ {{ (t.time if t is defined else tour.time) | time12}} | Prize <b style="color:gold">₹{{t.prize if t is defined else tour.prize}}</b><br>
+📌 Slot: <span class="slot-badge">#{{slot_no}}</span> | Fee: <b style="color:#00ff88">₹{{t.fee if t is defined else tour.fee}}</b><br>
 💰 Your Balance: <b>₹{{user.balance}}</b>
 </div>
 
@@ -37,17 +37,17 @@ input:focus{border-color:#00ff88}
 <div class="err">⚠️ {{error}}</div>
 {% endif %}
 
-<form method="POST">
+<form method="POST" action="/join/{{t.id if t is defined else tour.id}}">
 <input type="hidden" name="slot_no" value="{{slot_no}}">
 
 <input type="text" name="game_id" placeholder="🔥 Free Fire UID / BGMI Game ID *" required minlength="2" maxlength="30">
 
 <input type="text" name="game_name" placeholder="🎯 In-Game Name (IGN) *" required minlength="2" maxlength="30">
 
-<button class="btn">✅ CONFIRM JOIN - ₹{{t.fee}}</button>
+<button class="btn">✅ CONFIRM JOIN - ₹{{t.fee if t is defined else tour.fee}}</button>
 </form>
 
-<a href="/slots/{{t.id}}" class="back">← Back to Slot Select</a>
+<a href="/slots/{{t.id if t is defined else tour.id}}" class="back">← Back to Slot Select</a>
 
 <div style="text-align:center;margin-top:12px;font-size:10px;color:#475569">
 ⚠️ Game ID wrong isthe prize radu!
