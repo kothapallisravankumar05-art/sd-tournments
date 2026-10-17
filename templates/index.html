@@ -79,7 +79,7 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 <div style="padding:15px">
 <div class="card-top"><span class="badge up">UPCOMING</span><span style="font-size:11px;color:#065f46">{{t.joined}}/{{t.total}} Joined | <span style="color:#d97706">{{t.total - t.joined}} Left</span> | <span class="countdown" data-time="{{t.time}}"></span></span></div>
 <div class="title">{{t.game}} - {{t.type}} - {{t.map}}</div>
-<div class="details"><span>🗓 {{t.time | time12}}</span><span>💰 ₹{{t.prize}}</span><span>🎯 Entry ₹{{t.fee}}</span><span>🎯 ₹{{t.per_kill}}/Kill</span></div>
+<div class="details"><span>🗓 {{t.time | time12}} - {{t.time.split(' ')[0].split('-')[2]}}/{{t.time.split(' ')[0].split('-')[1]}}</span><span>💰 ₹{{t.prize}}</span><span>🎯 Entry ₹{{t.fee}}</span><span>🎯 ₹{{t.per_kill}}/Kill</span></div>
 <div class="slots">
 {% for i in range(1, t.total+1) %}
 <div class="slot-mini {% if i <= t.joined %}joined{% else %}left{% endif %}">{{i}}</div>
