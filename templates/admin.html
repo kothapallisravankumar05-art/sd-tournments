@@ -127,7 +127,11 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 </div>
 
 <div class="card" style="border:2px solid gold;background:linear-gradient(135deg,#1a1a1a,#2a2000);">
-<h3 style="color:gold;">🏆 Match Results - Screenshot Check Chesi Approve Chey ({{pending_results|length}} Pending)</h3>
+<h3 style="color:gold;">🏆 Match Results - ({{pending_results|length}} Pending) - ONE CLICK WINNER = Full Prize!</h3>
+<div style="background:#000;padding:8px;border-radius:6px;margin-bottom:10px;font-size:11px;border:1px solid #333">
+<b style="color:gold">👑 WINNER button:</b> <span style="color:#00ff88">Approve + Full Prize (Prize + Per Kill) + COMPLETED + RESULTS tab lo display - OKKA CLICK CHALU!</span><br>
+<b style="color:#00ff88">✅ APPROVE:</b> <span style="color:#aaa">Per kill prize matrame - Winner kakapothe</span>
+</div>
 {% if pending_results|length==0 %}
 <p style="color:#888">No pending results - User submit cheste ikkada screenshot tho kanipisthadi</p>
 {% endif %}
@@ -140,18 +144,18 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 🔫 Kills: <b style="color:#00ff88;font-size:20px">{{r.kills}}</b> | <span class="badge badge-pending">{{r.status}}</span> | {{r.time}}<br>
 {% if r.screenshot %}
 <div style="margin-top:10px">
-<a href="/static/uploads/{{r.screenshot}}" target="_blank" style="color:#00ff88;font-weight:900">📸 SCREENSHOT CHUDU</a> | <a href="/uploads/{{r.screenshot}}" target="_blank" style="color:gold">ALT LINK</a><br>
-<img src="/static/uploads/{{r.screenshot}}" style="max-width:240px;max-height:320px;border-radius:10px;margin-top:8px;border:2px solid gold;cursor:pointer;display:block" onclick="window.open(this.src)" onerror="this.onerror=null; this.src='/uploads/{{r.screenshot}}'; this.onerror=function(){this.outerHTML='<div style=color:#ff4444;background:#222;padding:10px;border-radius:8px;margin-top:8px>❌ File not found: {{r.screenshot}}<br><small>Render lo delete ayyindi - User malli upload cheyali. Old result REJECT chey.</small></div>'}">
+<a href="/static/uploads/{{r.screenshot}}" target="_blank" style="color:#00ff88;font-weight:900">📸 SCREENSHOT CHUDU</a> | <a href="/uploads/{{r.screenshot}}" target="_blank" style="color:gold">ALT</a><br>
+<img src="/static/uploads/{{r.screenshot}}" style="max-width:240px;max-height:320px;border-radius:10px;margin-top:8px;border:2px solid gold;cursor:pointer;display:block" onclick="window.open(this.src)" onerror="this.onerror=null; this.src='/uploads/{{r.screenshot}}'; this.onerror=function(){this.outerHTML='<div style=color:#ff4444;background:#222;padding:10px;border-radius:8px;margin-top:8px>❌ File not found: {{r.screenshot}}<br><small>Render lo delete - Malli upload cheyali. REJECT chey.</small></div>'}">
 </div>
 {% else %}
-<span style="color:#ff4444;font-size:12px">⚠️ No Screenshot uploaded - Kills matrame</span>
+<span style="color:#ff4444;font-size:12px">⚠️ No Screenshot - Kills matrame</span>
 {% endif %}
 </div>
-<div style="display:flex;flex-direction:column;gap:8px;min-width:180px">
-<form method="POST"><input type="hidden" name="action" value="approve_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-green" style="width:100%;padding:12px;font-size:14px">✅ APPROVE KILLS</button></form>
-<form method="POST"><input type="hidden" name="action" value="reject_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-red" style="width:100%;padding:10px">❌ REJECT</button></form>
-<form method="POST" onsubmit="return confirm('👑 WINNER?\n\n{{r.username}} ki Match #{{r.match_id}} prize credit avthadi + COMPLETED avthadi!')"><input type="hidden" name="action" value="declare_winner"><input type="hidden" name="match_id" value="{{r.match_id}}"><input type="hidden" name="winner_id" value="{{r.user_id}}"><button class="btn-gold" style="width:100%;padding:14px;font-size:13px;font-weight:900">👑 WINNER + PRIZE CREDIT</button></form>
-<a href="/match_result/{{r.match_id}}" style="background:#222;color:#fff;padding:10px;text-align:center;border-radius:8px;text-decoration:none;font-weight:900;border:1px solid #555">📊 FULL RESULT PAGE</a>
+<div style="display:flex;flex-direction:column;gap:8px;min-width:200px">
+<form method="POST" onsubmit="return confirm('👑 ONE CLICK WINNER - FULL FLOW?\n\n✅ Result APPROVED\n💰 Full Prize = Prize + PerKill x Kills\n🏁 Match COMPLETED\n🏆 RESULTS tab lo kanipisthadi\n\n{{r.username}} ki prize credit cheyala?')"><input type="hidden" name="action" value="declare_winner"><input type="hidden" name="match_id" value="{{r.match_id}}"><input type="hidden" name="winner_id" value="{{r.user_id}}"><button class="btn-gold" style="width:100%;padding:16px;font-size:14px;font-weight:900;border:2px solid #fff;box-shadow:0 0 10px gold">👑 WINNER - ONE CLICK<br><span style="font-size:11px">Full Prize + Approve + Complete</span></button></form>
+<form method="POST"><input type="hidden" name="action" value="approve_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-green" style="width:100%;padding:10px;font-size:12px">✅ Per Kill Prize Only</button></form>
+<form method="POST"><input type="hidden" name="action" value="reject_result"><input type="hidden" name="result_id" value="{{r.id}}"><button class="btn-red" style="width:100%;padding:8px;font-size:12px">❌ REJECT</button></form>
+<a href="/match_result/{{r.match_id}}" style="background:#222;color:#fff;padding:8px;text-align:center;border-radius:8px;text-decoration:none;font-weight:900;border:1px solid #555;font-size:12px">📊 FULL RESULT PAGE</a>
 </div>
 </div>
 </div>
@@ -193,11 +197,11 @@ function calculateAll(){
   let prize = parseInt(document.getElementById('prizePool').value) || 0;
   let total = teams * players;
   document.getElementById('totalSlots').value = total;
-  document.getElementById('calcInfo').innerText = `${teams} Teams x ${players} Members = ${total} Slots (Players)`;
+  document.getElementById('calcInfo').innerText = `${teams} Teams x ${players} Members = ${total} Slots`;
   let collection = total * fee;
   let perTeam = players * fee;
-  document.getElementById('collectionInfo').innerText = `Collection: ${total} Players x ₹${fee} = ₹${collection}`;
-  document.getElementById('perTeamInfo').innerText = `Per Team Cost: ₹${perTeam} (${players} x ₹${fee}) - Customize per person!`;
+  document.getElementById('collectionInfo').innerText = `Collection: ${total} x ₹${fee} = ₹${collection}`;
+  document.getElementById('perTeamInfo').innerText = `Per Team Cost: ₹${perTeam} (${players} x ₹${fee})`;
   let profit = collection - prize;
   let profitEl = document.getElementById('profitInfo');
   profitEl.innerText = `Profit: ₹${profit} | Prize Pool: ₹${prize}`;
@@ -230,7 +234,7 @@ function updateCountdowns(){
       if(diff<=0){ el.textContent='⏰ OVER'; el.closest('.item').classList.add('urgent'); }
       else{
         const m = Math.floor(diff/60000);
-        if(m<10){ el.textContent=`🔥 ${m}m LEFT - ROOM IVVU!`; el.closest('.item').classList.add('urgent'); }
+        if(m<10){ el.textContent=`🔥 ${m}m LEFT`; el.closest('.item').classList.add('urgent'); }
         else if(m<60) el.textContent=`⏳ ${m}m`;
         else el.textContent=`⏳ ${Math.floor(m/60)}h ${m%60}m`;
       }
