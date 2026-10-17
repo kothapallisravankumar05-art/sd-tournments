@@ -25,7 +25,6 @@ def time12_filter(t):
     try:
         if not t: return ""
         s = str(t).strip()
-        # "2026-10-17 13:40" nunchi time teeyali
         if " " in s:
             s = s.split(" ")[-1]
         parts = s.split(":")
@@ -94,7 +93,6 @@ def init_db():
     finally: conn.close()
 init_db()
 
-# ===== AUTO DAILY MATCHES + AUTO CLEANUP =====
 def generate_daily_matches(conn):
     try:
         today_str = now_ist().strftime("%Y-%m-%d")
@@ -373,16 +371,39 @@ def confirm_join(tid):
     if not slot_no: return redirect(f'/slots/{tid}')
     return redirect(f'/join/{tid}?slot={slot_no}')
 
+# ===== FIXED LEADERBOARD - PRO TEMPLATE =====
 @app.route('/leaderboard')
 @nocache
 def leaderboard():
     conn = get_db()
-    top = conn.execute("SELECT username, total_wins, balance FROM users ORDER BY total_wins DESC LIMIT 30").fetchall()
-    conn.close()
-    html = "<html><head><meta name='viewport' content='width=device-width'></head><body style='font-family:Arial;padding:15px'><h2>🏆 LEADERBOARD</h2>"
-    for i,r in enumerate(top,1): html+=f"<div style='padding:10px;border-bottom:1px solid #eee'>{i}. {r['username']} - {r['total_wins']} Wins</div>"
-    html+="<a href='/' style='display:block;margin-top:20px;text-align:center'>Back Home</a></body></html>"
-    return html
+    try:
+        try:
+            top = conn.execute("""
+                SELECT u.id, u.username, u.total_wins, u.balance, COALESCE(SUM(r.kills),0) as total_kills 
+                FROM users u LEFT JOIN results r ON r.user_id=u.id 
+                GROUP BY u.id ORDER BY u.total_wins DESC, total_kills DESC LIMIT 50
+            """).fetchall()
+        except:
+            top = conn.execute("SELECT id, username, total_wins, balance FROM users ORDER BY total_wins DESC LIMIT 50").fetchall()
+
+        user = None
+        my_rank = 0
+        if 'user_id' in session:
+            user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+            all_users = conn.execute("SELECT id FROM users ORDER BY total_wins DESC").fetchall()
+            for idx, u in enumerate(all_users, 1):
+                if u['id'] == session['user_id']:
+                    my_rank = idx
+                    break
+        
+        conn.close()
+        return render_template('leaderboard.html', top=top, user=user, my_rank=my_rank)
+    except Exception as e:
+        print(f"Leaderboard Error: {e}")
+        traceback.print_exc()
+        try: conn.close()
+        except: pass
+        return redirect('/')
 
 @app.route('/submit_result', methods=['POST'])
 @nocache
@@ -470,6 +491,7 @@ def my_tournaments():
     conn.close()
     return render_template('my_tournaments.html', joined=data, user=user)
 
+# ===== FIXED ADMIN - TIME ASC + JOINED LIST =====
 @app.route('/admin', methods=['GET','POST'])
 @nocache
 def admin_panel():
@@ -606,7 +628,18 @@ def admin_panel():
                     except Exception as e:
                         print(f"Winner Error: {e}"); conn.rollback()
 
-        matches = conn.execute("SELECT * FROM tournaments ORDER BY id DESC").fetchall()
+        # FIXED: ORDER BY TIME ASC + JOINED LIST
+        raw = conn.execute("SELECT * FROM tournaments ORDER BY time ASC").fetchall()
+        matches = []
+        for mm in raw:
+            d = dict(mm)
+            try:
+                j = conn.execute("SELECT u.username, j.slot_no FROM joined j JOIN users u ON j.user_id=u.id WHERE j.tournament_id=? ORDER BY j.slot_no", (mm['id'],)).fetchall()
+                d['joined_list'] = ", ".join([f"{x['slot_no']}:{x['username']}" for x in j]) if j else ""
+            except:
+                d['joined_list'] = ""
+            matches.append(d)
+
         pending_payments = conn.execute("SELECT * FROM payments WHERE status='PENDING' ORDER BY id DESC").fetchall()
         pending_withdrawals = conn.execute("SELECT * FROM withdrawals WHERE status='PENDING' ORDER BY id DESC").fetchall()
         try: pending_results = conn.execute("SELECT r.*, u.username FROM results r LEFT JOIN users u ON r.user_id=u.id WHERE r.status='PENDING' ORDER BY r.id DESC").fetchall()
