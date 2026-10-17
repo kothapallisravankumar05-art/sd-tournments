@@ -54,7 +54,7 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 </div>
 <div class="top-actions">
 <a href="/leaderboard" class="action-btn btn-gold">🏆 LEADERBOARD</a>
-<a href="/wallet" class="action-btn btn-pink">💸 REFER ₹20</a>
+<a href="/wallet" class="action-btn btn-pink">💸 REFER ₹10</a>
 <a href="/account" class="action-btn btn-blue2">👤 ACCOUNT</a>
 </div>
 </div>
@@ -81,7 +81,7 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 {% endfor %}
 </div>
 {% if t.id in my_joined_ids %}
-<button class="btn btn-dis">✅ ALREADY JOINED</button>
+<button class="btn btn-dis">JOINED</button>
 {% else %}
 <a href="/slots/{{t.id}}" class="btn btn-join">JOIN NOW - ₹{{t.fee}} | {{t.total - t.joined}} Spots Left</a>
 {% endif %}
@@ -190,7 +190,7 @@ function updateCountdowns(){
           const joined = parseInt(card.getAttribute('data-joined')||0);
           const total = parseInt(card.getAttribute('data-total')||10);
           if(joined >= total){
-            el.innerHTML = "✅ FULL - LIVE SOON";
+            el.innerHTML = " FULL - LIVE SOON";
           } else {
             // auto hide - time ayipoyindi & full kadu
             el.innerHTML = "⏰ EXPIRED";
