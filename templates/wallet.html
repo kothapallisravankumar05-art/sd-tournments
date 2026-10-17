@@ -16,11 +16,20 @@ input{width:100%;padding:14px;border-radius:10px;border:none;margin:10px 0;font-
 .badge-PENDING{background:orange;color:#000}.badge-APPROVED{background:#00ff88;color:#000}.badge-REJECTED{background:#ff4444;color:#fff}
 .badge-CREDIT{background:#00ff88;color:#000}
 .refer-box{background:linear-gradient(135deg,#1a0033,#6600ff);border:1px solid #ff00ff}
+/* NEW HISTORY BUTTONS */
+.history-btns{display:flex;gap:10px;margin-bottom:15px}
+.history-btns a{flex:1;background:#1e293b;border:1px solid #334155;color:#fff;padding:13px;text-align:center;border-radius:12px;text-decoration:none;font-weight:800;font-size:13px}
 </style>
 </head>
 <body>
 <a href="/" style="color:#00d4ff;text-decoration:none;font-weight:bold">← Back to Tournaments</a>
 <h2>💰 Wallet - ₹{{ user['balance'] if user else 0 }}</h2>
+
+<!-- NEW: DEPOSIT & WITHDRAW HISTORY BUTTONS -->
+<div class="history-btns">
+<a href="/deposit_history">📥 Deposit History</a>
+<a href="/withdraw_history">📤 Withdraw History</a>
+</div>
 
 <div class="card refer-box">
 <h3 style="margin:0">💸 REFER & EARN ₹10</h3>
@@ -65,16 +74,13 @@ input{width:100%;padding:14px;border-radius:10px;border:none;margin:10px 0;font-
 </div>
 
 <script>
-// UPI ID INKA JS LO KUDA LEKUDA - SERVER NUNCHI VASTUNDI - 100% HIDE!
 let currentUpiLink = "";
-
 document.getElementById('amt').addEventListener('input', function(){
     let v = this.value || 50;
     document.getElementById('amtText').innerText = v;
     document.getElementById('qrAmt').innerText = v;
     document.getElementById('finalAmt').value = v;
 });
-
 async function showQR(){
     let a = document.getElementById('amt').value;
     if(a < 10){ alert("Min 10 bro"); return; }
@@ -83,70 +89,37 @@ async function showQR(){
     document.getElementById('qrBox').style.display = 'block';
     document.getElementById('mainQR').src = "";
     document.getElementById('utrMsg').innerText = "Generating QR...";
-    
     try{
-        // SERVER NUNCHI QR VASTUNDI - UPI FRONTEND LO KANIPINCHADU!
         let res = await fetch(`/get_qr?amount=${a}`);
         let data = await res.json();
         if(data.qr_url){
             document.getElementById('mainQR').src = data.qr_url;
-            currentUpiLink = data.upi_link; // Direct pay kosam
-            document.getElementById('directBtn').style.display = 'block';
-            document.getElementById('utrMsg').innerText = "";
-        } else {
-            // Fallback
-            document.getElementById('mainQR').src = data.fallback_qr;
             currentUpiLink = data.upi_link;
             document.getElementById('directBtn').style.display = 'block';
+            document.getElementById('utrMsg').innerText = "";
         }
     }catch(e){
         document.getElementById('utrMsg').innerText = "QR Error: "+e;
     }
     window.scrollTo(0, document.getElementById('qrBox').offsetTop);
 }
-
-function payDirect(){
-    if(currentUpiLink){
-        window.location.href = currentUpiLink;
-    } else {
-        showQR();
-    }
-}
-
-function showUTR(){
-    document.getElementById('utrBox').style.display = 'block';
-    window.scrollTo(0, document.getElementById('utrBox').offsetTop);
-}
-
+function payDirect(){ if(currentUpiLink){ window.location.href = currentUpiLink; } else { showQR(); } }
+function showUTR(){ document.getElementById('utrBox').style.display = 'block'; window.scrollTo(0, document.getElementById('utrBox').offsetTop); }
 async function submitUTR(){
     let utr = document.getElementById('utrInput').value.trim();
     let amt = document.getElementById('finalAmt').value;
     if(utr.length < 6){ alert("Valid UTR enter chey bro!"); return; }
     document.getElementById('utrMsg').innerText = "Submitting...";
     try{
-        let res = await fetch('/verify_upi', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({utr: utr, amount: amt})
-        });
+        let res = await fetch('/verify_upi', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({utr: utr, amount: amt}) });
         let data = await res.json();
         document.getElementById('utrMsg').innerText = data.msg;
         document.getElementById('utrMsg').style.color = data.ok ? '#00ff88' : '#ff4444';
-        if(data.ok){
-            setTimeout(()=>{ window.location.href='/wallet'; }, 1500);
-        }
-    }catch(e){
-        document.getElementById('utrMsg').innerText = "Error: "+e;
-    }
+        if(data.ok){ setTimeout(()=>{ window.location.href='/wallet'; }, 1500); }
+    }catch(e){ document.getElementById('utrMsg').innerText = "Error: "+e; }
 }
-function copyRef(){
-    navigator.clipboard.writeText(document.getElementById('refLink').innerText);
-    alert("Referral link copied! ₹10 Bonus!");
-}
-function shareRef(){
-    let link = document.getElementById('refLink').innerText;
-    window.open("https://wa.me/?text="+encodeURIComponent("SD Tournaments lo join & get ₹10 FREE bonus! "+link), "_blank");
-}
+function copyRef(){ navigator.clipboard.writeText(document.getElementById('refLink').innerText); alert("Referral link copied! ₹10 Bonus!"); }
+function shareRef(){ let link = document.getElementById('refLink').innerText; window.open("https://wa.me/?text="+encodeURIComponent("SD Tournaments lo join & get ₹10 FREE bonus! "+link), "_blank"); }
 </script>
 </body>
 </html>
