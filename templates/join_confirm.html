@@ -15,9 +15,12 @@ input{width:100%;padding:14px 12px;margin:8px 0;border-radius:10px;border:1px so
 input:focus{border-color:#00ff88}
 .btn{width:100%;padding:16px;background:#00ff88;color:#000;border:none;border-radius:10px;font-weight:900;font-size:16px;margin-top:12px;cursor:pointer;letter-spacing:0.5px}
 .btn:active{transform:scale(0.98)}
+.btn:disabled{background:#334155;color:#64748b;cursor:not-allowed}
 .back{display:block;text-align:center;padding:12px;color:#94a3b8;text-decoration:none;font-size:13px;margin-top:12px;background:#0f172a;border-radius:8px;border:1px solid #1e293b}
 .err{background:#ff444422;border:1px solid #ff4444;color:#ff8888;padding:10px;border-radius:8px;text-align:center;font-size:12px;margin-bottom:12px}
 .slot-badge{display:inline-block;background:#00ff88;color:#000;padding:2px 8px;border-radius:20px;font-weight:900;font-size:11px}
+.warn{background:#f59e0b22;border:1px solid #f59e0b;color:#fbbf24;padding:10px;border-radius:8px;text-align:center;font-size:12px;margin-bottom:12px;font-weight:700}
+.add-btn{display:block;text-align:center;background:#f59e0b;color:#000;padding:12px;border-radius:10px;text-decoration:none;font-weight:900;margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -30,11 +33,16 @@ input:focus{border-color:#00ff88}
 🎯 <b>{{t.game if t is defined else tour.game}} {{t.type if t is defined else tour.type}} #{{t.id if t is defined else tour.id}}</b><br>
 ⏰ {{ (t.time if t is defined else tour.time) | time12}} | Prize <b style="color:gold">₹{{t.prize if t is defined else tour.prize}}</b><br>
 📌 Slot: <span class="slot-badge">#{{slot_no}}</span> | Fee: <b style="color:#00ff88">₹{{t.fee if t is defined else tour.fee}}</b><br>
-💰 Your Balance: <b>₹{{user.balance}}</b>
+💰 Your Balance: <b style="color:{% if user.balance >= (t.fee if t is defined else tour.fee) %}#00ff88{% else %}#ff4444{% endif %}">₹{{user.balance}}</b>
 </div>
 
 {% if error %}
 <div class="err">⚠️ {{error}}</div>
+{% endif %}
+
+{% if user.balance < (t.fee if t is defined else tour.fee) %}
+<div class="warn">⚠️ Low Balance - Add Money First!</div>
+<a href="/wallet" class="add-btn">💸 ADD ₹{{ (t.fee if t is defined else tour.fee) - user.balance + 10 }} TO WALLET</a>
 {% endif %}
 
 <form method="POST" action="/join/{{t.id if t is defined else tour.id}}">
@@ -44,13 +52,15 @@ input:focus{border-color:#00ff88}
 
 <input type="text" name="game_name" placeholder="🎯 In-Game Name (IGN) *" required minlength="2" maxlength="30">
 
-<button class="btn">✅ CONFIRM JOIN - ₹{{t.fee if t is defined else tour.fee}}</button>
+<button class="btn" {% if user.balance < (t.fee if t is defined else tour.fee) %}disabled{% endif %}>
+{% if user.balance >= (t.fee if t is defined else tour.fee) %}✅ CONFIRM JOIN - ₹{{t.fee if t is defined else tour.fee}}{% else %}❌ Insufficient Balance{% endif %}
+</button>
 </form>
 
 <a href="/slots/{{t.id if t is defined else tour.id}}" class="back">← Back to Slot Select</a>
 
 <div style="text-align:center;margin-top:12px;font-size:10px;color:#475569">
-⚠️ Game ID wrong isthe prize radu!
+⚠️ Game ID wrong isthe prize radu! Correct ID pettu
 </div>
 
 </div>
