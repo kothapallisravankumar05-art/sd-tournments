@@ -118,8 +118,7 @@ def generate_daily_matches(conn):
             if dup: continue
             g,t_type,fee,prize,total = types[idx % len(types)]
             per_kill = 8 if t_type=='Solo' else 0
-            conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",
-                         (g,t_type,'Bermuda',full_time,prize,fee,per_kill,total,0))
+            conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",(g,t_type,'Bermuda',full_time,prize,fee,per_kill,total,0))
             created+=1
         if created < 3:
             tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -129,8 +128,7 @@ def generate_daily_matches(conn):
                 if dup: continue
                 g,t_type,fee,prize,total = types[idx % len(types)]
                 per_kill = 8 if t_type=='Solo' else 0
-                conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",
-                             (g,t_type,'Bermuda',full_time,prize,fee,per_kill,total,0))
+                conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",(g,t_type,'Bermuda',full_time,prize,fee,per_kill,total,0))
                 created+=1
         conn.commit()
         return created
@@ -574,13 +572,15 @@ def join_tournament(tid):
         except: pass
         return f"Join Error: {e} - <a href='/slots/{tid}'>Try Again</a>"
 
-# ✅ FINAL FIX - ALL ALIASES FOR MY MATCHES - NO 404
+# ✅ FINAL - FIX /matches 404 - ALL ALIASES
 @app.route('/my_tournments')
 @app.route('/my_tournaments')
 @app.route('/my_matches')
 @app.route('/my_match')
 @app.route('/mymatches')
 @app.route('/my-matches')
+@app.route('/matches')
+@app.route('/match_history')
 @nocache
 def my_tournments():
     if 'user_id' not in session: return redirect('/login')
