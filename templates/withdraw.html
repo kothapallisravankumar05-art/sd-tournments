@@ -4,79 +4,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Withdraw</title>
     <style>
-        body {
-            background: #0f172a;
-            color: #fff;
-            font-family: Arial;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .box {
-            background: #1e293b;
-            padding: 25px;
-            border-radius: 15px;
-            width: 90%;
-            max-width: 350px;
-            text-align: center;
-            border: 1px solid #334155;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        h2 {
-            color: gold;
-            font-size: 20px;
-            margin-bottom: 20px;
-        }
-        input {
-            padding: 14px;
-            border-radius: 10px;
-            border: none;
-            margin: 8px 0;
-            width: 90%;
-            font-size: 16px;
-            box-sizing: border-box;
-            outline: none;
-        }
-        button {
-            padding: 14px 20px;
-            background: #00ff88;
-            color: #000;
-            border: none;
-            border-radius: 10px;
-            font-weight: 900;
-            width: 94%;
-            font-size: 16px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        button:hover {
-            background: #00e67a;
-        }
-        a {
-            color: #00ff88;
-            text-decoration: none;
-            font-size: 14px;
-        }
+        body { background: #0f172a; color: #fff; font-family: Arial; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding:15px; }
+        .box { background: #1e293b; padding: 25px; border-radius: 15px; width: 100%; max-width: 350px; text-align: center; border: 1px solid #334155; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h2 { color: gold; font-size: 20px; margin-bottom: 20px; }
+        input { padding: 14px; border-radius: 10px; border: none; margin: 8px 0; width: 90%; font-size: 16px; box-sizing: border-box; outline: none; }
+        button { padding: 14px 20px; background: #00ff88; color: #000; border: none; border-radius: 10px; font-weight: 900; width: 94%; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #00e67a; }
+        a { color: #00ff88; text-decoration: none; font-size: 14px; }
+        .btns{display:flex;gap:10px;margin-top:15px} .btns a{flex:1;background:#334155;color:#fff;padding:10px;border-radius:8px;text-align:center}
     </style>
 </head>
 <body>
-
     <div class="box">
         <h2>Withdraw - Balance ₹{{ user.balance }}</h2>
-
-        <form method="POST">
-            <input name="amount" type="number" placeholder="Amount Min 500" required>
+        <form method="POST" action="/wallet">
+            <input name="amount" type="number" placeholder="Amount Min 200" required>
             <br>
             <input name="upi_id" placeholder="Your UPI ID" required>
             <br>
             <button type="submit">REQUEST WITHDRAW</button>
         </form>
-
+        <div class="btns">
+          <a href="/deposit_history">📥 Deposits</a>
+          <a href="/withdraw_history">📤 Withdraws</a>
+        </div>
         <br>
         <a href="/wallet">← Back to Wallet</a>
     </div>
-
 </body>
 </html>
