@@ -36,9 +36,7 @@ input {
     font-size:15px;
     box-sizing:border-box;
 }
-input:focus {
-    border-color:#111827;
-}
+input:focus { border-color:#111827; }
 button {
     padding: 13px 20px;
     background: #111827;
@@ -73,50 +71,43 @@ a { text-decoration: none; }
     margin-top:4px;
     user-select:none;
 }
+.save-txt{font-size:11px;color:#10b981;margin-top:8px;font-weight:700}
 </style>
 </head>
 <body>
 <div class="box">
     <h2>🔒 LOGIN</h2>
-
     {% if error %}
     <div class="error">⚠️ {{ error }}</div>
     {% endif %}
-
     <form method="POST" action="/login" autocomplete="off" id="loginForm">
         <input type="text" name="username" id="username" placeholder="📱 Phone or Username" required autocomplete="off"><br>
-        <!-- Hidden phone field for backward compatibility -->
         <input type="hidden" name="phone" id="phone_hidden">
         <input type="password" name="password" id="password" placeholder="🔑 Password" required autocomplete="new-password"><br>
         <div class="show-pass" onclick="togglePass()">👁️ Show Password</div>
         <button type="submit" id="loginBtn">LOGIN</button>
+        <div class="save-txt">✅ Once Login = 10 Years No Login Needed</div>
     </form>
     <br>
     <a href="/register" style="color:#111827; font-weight:bold;">New Register</a>
     <br><br>
     <a href="/forgot" style="color:#ef4444; font-size:13px;">Forgot Password?</a>
 </div>
-
 <script>
-// Sync username to phone hidden field (backend supports both)
 document.getElementById('loginForm').addEventListener('submit', function(){
     document.getElementById('phone_hidden').value = document.getElementById('username').value;
     document.getElementById('loginBtn').innerText = 'LOADING...';
     document.getElementById('loginBtn').disabled = true;
 });
-
 function togglePass(){
     const p = document.getElementById('password');
     p.type = p.type === 'password' ? 'text' : 'password';
 }
-
-// BACK BUTTON BUG FIX
 history.pushState(null, null, location.href);
 window.onpopstate = function () { history.go(1); };
 if(window.performance && performance.navigation.type == 2){
     location.reload(true);
 }
 </script>
-
 </body>
 </html>
