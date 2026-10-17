@@ -71,7 +71,7 @@ def init_db():
     conn = get_db()
     try:
         if IS_POSTGRES:
-            conn.execute("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
+            conn.execute("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT UNIQUE, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
             conn.execute("CREATE TABLE IF NOT EXISTS tournments (id SERIAL PRIMARY KEY, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
             conn.execute("CREATE TABLE IF NOT EXISTS joined (id SERIAL PRIMARY KEY, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0, game_id TEXT DEFAULT '', game_name TEXT DEFAULT '')")
             conn.execute("CREATE TABLE IF NOT EXISTS payments (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
@@ -79,7 +79,7 @@ def init_db():
             conn.execute("CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, type TEXT, description TEXT, time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS results (id SERIAL PRIMARY KEY, match_id INTEGER, user_id INTEGER, kills INTEGER, status TEXT DEFAULT 'PENDING', screenshot TEXT, time TEXT)")
         else:
-            conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
+            conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT UNIQUE, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
             conn.execute("CREATE TABLE IF NOT EXISTS tournments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
             conn.execute("CREATE TABLE IF NOT EXISTS joined (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0, game_id TEXT DEFAULT '', game_name TEXT DEFAULT '')")
             conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
@@ -103,12 +103,19 @@ def migrate_game_id():
 init_db()
 migrate_game_id()
 
+def generate_referral_code_unique(conn):
+    for _ in range(10):
+        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        exists = conn.execute("SELECT id FROM users WHERE referral_code=?", (code,)).fetchone()
+        if not exists:
+            return code
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
 def generate_daily_matches(conn):
     try:
         now = now_ist()
         today = now.strftime("%Y-%m-%d")
         now_full = now.strftime("%Y-%m-%d %H:%M")
-        # ✅ FINAL - ONLY 40 MIN GAP - NO 20 MIN - NO DOUBLE
         exact_slots = ["09:00","09:40","10:20","11:00","11:40","12:20","13:00","13:40","14:20","15:00","15:40","16:20","17:00","17:40","18:20","19:00","19:40","20:20","21:00"]
         types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
         created=0
@@ -291,25 +298,37 @@ def register():
         username = request.form.get('username','').strip()
         password = request.form.get('password','').strip()
         phone = request.form.get('phone','').strip()
+        if not username or not password:
+            return render_template('register.html', error="Username & Password Required!")
         conn = get_db()
         try:
-            ref_code = ''.join(random.choices(string.ascii_uppercase+string.digits, k=5))
-            conn.execute("INSERT INTO users (username,password,phone,balance,referral_code) VALUES (?,?,?,0,?)", (username,password,phone,ref_code))
+            ref_code_new = generate_referral_code_unique(conn)
+            conn.execute("INSERT INTO users (username,password,phone,balance,referral_code,referred_by) VALUES (?,?,?,?,?,0)", (username,password,phone,0,ref_code_new))
             conn.commit()
             user = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
-            if 'ref_code' in session and session['ref_code']:
-                ref_user = conn.execute("SELECT id FROM users WHERE referral_code=?", (session['ref_code'],)).fetchone()
-                if ref_user and ref_user['id']!= user['id']:
-                    conn.execute("UPDATE users SET balance=balance+10 WHERE id=?", (ref_user['id'],))
-                    conn.execute("UPDATE users SET balance=balance+10, referred_by=? WHERE id=?", (ref_user['id'], user['id']))
-                    conn.commit()
+            # ✅ REFERRAL 10Rs BOTH
+            ref_code_session = session.get('ref_code')
+            if ref_code_session:
+                ref_code_session = ref_code_session.upper().strip()
+                ref_user = conn.execute("SELECT id,balance FROM users WHERE referral_code=?", (ref_code_session,)).fetchone()
+                if ref_user and int(ref_user['id']) != int(user['id']):
+                    # Check already referred?
+                    already_referred = int(user['referred_by'] or 0) != 0
+                    if not already_referred:
+                        # 10 to referrer + 10 to new user
+                        conn.execute("UPDATE users SET balance=balance+10 WHERE id=?", (int(ref_user['id']),))
+                        conn.execute("UPDATE users SET balance=balance+10, referred_by=? WHERE id=?", (int(ref_user['id']), int(user['id'])))
+                        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(ref_user['id']), 10, 'CREDIT', f'Referral Bonus from {username}', now_ist().strftime("%d/%m %H:%M")))
+                        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(user['id']), 10, 'CREDIT', f'Referral Bonus from {ref_code_session}', now_ist().strftime("%d/%m %H:%M")))
+                        conn.commit()
             session.permanent = True
             session['user_id'] = user['id']
             session.pop('ref_code', None)
             conn.close()
             return redirect('/')
         except Exception as e:
-            conn.close()
+            try: conn.close()
+            except: pass
             return render_template('register.html', error=f"Username exists! {e}")
     return render_template('register.html', ref_code=session.get('ref_code',''))
 
@@ -333,10 +352,60 @@ def login():
 
 @app.route('/refer/<code>')
 @nocache
-def referral_page(code):
+def referral_redirect(code):
     session['ref_code'] = code.upper().strip()
     session.permanent = True
     return redirect('/register')
+
+# ✅ NEW - REFERRAL DASHBOARD - 10RS BOTH
+@app.route('/referral')
+@nocache
+def referral_dashboard():
+    if 'user_id' not in session:
+        return redirect('/login')
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    if not user:
+        conn.close()
+        session.clear()
+        return redirect('/login')
+    # Ensure referral_code exists
+    if not user['referral_code']:
+        new_code = generate_referral_code_unique(conn)
+        conn.execute("UPDATE users SET referral_code=? WHERE id=?", (new_code, user['id']))
+        conn.commit()
+        user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    code = user['referral_code']
+    link = f"{SITE_URL}/refer/{code}"
+    total_refs = conn.execute("SELECT COUNT(*) FROM users WHERE referred_by=?", (user['id'],)).fetchone()[0]
+    conn.close()
+    earnings = int(total_refs or 0) * 10
+    html = f"""
+    <html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>body{{font-family:sans-serif;background:#0f0f0f;color:white;text-align:center;padding:20px}}
+    .card{{background:#1e1e1e;padding:20px;border-radius:15px;max-width:400px;margin:auto}}
+    input{{width:90%;padding:12px;border-radius:8px;border:none;background:#2a2a2a;color:white;text-align:center}}
+    button{{padding:12px 25px;background:#6c5ce7;color:white;border:none;border-radius:10px;font-weight:bold;margin-top:10px;cursor:pointer}}
+    .stat{{display:flex;justify-content:space-around;margin-top:20px}}
+    .stat div{{background:#2a2a2a;padding:15px;border-radius:10px;width:40%}}
+    </style></head><body>
+    <div class="card">
+    <h2>🔥 Refer & Earn</h2>
+    <p style="color:#aaa">Per Referral <b style="color:#00ff88">You Get 10Rs + Friend Gets 10Rs</b></p>
+    <p>Your Referral Link:</p>
+    <input id="rlink" value="{link}" readonly>
+    <br><button onclick="navigator.clipboard.writeText(document.getElementById('rlink').value);alert('Copied!')">📋 Copy Link</button>
+    <br><br>
+    <a href="https://wa.me/?text={urllib.parse.quote(f'Join SD Tournament & Get 10Rs Bonus! {link}')}" target="_blank"><button style="background:#25D366">WhatsApp Share</button></a>
+    <div class="stat">
+    <div><h2>{total_refs}</h2><small>Total Referrals</small></div>
+    <div><h2>₹{earnings}</h2><small>Total Earned</small></div>
+    </div>
+    <br><p>Code: <b>{code}</b></p>
+    <br><a href="/" style="color:#6c5ce7;text-decoration:none">← Back Home</a>
+    </div></body></html>
+    """
+    return html
 
 @app.route('/account')
 @nocache
@@ -566,7 +635,6 @@ def join_tournament(tid):
         except: pass
         return f"Join Error: {e} - <a href='/slots/{tid}'>Try Again</a>"
 
-# ✅ FINAL FIX - ALL ALIASES FOR MY MATCHES - NO 404
 @app.route('/my_tournments')
 @app.route('/my_tournaments')
 @app.route('/my_matches')
