@@ -103,17 +103,27 @@ def migrate_game_id():
 init_db()
 migrate_game_id()
 
-# ===== DAILY 9AM-9PM 40MIN GAP 19 MATCHES =====
+# ===== FIXED DAILY 9AM-9PM 40MIN 19 MATCHES - TODAY COUNT ONLY =====
 def generate_daily_matches(conn):
     try:
         today_str = now_ist().strftime("%Y-%m-%d")
+        # TODAY COUNT ONLY - BUG FIX
         try:
-            row = conn.execute("SELECT COUNT(*) FROM tournments WHERE status='UPCOMING'").fetchone()
-            existing = int(row[0] if row else 0)
-        except:
-            existing = 0
-        print(f"Existing UPCOMING: {existing}")
-        if existing >= 12:
+            row = conn.execute("SELECT COUNT(*) FROM tournments WHERE time LIKE ? AND status='UPCOMING'", (f"{today_str}%",)).fetchone()
+            # PGWrapper DictRow
+            if row is None:
+                existing_today = 0
+            else:
+                try:
+                    existing_today = int(row[0])
+                except:
+                    existing_today = int(list(row.values())[0])
+        except Exception as e:
+            print(f"Count err {e}")
+            existing_today = 0
+            
+        print(f"Today {today_str} existing: {existing_today}")
+        if existing_today >= 15:
             return
 
         base_9am = now_ist().replace(hour=9, minute=0, second=0, microsecond=0)
@@ -143,23 +153,25 @@ def generate_daily_matches(conn):
         print(f"Daily Gen Error: {e}")
         traceback.print_exc()
 
-# ===== CLEANUP - ONLY 3 HOURS OLD - SINGLE FUNCTION ONLY =====
+# ===== FIXED CLEANUP - 12 HOURS - SINGLE FUNCTION =====
 def cleanup_expired_matches(conn):
     try:
-        three_hours_ago = (now_ist() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
-        expired = conn.execute("SELECT id, joined FROM tournments WHERE time < ? AND status='UPCOMING'", (three_hours_ago,)).fetchall()
+        twelve_hours_ago = (now_ist() - timedelta(hours=12)).strftime("%Y-%m-%d %H:%M")
+        expired = conn.execute("SELECT id, joined FROM tournments WHERE time < ? AND status='UPCOMING'", (twelve_hours_ago,)).fetchall()
         for tour in expired:
             try:
-                if int(tour['joined'] or 0) == 0:
-                    conn.execute("DELETE FROM tournments WHERE id=?", (tour['id'],))
-                    conn.execute("DELETE FROM joined WHERE tournament_id=?", (tour['id'],))
+                tid = tour['id'] if 'id' in tour else tour[0]
+                j = tour['joined'] if 'joined' in tour else tour[1]
+                if int(j or 0) == 0:
+                    conn.execute("DELETE FROM tournments WHERE id=?", (tid,))
+                    conn.execute("DELETE FROM joined WHERE tournament_id=?", (tid,))
                 else:
-                    conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (tour['id'],))
+                    conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (tid,))
             except:
                 pass
         if expired:
             conn.commit()
-            print(f"Cleaned {len(expired)} expired")
+            print(f"Cleaned {len(expired)} old (12h+)")
     except Exception as e:
         print(f"Cleanup Error: {e}")
 
@@ -184,9 +196,11 @@ def handle_500(e):
 def force_generate():
     conn = get_db()
     try:
-        conn.execute("DELETE FROM tournments WHERE status='UPCOMING' AND joined=0")
+        conn.execute("DELETE FROM tournments WHERE status='UPCOMING'")
         conn.commit()
-    except: pass
+        print("Force deleted all UPCOMING")
+    except Exception as e:
+        print(f"Force delete error {e}")
     generate_daily_matches(conn)
     conn.close()
     return redirect('/')
@@ -199,7 +213,8 @@ def index():
     try:
         generate_daily_matches(conn)
         cleanup_expired_matches(conn)
-    except: pass
+    except Exception as e:
+        print(f"Index gen error {e}")
     t = conn.execute("SELECT * FROM tournments WHERE status='UPCOMING' ORDER BY time ASC").fetchall()
     user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
     if not user: session.clear(); conn.close(); return redirect('/login')
