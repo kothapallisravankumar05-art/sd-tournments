@@ -285,9 +285,8 @@ def index():
     if not user: session.clear(); conn.close(); return redirect('/login')
     my_joined = conn.execute("SELECT tournament_id FROM joined WHERE user_id=?", (session['user_id'],)).fetchall()
     my_joined_ids = [r[0] for r in my_joined]
-    conn.close()
-    return render_template('index.html', tournments=t, tournments=t, user=user, my_joined_ids=my_joined_ids, site_url=SITE_URL, completed=completed, live_matches=live, results_data=results_data)
-
+        conn.close()
+    return render_template('index.html', tournaments=t, user=user, my_joined_ids=my_joined_ids, site_url=SITE_URL, completed=completed, live_matches=live, results_data=results_data)
 @app.route('/register', methods=['GET','POST'])
 @nocache
 def register():
