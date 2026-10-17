@@ -17,6 +17,9 @@ body{background:#0f172a;color:#fff;min-height:100vh;padding:15px}
 .pend{background:#f59e0b;color:#000}
 .rej{background:#ef4444;color:#fff}
 .proof{color:#00ff88;font-size:12px;text-decoration:none;margin-top:5px;display:inline-block}
+.input-box{width:100%;padding:12px;border-radius:8px;border:1px solid #333;background:#0f172a;color:#fff;margin:6px 0;box-sizing:border-box}
+.upload-btn{background:linear-gradient(135deg,gold,#f59e0b);color:#000;width:100%;padding:14px;border:none;border-radius:10px;font-weight:900;margin-top:10px;cursor:pointer}
+.upload-card{background:#0f172a;border:1px dashed gold;padding:15px;border-radius:12px;margin-bottom:12px}
 </style>
 </head>
 <body>
@@ -24,8 +27,26 @@ body{background:#0f172a;color:#fff;min-height:100vh;padding:15px}
 <div style="text-align:center;padding:10px">
 <div style="font-size:40px">🏆</div>
 <h2 style="color:gold">{{t.game}} - {{t.type}}</h2>
-<p style="color:#00ff88;margin:6px 0">⏰ {{t.time | time12}} | 💰 Prize ₹{{t.prize}} | Status {{t.status}}</p>
+<p style="color:#00ff88;margin:6px 0">⏰ {{t.time | time12}} | 💰 Prize ₹{{t.prize}} | 🎯 Per Kill ₹{{t.per_kill}} | Status {{t.status}}</p>
+{% if t.room_id %}
+<p style="color:#fff;font-size:12px;background:#1e293b;padding:6px 12px;border-radius:20px;display:inline-block">🆔 ID: {{t.room_id}} | 🔑 PASS: {{t.room_pass}}</p>
+{% endif %}
 </div>
+
+<!-- UPLOAD FORM - User Join Aithe Kanipistadi -->
+{% if t.status != 'COMPLETED' %}
+<div class="upload-card">
+<h3 style="color:gold;text-align:center;margin-bottom:10px">📸 Upload Your Result</h3>
+<form method="POST" action="/submit_result" enctype="multipart/form-data">
+<input type="hidden" name="match_id" value="{{t.id}}">
+<input type="number" name="kills" class="input-box" placeholder="🎯 Enter Your Kills (0-20)" required min="0" max="30">
+<input type="file" name="screenshot" class="input-box" accept="image/*" required>
+<p style="font-size:10px;color:#888;text-align:center">Screenshot lo kills kanipinchali!</p>
+<button class="upload-btn">✅ SUBMIT RESULT</button>
+</form>
+<p style="font-size:10px;color:#10b981;text-align:center;margin-top:8px">✅ Admin Approve Chesaka Automatic Money Wallet Loki Vasthadi!</p>
+</div>
+{% endif %}
 
 {% if results|length == 0 %}
 <div class="card" style="text-align:center;padding:40px">
@@ -41,7 +62,7 @@ body{background:#0f172a;color:#fff;min-height:100vh;padding:15px}
 <div style="text-align:left">
 <div><span style="color:gold;font-weight:900">#{{loop.index}}</span> - <b style="font-size:16px">{{r.username if r.username is defined and r.username else 'Player #' ~ r.user_id}}</b></div>
 <div style="font-size:11px;color:#888;margin:4px 0">ID: {{r.user_id}} | Time: {{r.time}} | Match #{{r.match_id}}</div>
-<div style="font-size:20px;color:gold;font-weight:900;margin:6px 0">🎯 {{r.kills}} Kills</div>
+<div style="font-size:20px;color:gold;font-weight:900;margin:6px 0">🎯 {{r.kills}} Kills {% if t.per_kill %} <span style="font-size:12px;color:#00ff88">(₹{{ r.kills * t.per_kill }})</span> {% endif %}</div>
 {% if r.screenshot %}
 <a href="/static/uploads/{{r.screenshot}}" target="_blank" class="proof">📸 View Screenshot Proof</a>
 {% endif %}
@@ -59,7 +80,7 @@ body{background:#0f172a;color:#fff;min-height:100vh;padding:15px}
 </div>
 {% endfor %}
 
-<a href="/match/{{t.id}}" class="btn back">← Back to Match Details</a>
+<a href="/" class="btn back">← Back to Match Details</a>
 <a href="/" class="btn gold">🏠 Back to Home</a>
 </div>
 </body>
