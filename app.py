@@ -567,19 +567,54 @@ def join_tournament(tid):
         try: conn.close()
         except: pass
         return f"Join Error: {e} - <a href='/slots/{tid}'>Try Again</a>"
+    
 @app.route('/my_tournaments')
 @nocache
 def my_tournaments():
     if 'user_id' not in session: return redirect('/login')
-    conn = get_db()
-    data = conn.execute("SELECT j.*, t.game, t.type, t.time, t.map, t.prize, t.fee, t.status, t.room_id, t.room_pass FROM joined j JOIN tournments t ON j.tournament_id=t.id WHERE j.user_id=? ORDER BY j.id DESC", (session['user_id'],)).fetchall()
-    user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
-    conn.close()
-    return render_template('my_tournaments.html', joined=data, user=user)
+    conn = None
+    try:
+        conn = get_db()
+        # Safe query for both Postgres & SQLite
+        data = conn.execute("SELECT j.*, t.game, t.type, t.time, t.map, t.prize, t.fee, t.status, t.room_id, t.room_pass FROM joined j JOIN tournments t ON j.tournament_id=t.id WHERE j.user_id=? ORDER BY j.id DESC", (session['user_id'],)).fetchall()
+        user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+        conn.close()
+        
+        # Try template, if not found show fallback HTML (no 500)
+        try:
+            return render_template('my_tournaments.html', joined=data, user=user)
+        except Exception as te:
+            print(f"Template missing {te}, showing fallback")
+            html = """
+            <html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>body{background:#0a0a0a;color:#fff;font-family:Arial;padding:12px}.card{background:#1a1a1a;padding:12px;border-radius:12px;margin:10px 0;border:1px solid #333}</style></head><body>
+            <h2 style="color:#00ff88">MY TOURNAMENTS</h2>
+            """
+            if not data:
+                html += "<p style='color:#888'>No tournaments joined yet<br><br><a href='/' style='color:#00ff88'>Join Now</a></p>"
+            for j in data:
+                d = dict(j)
+                html += f"<div class='card'><b>#{d.get('tournament_id')} {d.get('game')} {d.get('type')}</b><br>Slot #{d.get('slot_no')} | Time {d.get('time')}<br>Game ID: {d.get('game_id','N/A')} | IGN: {d.get('game_name','N/A')}<br>"
+                if d.get('room_id'):
+                    html += f"<div style='color:#00ff88;margin-top:6px'>Room: {d.get('room_id')} | Pass: {d.get('room_pass')}</div>"
+                else:
+                    html += "<div style='color:#888;font-size:12px;margin-top:6px'>Room ID will come 10 min before</div>"
+                html += "</div>"
+            html += "<br><a href='/' style='background:#fff;color:#000;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:900'>HOME</a></body></html>"
+            return html
+            
+    except Exception as e:
+        print(f"my_tournaments error {e}")
+        import traceback; traceback.print_exc()
+        try:
+            if conn: conn.close()
+        except: pass
+        return f"<h3>My Tournaments Error: {e}</h3><a href='/'>Home</a> - Check if my_tournaments.html exists in templates/ folder"
 
 @app.route('/my_tournments')
 @nocache
-def my_tournments_alias(): return redirect('/my_tournaments')
+def my_tournments_alias(): 
+    return redirect('/my_tournaments')
 
 @app.route('/leaderboard')
 @nocache
