@@ -35,6 +35,7 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 .countdown{color:#ff6b6b;font-weight:900;font-size:11px}
 .joined-list{font-size:11px;color:#00ff88;margin-top:4px;background:#111;padding:6px;border-radius:4px;word-break:break-all;}
 .kills-input{width:90px!important;background:#000!important;border:2px solid gold!important;color:gold!important;font-weight:900!important;font-size:20px!important;text-align:center!important;padding:12px!important;border-radius:8px!important}
+.prize-box{background:#000;padding:10px;border-radius:8px;border:1px solid gold;margin-top:8px}
 </style>
 </head>
 <body>
@@ -58,7 +59,7 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 </div>
 
 <div class="card" style="border:2px solid #00ff88;">
-<h3>➕ Add New Tournament - PER PERSON CUSTOM</h3>
+<h3>➕ Add New Tournament - PER PERSON CUSTOM + PRIZES</h3>
 <form method="POST" id="tournamentForm">
 <input type="hidden" name="action" value="add_tournament">
 <div class="form-grid">
@@ -70,12 +71,20 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 <option value="Clash Squad">Clash Squad</option>
 </select>
 <input name="entry_fee" id="entryFee" type="number" placeholder="Entry Fee PER PERSON (Ex: 15)" required>
-<input name="prize" id="prizePool" type="number" placeholder="Prize Pool (Ex: 600)" required>
+<input name="prize" id="prizePool" type="number" placeholder="Total Prize (Ex: 1000)" required>
+<!-- 🔥 NEW - 1ST 2ND 3RD PRIZE -->
+<input name="first_prize" id="firstPrize" type="number" placeholder="🥇 1st Prize (Ex: 700)" required>
+<input name="second_prize" id="secondPrize" type="number" placeholder="🥈 2nd Prize (Ex: 200)">
+<input name="third_prize" id="thirdPrize" type="number" placeholder="🥉 3rd Prize (Ex: 100)">
 <input name="teams" id="teamsInput" type="number" value="12" placeholder="Teams (12)">
 <input name="players_per_team" id="playersInput" type="number" value="4" placeholder="Members/Team (4)">
 <input name="total_slots" id="totalSlots" type="number" placeholder="Total Slots Auto" required readonly style="background:#222;color:gold;font-weight:bold;">
 <input name="per_kill" type="number" placeholder="Per Kill (0)" value="0">
 <input name="time" type="datetime-local" required style="grid-column:1 / -1;">
+</div>
+<div class="prize-box">
+<p style="margin:2px 0;color:gold;font-weight:bold;">💰 Prize Split Preview</p>
+<p style="margin:2px 0;color:#fff;font-size:12px" id="prizeSplitInfo">1st: ₹0 | 2nd: ₹0 | 3rd: ₹0 = Total ₹0</p>
 </div>
 <div style="background:#000;padding:10px;border-radius:8px;margin-top:10px;font-size:12px;border:1px solid #333;word-break:break-all;">
 <p style="margin:2px 0;color:gold;font-weight:bold;" id="calcInfo">12 Teams x 4 Members = 48 Slots</p>
@@ -110,8 +119,12 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 <span style="font-size:13px">ID: <b style="color:gold;font-size:16px">#{{m.id}}</b> | {{m.game}} {{m.type}}<br>
 ⏰ <span class="time12">{{m.time|time12}}</span> <span class="time24">({{m.time}})</span> | <span class="countdown" data-time="{{m.time}}"></span><br>
 👥 Joined: <b style="color:{% if m.joined>=m.total %}#00ff88{% else %}gold{% endif %}">{{m.joined}}/{{m.total}}</b> | Status: <b style="color:{% if m.status=='LIVE'%}#ff4444{% elif m.status=='CANCELLED'%}orange{% else %}#00ff88{% endif %}">{{m.status}}</b><br>
-🏠 Room: <b style="color:#00ff88">{{m.room_id or 'None'}} / {{m.room_pass or 'None'}}</b> | Fee: ₹{{m.fee}} | Prize: ₹{{m.prize}}<br>
-{% if m.joined >= m.total %}<span style="color:#00ff88;font-weight:900">🔥 FULL - ROOM IVVALI!</span>{% elif m.joined==0 %}<span style="color:#ff4444">⚠️ Empty - Time ayithe auto delete (2hr)</span>{% endif %}
+🏠 Room: <b style="color:#00ff88">{{m.room_id or 'None'}} / {{m.room_pass or 'None'}}</b> | Fee: ₹{{m.fee}} | Total: ₹{{m.prize}}<br>
+<!-- 🔥 PRIZE DISPLAY -->
+🏆 <span style="color:gold">🥇1st: ₹{{m.first_prize or m.prize}}</span> 
+{% if m.second_prize and m.second_prize>0 %}<span style="color:silver">🥈2nd: ₹{{m.second_prize}}</span>{% endif %}
+{% if m.third_prize and m.third_prize>0 %}<span style="color:#cd7f32">🥉3rd: ₹{{m.third_prize}}</span>{% endif %}<br>
+{% if m.joined >= m.total %}<span style="color:#00ff88;font-weight:900">🔥 FULL - ROOM IVVALI!</span>{% elif m.joined==0 %}<span style="color:#ff4444">⚠️ Empty - Time ayithe auto delete</span>{% endif %}
 </span>
 {% if m.joined_list %}<div class="joined-list">👥 {{m.joined_list}}</div>{% endif %}
 </div>
@@ -134,7 +147,7 @@ h3{margin-top:0;color:#00ff88;word-wrap:break-word;}
 1. User only screenshot upload chestadu (kills = 0)<br>
 2. Manam screenshot chusi kills box lo real kills enter chey<br>
 3. <b style="color:#00ff88">✅ APPROVE</b> = Kills save + APPROVED (No money yet)<br>
-4. <b style="color:gold">👑 WINNER</b> = Kills save + Full Prize (Prize + PerKill x Kills) + COMPLETED + RESULTS tab lo display!
+4. <b style="color:gold">👑 WINNER</b> = Kills save + Prize (1st/2nd/3rd) + PerKill x Kills + COMPLETED!
 </div>
 {% if pending_results|length==0 %}
 <p style="color:#888">No pending results - User screenshot upload cheste ikkada kanipisthadi</p>
@@ -158,19 +171,26 @@ User Kills: <b style="color:#ff4444">{{r.kills}}</b> (0 = Not verified yet)<br>
 <span style="color:#ff4444">⚠️ No Screenshot</span>
 {% endif %}
 </div>
-<div style="display:flex;flex-direction:column;gap:8px;min-width:240px;background:#000;padding:12px;border-radius:10px;border:2px solid gold">
+<div style="display:flex;flex-direction:column;gap:8px;min-width:260px;background:#000;padding:12px;border-radius:10px;border:2px solid gold">
 <label style="font-size:13px;color:gold;font-weight:900">✏️ SCREENSHOT CHUSI KILLS ENTER CHEY:</label>
 <div style="display:flex;align-items:center;gap:10px;margin:8px 0">
 <span style="color:#fff;font-weight:900">KILLS:</span>
 <input type="number" id="kills_{{r.id}}" value="{{r.kills}}" min="0" max="30" class="kills-input" placeholder="0">
 </div>
 
-<form method="POST" onsubmit="document.getElementById('win_kills_{{r.id}}').value=document.getElementById('kills_{{r.id}}').value; return confirm('👑 WINNER?\n\nMatch #{{r.match_id}}\nUser: {{r.username}}\nKills: '+document.getElementById('kills_{{r.id}}').value+'\n\nPrize = Full Prize + PerKill x Kills\nConfirm?')">
+<form method="POST" onsubmit="document.getElementById('win_kills_{{r.id}}').value=document.getElementById('kills_{{r.id}}').value; document.getElementById('win_type_{{r.id}}').value=document.getElementById('ptype_{{r.id}}').value; return confirm('👑 WINNER?\n\nMatch #{{r.match_id}}\nUser: {{r.username}}\nKills: '+document.getElementById('kills_{{r.id}}').value+'\nPrize Type: '+document.getElementById('ptype_{{r.id}}').value+'\n\nConfirm?')">
 <input type="hidden" name="action" value="declare_winner">
 <input type="hidden" name="match_id" value="{{r.match_id}}">
 <input type="hidden" name="winner_id" value="{{r.user_id}}">
 <input type="hidden" name="custom_kills" id="win_kills_{{r.id}}" value="{{r.kills}}">
-<button class="btn-gold" style="width:100%;padding:16px;font-size:14px;font-weight:900;border:2px solid #fff;box-shadow:0 0 12px gold">👑 WINNER - KILLS + PRIZE<br><span style="font-size:11px">Screenshot verify chesina kills tho full prize</span></button>
+<input type="hidden" name="prize_type" id="win_type_{{r.id}}" value="first">
+<label style="font-size:12px;color:gold">Prize Type:</label>
+<select id="ptype_{{r.id}}" style="background:#111;border:1px solid gold;padding:8px;border-radius:6px;margin-bottom:8px" onchange="document.getElementById('win_type_{{r.id}}').value=this.value">
+<option value="first">🥇 1st Prize</option>
+<option value="second">🥈 2nd Prize</option>
+<option value="third">🥉 3rd Prize</option>
+</select>
+<button class="btn-gold" style="width:100%;padding:16px;font-size:14px;font-weight:900;border:2px solid #fff;box-shadow:0 0 12px gold">👑 WINNER - KILLS + PRIZE<br><span style="font-size:11px">1st/2nd/3rd select chesi prize ivvu</span></button>
 </form>
 
 <form method="POST" onsubmit="document.getElementById('app_kills_{{r.id}}').value=document.getElementById('kills_{{r.id}}').value;">
@@ -221,6 +241,9 @@ function calculateAll(){
   let players = parseInt(document.getElementById('playersInput').value) || 0;
   let fee = parseInt(document.getElementById('entryFee').value) || 0;
   let prize = parseInt(document.getElementById('prizePool').value) || 0;
+  let first = parseInt(document.getElementById('firstPrize').value) || 0;
+  let second = parseInt(document.getElementById('secondPrize').value) || 0;
+  let third = parseInt(document.getElementById('thirdPrize').value) || 0;
   let total = teams * players;
   document.getElementById('totalSlots').value = total;
   document.getElementById('calcInfo').innerText = `${teams} Teams x ${players} Members = ${total} Slots`;
@@ -232,11 +255,25 @@ function calculateAll(){
   let profitEl = document.getElementById('profitInfo');
   profitEl.innerText = `Profit: ₹${profit} | Prize Pool: ₹${prize}`;
   profitEl.style.color = profit >=0 ? '#00ff88' : '#ff4444';
+  // Prize split
+  document.getElementById('prizeSplitInfo').innerText = `1st: ₹${first} | 2nd: ₹${second} | 3rd: ₹${third} = Total ₹${first+second+third}`;
+  // Auto fill if empty
+  if(prize>0 && first==0){
+    let f = Math.floor(prize*0.7);
+    let s = Math.floor(prize*0.2);
+    let th = prize - f - s;
+    document.getElementById('firstPrize').placeholder = `🥇 1st Prize (Ex: ${f})`;
+    document.getElementById('secondPrize').placeholder = `🥈 2nd Prize (Ex: ${s})`;
+    document.getElementById('thirdPrize').placeholder = `🥉 3rd Prize (Ex: ${th})`;
+  }
 }
 document.getElementById('teamsInput').addEventListener('input', calculateAll);
 document.getElementById('playersInput').addEventListener('input', calculateAll);
 document.getElementById('entryFee').addEventListener('input', calculateAll);
 document.getElementById('prizePool').addEventListener('input', calculateAll);
+document.getElementById('firstPrize').addEventListener('input', calculateAll);
+document.getElementById('secondPrize').addEventListener('input', calculateAll);
+document.getElementById('thirdPrize').addEventListener('input', calculateAll);
 document.getElementById('typeSelect').addEventListener('change', function(){
   if(this.value==='Squad') document.getElementById('playersInput').value = 4;
   else if(this.value==='Duo') document.getElementById('playersInput').value = 2;
