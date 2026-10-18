@@ -41,21 +41,21 @@ input:focus{border-color:#00ff88}
 {% endif %}
 
 {% if user.balance|default(0)|int < t.fee|default(0)|int %}
-<div class="warn">⚠️ Low Balance - Add Money First!</div>
+<div class="warn">⚠️ Low Balance - Add Money!</div>
 <a href="/wallet" class="add-btn">💸 ADD ₹{{ t.fee|default(0)|int - user.balance|default(0)|int + 10 }} TO WALLET</a>
 {% endif %}
 
 <form method="POST" action="/join/{{t.id}}">
 <input type="hidden" name="slot_no" value="{{slot_no}}">
-<input type="text" name="game_id" placeholder="🔥 Free Fire UID / BGMI Game ID *" required minlength="2" maxlength="30">
+<input type="text" name="game_id" placeholder=" Free Fire UID *" required minlength="2" maxlength="30">
 <input type="text" name="game_name" placeholder="🎯 In-Game Name (IGN) *" required minlength="2" maxlength="30">
 <button class="btn" {% if user.balance|default(0)|int < t.fee|default(0)|int %}disabled{% endif %}>
-{% if user.balance|default(0)|int >= t.fee|default(0)|int %}✅ CONFIRM JOIN - ₹{{t.fee}}{% else %}❌ Insufficient Balance{% endif %}
+{% if user.balance|default(0)|int >= t.fee|default(0)|int %} CONFIRM JOIN - ₹{{t.fee}}{% else %}❌ Insufficient Balance{% endif %}
 </button>
 </form>
 
 <a href="/slots/{{t.id}}" class="back">← Back to Slot Select</a>
-<div style="text-align:center;margin-top:12px;font-size:10px;color:#475569">⚠️ Wrong Game ID isthe prize radu!</div>
+<div style="text-align:center;margin-top:12px;font-size:10px;color:#475569">⚠️ Wrong Game ID prize Not Be Approve!</div>
 </div>
 
 </body>
