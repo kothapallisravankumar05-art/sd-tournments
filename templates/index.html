@@ -43,6 +43,7 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 .notif-count{position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;font-size:10px;font-weight:900;padding:2px 6px;border-radius:10px;min-width:18px;text-align:center}
 @keyframes blink{0%{opacity:1}50%{opacity:0.5}100%{opacity:1}}
 .alert-popup{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:15px 20px;border-radius:12px;font-weight:900;z-index:9999;text-align:center;display:none;box-shadow:0 4px 20px rgba(0,0,0,0.2);width:90%;max-width:360px}
+.prize-split{font-size:12px;color:#111827;font-weight:800;background:#fef3c7;padding:4px 8px;border-radius:8px;border:1px solid #fcd34d}
 </style>
 </head>
 <body>
@@ -82,7 +83,16 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 <div style="padding:15px">
 <div class="card-top"><span class="badge up">UPCOMING</span><span style="font-size:11px;color:#065f46">{{t.joined}}/{{t.total}} Joined | <span style="color:#d97706">{{t.total - t.joined}} Left</span> | <span class="countdown" data-time="{{t.time}}"></span></span></div>
 <div class="title">{{t.game}} - {{t.type}} - {{t.map}}</div>
-<div class="details"><span>🗓 {{t.time | time12}} - {{t.time.split(' ')[0].split('-')[2]}}/{{t.time.split(' ')[0].split('-')[1]}}</span><span>💰 ₹{{t.prize}}</span><span>🎯 Entry ₹{{t.fee}}</span><span>🎯 ₹{{t.per_kill}}/Kill</span></div>
+<div class="details">
+<span>🗓 {{t.time | time12}} - {{t.time.split(' ')[0].split('-')[2]}}/{{t.time.split(' ')[0].split('-')[1]}}</span>
+{% if t.second_prize and t.second_prize > 0 %}
+<span class="prize-split">🥇 ₹{{t.first_prize}} | 🥈 ₹{{t.second_prize}}{% if t.third_prize and t.third_prize>0 %} | 🥉 ₹{{t.third_prize}}{% endif %}</span>
+{% else %}
+<span>💰 ₹{{t.prize or t.first_prize}}</span>
+{% endif %}
+<span>🎯 Entry ₹{{t.fee}}</span>
+{% if t.per_kill and t.per_kill>0 %}<span>🎯 ₹{{t.per_kill}}/Kill</span>{% endif %}
+</div>
 <div class="slots">
 {% for i in range(1, t.total+1) %}
 <div class="slot-mini {% if i <= t.joined %}joined{% else %}left{% endif %}">{{i}}</div>
@@ -108,7 +118,7 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 <div class="live-banner">🔴 LIVE NOW - ROOM ID READY!</div>
 <div style="padding:15px">
 <div class="card-top"><span class="badge on">● LIVE</span><span style="font-size:11px;color:#dc2626">{{t.time | time12}}</span></div>
-<div class="title">{{t.game}} - {{t.type}}</div>
+<div class="title">{{t.game}} - {{t.type}} {% if t.second_prize and t.second_prize>0 %}<span style="font-size:11px;background:#fef3c7;padding:3px 6px;border-radius:6px">🥇{{t.first_prize}} 🥈{{t.second_prize}} 🥉{{t.third_prize}}</span>{% else %} - ₹{{t.prize}}{% endif %}</div>
 {% if t.id in my_joined_ids %}
 <div class="room-box">
 <div style="font-weight:900;color:#dc2626;margin-bottom:5px">🔑 ROOM DETAILS:</div>
@@ -141,7 +151,7 @@ body{background:#ffffff!important; color:#111827; min-height:100vh}
 <div class="card result">
 <div style="padding:15px">
 <div class="card-top"><span class="badge re">🏆 COMPLETED</span><span style="font-size:11px">{{t.time | time12}}</span></div>
-<div class="title">{{t.game}} - {{t.type}}</div>
+<div class="title">{{t.game}} - {{t.type}} {% if t.second_prize and t.second_prize>0 %} - 🥇{{t.first_prize}} 🥈{{t.second_prize}}{% else %} - ₹{{t.prize or t.first_prize}}{% endif %}</div>
 <a href="/match_result/{{t.id}}" class="btn" style="background:#111827;color:#fff;">VIEW RESULT 📊</a>
 </div>
 </div>
