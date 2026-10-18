@@ -58,7 +58,7 @@ body{background:#0f172a;color:white;padding-bottom:80px;min-height:100vh}
 <div style="font-size:10px;color:#888">■ Joined ■ Available - {{t.total - t.joined}} spots remaining</div>
 
 <div style="background:#eee;height:6px;border-radius:10px;margin-top:10px"><div style="background:#5a00ff;height:6px;border-radius:10px;width:{{ (t.joined*100/t.total) if t.total>0 else 0 }}%"></div></div>
-{% if t.id in my_joined_ids %}<button class="btn joined">✅ JOINED - Slot Booked</button>{% else %}<a href="/slots/{{ t.id }}" style="text-decoration:none"><button class="btn join">JOIN NOW - ₹{{ t.fee }} | {{ t.total - t.joined }} Left</button></a>{% endif %}
+{% if t.id in my_joined_ids %}<button class="btn joined"> JOINED - Slot Booked</button>{% else %}<a href="/slots/{{ t.id }}" style="text-decoration:none"><button class="btn join">JOIN NOW - ₹{{ t.fee }} | {{ t.total - t.joined }} Left</button></a>{% endif %}
 </div>
 {% endif %}
 {% endfor %}
