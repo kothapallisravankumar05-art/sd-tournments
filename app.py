@@ -613,6 +613,7 @@ def forgot_password():
         return render_template('forgot.html', success=" Password Changed!")
     return render_template('forgot.html')
 
+# === FIXED PART START - slots_page ===
 @app.route('/slots/<int:tid>')
 @nocache
 def slots_page(tid):
@@ -627,39 +628,44 @@ def slots_page(tid):
         try:
             joined_users = conn.execute("SELECT j.slot_no, u.username FROM joined j JOIN users u ON j.user_id=u.id WHERE j.tournament_id=? ORDER BY j.slot_no", (tid,)).fetchall()
             taken_slots = {int(row['slot_no']): str(row['username'])[:6] for row in joined_users}
+            my_slots = conn.execute("SELECT slot_no FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchall()
+            my_slot_list = [int(r[0]) for r in my_slots]
         except:
             taken_slots = {}
-        try:
-            already = conn.execute("SELECT * FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
-        except:
-            already = None
+            my_slot_list = []
         conn.close()
-        return render_template('slots.html', tour=tour, t=tour, user=user, taken_slots=taken_slots, already=already)
+        return render_template('slots.html', tour=tour, t=tour, user=user, taken_slots=taken_slots, my_slot_list=my_slot_list)
     except Exception as e:
         print(f"slots error {e}")
         traceback.print_exc()
         return f"Slots Error: {e} - <a href='/'>Home</a>"
 
+# === MULTI SLOT - confirm_join ===
 @app.route('/confirm_join/<int:tid>')
 @nocache
 def confirm_join(tid):
     try:
         if 'user_id' not in session: return redirect('/login')
-        slot_no = request.args.get('slot_no') or request.args.get('slot') or "1"
-        try: slot_no = int(slot_no)
-        except: slot_no = 1
+        slot_param = request.args.get('slot_no') or request.args.get('slot') or request.args.get('slots') or "1"
+        slot_list = []
+        for part in str(slot_param).replace(' ', '').split(','):
+            try:
+                if part.strip(): slot_list.append(int(part.strip()))
+            except: pass
+        if not slot_list: slot_list = [1]
         conn = get_db()
         tour = conn.execute("SELECT * FROM tournments WHERE id=?", (tid,)).fetchone()
         user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
         conn.close()
         if not tour: return redirect('/')
         if not user: return redirect('/login')
-        return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_no)
+        return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_list[0], slot_nos=slot_list, slot_nos_str=",".join(map(str, slot_list)), total_fee=int(tour['fee'] or 0) * len(slot_list))
     except Exception as e:
         print(f"confirm_join error {e}")
         traceback.print_exc()
         return f"Confirm Join Error: {e} - <a href='/slots/{tid}'>Back</a> | <a href='/'>Home</a>"
 
+# === MULTI SLOT - join_tournament ===
 @app.route('/join/<int:tid>', methods=['GET','POST'])
 @nocache
 def join_tournament(tid):
@@ -671,39 +677,66 @@ def join_tournament(tid):
         if not tour or not user:
             conn.close()
             return redirect('/')
-        already = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], tid)).fetchone()
-        if already:
-            conn.close()
-            return redirect('/my_tournments')
         if request.method == 'GET':
-            slot_no = request.args.get('slot') or request.args.get('slot_no') or 1
-            try: slot_no = int(slot_no)
-            except: slot_no = 1
+            slot_param = request.args.get('slot') or request.args.get('slot_no') or request.args.get('slots') or "1"
+            slot_list = []
+            for part in str(slot_param).replace(' ', '').split(','):
+                try:
+                    if part.strip(): slot_list.append(int(part.strip()))
+                except: pass
+            if not slot_list: slot_list = [1]
             conn.close()
-            return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_no)
+            return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_list[0], slot_nos=slot_list, slot_nos_str=",".join(map(str, slot_list)), total_fee=int(tour['fee'] or 0) * len(slot_list))
+        
         game_id = (request.form.get('game_id') or '').strip()
         game_name = (request.form.get('game_name') or '').strip()
-        slot_no = request.form.get('slot_no') or 1
-        try: slot_no = int(slot_no)
-        except: slot_no = 1
+        slot_params = []
+        for key in ['slot_no', 'slot_nos', 'slots', 'slot_nos_str']:
+            vals = request.form.getlist(key)
+            for v in vals:
+                if v:
+                    for part in str(v).replace(' ', '').split(','):
+                        try:
+                            if part.strip(): slot_params.append(int(part.strip()))
+                        except: pass
+        seen = set()
+        slot_nos = []
+        for s in slot_params:
+            if s not in seen:
+                seen.add(s)
+                slot_nos.append(s)
+        if not slot_nos: slot_nos = [1]
+
         if not game_id or not game_name:
             conn.close()
-            return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_no, error="Game ID & Game Name Required !")
-        if int(user['balance'] or 0) < int(tour['fee'] or 0):
+            return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_nos[0], slot_nos=slot_nos, slot_nos_str=",".join(map(str, slot_nos)), total_fee=int(tour['fee'] or 0) * len(slot_nos), error="Game ID & Game Name Required !")
+
+        fee_per = int(tour['fee'] or 0)
+        total_fee_needed = fee_per * len(slot_nos)
+
+        if int(user['balance'] or 0) < total_fee_needed:
             conn.close()
             return redirect('/wallet')
-        taken = conn.execute("SELECT id FROM joined WHERE tournament_id=? AND slot_no=?", (tid, slot_no)).fetchone()
-        if taken:
+
+        already_taken = []
+        for sn in slot_nos:
+            taken = conn.execute("SELECT id FROM joined WHERE tournament_id=? AND slot_no=?", (tid, sn)).fetchone()
+            if taken:
+                already_taken.append(sn)
+        if already_taken:
             conn.close()
-            return redirect(f'/slots/{tid}')
-        try:
-            conn.execute("INSERT INTO joined (user_id, tournament_id, slot_no, game_id, game_name) VALUES (?,?,?,?,?)", (session['user_id'], tid, slot_no, game_id, game_name))
-        except:
-            conn.execute("INSERT INTO joined (user_id, tournament_id, slot_no) VALUES (?,?,?)", (session['user_id'], tid, slot_no))
-        conn.execute("UPDATE tournments SET joined=joined+1 WHERE id=?", (tid,))
-        conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (int(tour['fee']), session['user_id']))
-        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (session['user_id'], int(tour['fee']), 'DEBIT', f'Join T{tid} S{slot_no}', now_ist().strftime("%d/%m %H:%M")))
-        create_notification(conn, session['user_id'], " Joined!", f"You joined {tour['type']} match at {tour['time']}. Room ID soon!")
+            return f"<h3>Slot {already_taken} already taken! <a href='/slots/{tid}'>Choose Other Slots</a></h3>"
+
+        for slot_no in slot_nos:
+            try:
+                conn.execute("INSERT INTO joined (user_id, tournament_id, slot_no, game_id, game_name) VALUES (?,?,?,?,?)", (session['user_id'], tid, slot_no, game_id, game_name))
+            except:
+                conn.execute("INSERT INTO joined (user_id, tournament_id, slot_no) VALUES (?,?,?)", (session['user_id'], tid, slot_no))
+
+        conn.execute("UPDATE tournments SET joined=joined+? WHERE id=?", (len(slot_nos), tid))
+        conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (total_fee_needed, session['user_id']))
+        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (session['user_id'], total_fee_needed, 'DEBIT', f"Join T{tid} Slots {','.join(map(str, slot_nos))}", now_ist().strftime("%d/%m %H:%M")))
+        create_notification(conn, session['user_id'], " Joined!", f"You joined {tour['type']} match at {tour['time']} - {len(slot_nos)} slots ({','.join(map(str, slot_nos))})!")
         conn.commit()
         conn.close()
         return redirect('/my_tournments')
