@@ -42,14 +42,14 @@ input{width:100%;padding:14px;border-radius:10px;border:none;margin:10px 0;font-
 </div>
 
 <div class="card">
-<h3>💰 Add Money (Min ₹10)</h3>
-<input type="number" id="amt" min="10" value="50">
-<button class="btn btn-green" onclick="showQR()">PAY ₹<span id="amtText">50</span> - SHOW QR</button>
+<h3>💰 Add Money (Min ₹20)</h3>
+<input type="number" id="amt" min="20" value="20">
+<button class="btn btn-green" onclick="showQR()">PAY ₹<span id="amtText">20</span> - SHOW QR</button>
 <p style="font-size:11px;color:#666;text-align:center;margin-top:6px;">Direct UPI App Open - No Number Needed ✅</p>
 </div>
 
 <div id="qrBox" class="qr-box">
-<h3>Scan & Pay ₹<span id="qrAmt">50</span></h3>
+<h3>Scan & Pay ₹<span id="qrAmt">20</span></h3>
 <img id="mainQR" src="" style="width:220px;height:220px;border-radius:12px">
 <p style="font-size:11px;color:#888;margin-top:10px">Scan with PhonePe / GPay / Paytm ✅</p>
 <button class="btn btn-green" id="directBtn" onclick="payDirect()" style="margin-top:10px;display:none;">📲 OPEN UPI APP DIRECTLY</button>
@@ -65,29 +65,29 @@ input{width:100%;padding:14px;border-radius:10px;border:none;margin:10px 0;font-
 </div>
 
 <div class="card">
-<h3>💸 Withdraw (Min ₹200)</h3>
+<h3>💸 Withdraw (Min ₹300)</h3>
 <form method="POST" action="/wallet">
-<input type="number" name="amount" min="200" max="{{ user['balance'] if user else 0 }}" required placeholder="Amount Min 200">
+<input type="number" name="amount" min="300" max="{{ user['balance'] if user else 0 }}" required placeholder="Amount Min 300">
 <input type="text" name="upi_id" required placeholder="Your UPI ID">
 <button type="submit" class="btn btn-orange">REQUEST WITHDRAWAL</button>
 </form>
 </div>
 
 <!-- 🔴 LOGOUT - LAST LO -->
-<a href="/logout" class="logout-btn">🚪 LOGOUT</a>
+<a href="/logout" class="logout-btn"> LOGOUT</a>
 <p style="text-align:center;color:#445566;font-size:11px;margin-top:12px;margin-bottom:20px">SD TOURNAMENTS v3 • Secure</p>
 
 <script>
 let currentUpiLink = "";
 document.getElementById('amt').addEventListener('input', function(){
-    let v = this.value || 50;
+    let v = this.value || 20;
     document.getElementById('amtText').innerText = v;
     document.getElementById('qrAmt').innerText = v;
     document.getElementById('finalAmt').value = v;
 });
 async function showQR(){
     let a = document.getElementById('amt').value;
-    if(a < 10){ alert("Min 10 bro"); return; }
+    if(a < 20){ alert("Min 20 "); return; }
     document.getElementById('finalAmt').value = a;
     document.getElementById('qrAmt').innerText = a;
     document.getElementById('qrBox').style.display = 'block';
@@ -112,7 +112,7 @@ function showUTR(){ document.getElementById('utrBox').style.display = 'block'; w
 async function submitUTR(){
     let utr = document.getElementById('utrInput').value.trim();
     let amt = document.getElementById('finalAmt').value;
-    if(utr.length < 6){ alert("Valid UTR enter chey bro!"); return; }
+    if(utr.length < 6){ alert("Enter Valid UTR !"); return; }
     document.getElementById('utrMsg').innerText = "Submitting...";
     try{
         let res = await fetch('/verify_upi', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({utr: utr, amount: amt}) });
