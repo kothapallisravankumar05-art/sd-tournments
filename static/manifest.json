@@ -2,7 +2,7 @@
   "name": "SD TOURNAMENTS - Esports Battle",
   "short_name": "SD TOUR",
   "description": "Daily Free Fire & BGMI Tournaments - Win Cash Prizes",
-  "start_url": "/?pwa=1",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "fullscreen"],
