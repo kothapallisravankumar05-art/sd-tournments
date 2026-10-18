@@ -20,6 +20,36 @@ os.makedirs('static/uploads', exist_ok=True)
 MY_UPI_ID = os.getenv("UPI_ID", "9550043870@ibl")
 SITE_URL = "https://sd-tournments.onrender.com"
 
+# ===== PWA FIX - START - 100% INSTALL FIX =====
+@app.route('/static/manifest.json')
+def pwa_manifest():
+    return send_from_directory('static', 'manifest.json', mimetype='application/manifest+json')
+
+@app.route('/static/sw.js')
+def pwa_sw():
+    return send_from_directory('static', 'sw.js', mimetype='application/javascript')
+
+@app.route('/manifest.json')
+def pwa_manifest_root():
+    return send_from_directory('static', 'manifest.json', mimetype='application/manifest+json')
+
+@app.route('/sw.js')
+def pwa_sw_root():
+    return send_from_directory('static', 'sw.js', mimetype='application/javascript')
+
+@app.route('/static/icon-192.png')
+def pwa_icon_192():
+    return send_from_directory('static', 'icon-192.png', mimetype='image/png')
+
+@app.route('/static/icon-512.png')
+def pwa_icon_512():
+    return send_from_directory('static', 'icon-512.png', mimetype='image/png')
+
+@app.route('/static/icon.png')
+def pwa_icon():
+    return send_from_directory('static', 'icon.png', mimetype='image/png')
+# ===== PWA FIX - END =====
+
 @app.template_filter('time12')
 def time12_filter(t):
     try:
@@ -153,8 +183,6 @@ def generate_daily_matches(conn):
                 continue
             g,t_type,fee,prize,total = types[idx % len(types)]
             per_kill = 8 if t_type=='Solo' else 0
-            # 🔥 FIXED - AUTO DAILY MATCHES KI SINGLE PRIZE ONLY - 2ND,3RD ZERO
-            # Admin Custom Room ki mathrame 1st,2nd,3rd custom petti create chesukovachu
             conn.execute("INSERT INTO tournments (game,type,map,time,prize,first_prize,second_prize,third_prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,0,'UPCOMING')",
                          (g,t_type,'Bermuda',full_time,prize,prize,0,0,fee,per_kill,total))
             created+=1
@@ -613,7 +641,6 @@ def forgot_password():
         return render_template('forgot.html', success=" Password Changed!")
     return render_template('forgot.html')
 
-# === FIXED PART START - slots_page ===
 @app.route('/slots/<int:tid>')
 @nocache
 def slots_page(tid):
@@ -640,7 +667,6 @@ def slots_page(tid):
         traceback.print_exc()
         return f"Slots Error: {e} - <a href='/'>Home</a>"
 
-# === MULTI SLOT - confirm_join ===
 @app.route('/confirm_join/<int:tid>')
 @nocache
 def confirm_join(tid):
@@ -665,7 +691,6 @@ def confirm_join(tid):
         traceback.print_exc()
         return f"Confirm Join Error: {e} - <a href='/slots/{tid}'>Back</a> | <a href='/'>Home</a>"
 
-# === MULTI SLOT - join_tournament ===
 @app.route('/join/<int:tid>', methods=['GET','POST'])
 @nocache
 def join_tournament(tid):
