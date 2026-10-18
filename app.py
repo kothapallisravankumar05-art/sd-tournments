@@ -153,11 +153,10 @@ def generate_daily_matches(conn):
                 continue
             g,t_type,fee,prize,total = types[idx % len(types)]
             per_kill = 8 if t_type=='Solo' else 0
-            first = prize
-            second = int(prize*0.6) if total>=4 else 0
-            third = int(prize*0.3) if total>=8 else 0
+            # 🔥 FIXED - AUTO DAILY MATCHES KI SINGLE PRIZE ONLY - 2ND,3RD ZERO
+            # Admin Custom Room ki mathrame 1st,2nd,3rd custom petti create chesukovachu
             conn.execute("INSERT INTO tournments (game,type,map,time,prize,first_prize,second_prize,third_prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,0,'UPCOMING')",
-                         (g,t_type,'Bermuda',full_time,prize,first,second,third,fee,per_kill,total))
+                         (g,t_type,'Bermuda',full_time,prize,prize,0,0,fee,per_kill,total))
             created+=1
         conn.commit()
         return created
