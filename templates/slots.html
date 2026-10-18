@@ -5,14 +5,15 @@
 <title>Select Slot - SD TOURNAMENTS</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
-body{background:#ffffff;color:#111827;padding:12px;min-height:100vh}
+body{background:#ffffff;color:#111827;padding:12px;min-height:100vh;padding-bottom:90px}
 .header{padding:10px 0;border-bottom:1px solid #e5e7eb;margin-bottom:12px}
 .title{font-weight:900;font-size:18px}
 .sub{font-size:12px;color:#6b7280;margin-top:4px}
 .grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}
-.slot{width:65px;height:65px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:14px;text-decoration:none;cursor:pointer;transition:0.2s}
+.slot{width:65px;height:65px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:14px;text-decoration:none;cursor:pointer;transition:0.2s;user-select:none}
 .slot.free{background:#ffffff;border:2px solid #111827;color:#111827}
-.slot.free:hover{background:#111827;color:#fff;transform:scale(1.05)}
+.slot.free:hover{background:#f9fafb;transform:scale(1.05)}
+.slot.free.selected{background:#111827 !important;color:#fff !important;border:2px solid #00ff88 !important;transform:scale(1.05);box-shadow:0 0 0 3px #00ff8844}
 .slot.taken{background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;cursor:not-allowed}
 .slot.taken small{font-size:9px;font-weight:700;margin-top:2px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55px}
 .legend{display:flex;gap:12px;margin:15px 0;font-size:11px;color:#6b7280}
@@ -20,6 +21,10 @@ body{background:#ffffff;color:#111827;padding:12px;min-height:100vh}
 .info-box{background:#f9fafb;border:1px solid #e5e7eb;padding:12px;border-radius:12px;margin-top:15px}
 .btn-back{display:block;text-align:center;margin-top:18px;background:#f3f4f6;padding:12px;border-radius:10px;text-decoration:none;color:#111827;font-weight:900;border:1px solid #e5e7eb}
 .already-box{background:#d1fae5;color:#065f46;padding:12px;border-radius:10px;text-align:center;font-weight:900;margin-top:15px}
+.selected-bar{position:fixed;bottom:0;left:0;right:0;background:#111827;color:white;padding:14px 12px;text-align:center;z-index:999;border-top:3px solid #00ff88;display:none}
+.sel-info{font-size:13px;font-weight:800;margin-bottom:8px}
+.join-multi-btn{display:block;background:#00ff88;color:#111827;padding:14px;border-radius:12px;text-decoration:none;font-weight:900;font-size:15px}
+.clear-btn{font-size:11px;color:#9ca3af;margin-top:6px;cursor:pointer;text-decoration:underline}
 </style>
 </head>
 <body>
@@ -27,15 +32,16 @@ body{background:#ffffff;color:#111827;padding:12px;min-height:100vh}
 <div class="header">
 <div class="title">{{t.game}} - {{t.type}}</div>
 <div class="sub">🗓 {{t.time | time12}} | 💰 Prize ₹{{t.prize}} | 🎯 Entry ₹{{t.fee}} | Map: {{t.map}}</div>
-<div class="sub">👥 {{t.joined}}/{{t.total}} Joined | {{t.total - t.joined}} Spots Left</div>
+<div class="sub">👥 {{t.joined}}/{{t.total}} Joined | {{t.total - t.joined}} Spots Left | <span id="topSel" style="color:#00aa55;font-weight:900"></span></div>
 </div>
 
 {% if already %}
-<div class="already-box"> Already Joined - Slot {{already['slot_no'] if already['slot_no'] else already[0]}}<br><a href="/my_tournaments" style="color:#065f46;text-decoration:underline">Go to My Tournaments</a></div>
+<div class="already-box"> Already Joined - Slot {{already['slot_no'] if already['slot_no'] else already[0]}}<br><small style="font-weight:600">You can join more slots! Select below</small><br><a href="/my_tournaments" style="color:#065f46;text-decoration:underline">Go to My Tournaments</a></div>
 {% endif %}
 
 <div class="legend">
-<div><span class="dot" style="background:#fff;border:1px solid #111827"></span> Available</div>
+<div><span class="dot" style="background:#fff;border:1px solid #111827"></span> Available - Tap to select</div>
+<div><span class="dot" style="background:#111827"></span> Selected</div>
 <div><span class="dot" style="background:#f3f4f6"></span> Taken</div>
 </div>
 
@@ -47,24 +53,71 @@ body{background:#ffffff;color:#111827;padding:12px;min-height:100vh}
       <small>{{taken_slots[i]}}</small>
     </div>
   {% else %}
-    <a href="/confirm_join/{{t.id}}?slot_no={{i}}" class="slot free">
+    <div onclick="toggleSlot({{i}}, this)" class="slot free" id="slot-{{i}}">
       <span>{{i}}</span>
       <small style="font-size:9px;color:#6b7280">FREE</small>
-    </a>
+    </div>
   {% endif %}
 {% endfor %}
 </div>
 
 <div class="info-box">
-<div style="font-weight:900;font-size:12px;margin-bottom:6px">📌 HOW TO JOIN:</div>
+<div style="font-weight:900;font-size:12px;margin-bottom:6px">📌 HOW TO JOIN MULTI SLOTS:</div>
 <div style="font-size:11px;color:#6b7280;line-height:1.6">
-1. SELECT ONE FREE SLOT<br>
-2. Enter Game ID & Game Name <br>
-3. CLICK AFTER JOIN BALANCE IS REDUCE
+1. TAP MULTIPLE FREE SLOTS (1,2,3...)<br>
+2. Bottom bar lo total chudu - 2 slots = 2x fee<br>
+3. CLICK JOIN - Enter Game ID & Game Name <br>
+4. BALANCE nundi total fee cut avuthadi
 </div>
 </div>
 
 <a href="/" class="btn-back">← Back to Home</a>
+
+<div class="selected-bar" id="selectedBar">
+  <div class="sel-info" id="selText">0 slots selected</div>
+  <a id="joinBtn" href="#" class="join-multi-btn">JOIN 0 SLOTS</a>
+  <div class="clear-btn" onclick="clearAll()">Clear All</div>
+</div>
+
+<script>
+let selectedSlots = [];
+let feePerSlot = {{t.fee}};
+function toggleSlot(num, el){
+  if(selectedSlots.includes(num)){
+    selectedSlots = selectedSlots.filter(x=>x!=num);
+    el.classList.remove('selected');
+  } else {
+    selectedSlots.push(num);
+    el.classList.add('selected');
+  }
+  updateBar();
+}
+function updateBar(){
+  const bar = document.getElementById('selectedBar');
+  const txt = document.getElementById('selText');
+  const btn = document.getElementById('joinBtn');
+  const topSel = document.getElementById('topSel');
+  if(selectedSlots.length > 0){
+    bar.style.display = 'block';
+    selectedSlots.sort((a,b)=>a-b);
+    const total = selectedSlots.length * feePerSlot;
+    txt.innerText = selectedSlots.length + ' Slots Selected: ' + selectedSlots.join(', ') + ' | Total: ₹' + total;
+    btn.innerText = 'JOIN ' + selectedSlots.length + ' SLOTS - PAY ₹' + total;
+    btn.href = '/confirm_join/{{t.id}}?slot_no=' + selectedSlots.join(',');
+    if(topSel) topSel.innerText = '✅ ' + selectedSlots.length + ' selected';
+  } else {
+    bar.style.display = 'none';
+    if(topSel) topSel.innerText = '';
+  }
+}
+function clearAll(){
+  selectedSlots = [];
+  document.querySelectorAll('.slot.free.selected').forEach(el=>{
+    el.classList.remove('selected');
+  });
+  updateBar();
+}
+</script>
 
 </body>
 </html>
