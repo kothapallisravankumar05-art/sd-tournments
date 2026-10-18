@@ -72,7 +72,7 @@ def init_db():
     try:
         if IS_POSTGRES:
             conn.execute("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT UNIQUE, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
-            conn.execute("CREATE TABLE IF NOT EXISTS tournments (id SERIAL PRIMARY KEY, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
+            conn.execute("CREATE TABLE IF NOT EXISTS tournments (id SERIAL PRIMARY KEY, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, first_prize INTEGER DEFAULT 0, second_prize INTEGER DEFAULT 0, third_prize INTEGER DEFAULT 0, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
             conn.execute("CREATE TABLE IF NOT EXISTS joined (id SERIAL PRIMARY KEY, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0, game_id TEXT DEFAULT '', game_name TEXT DEFAULT '')")
             conn.execute("CREATE TABLE IF NOT EXISTS payments (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id SERIAL PRIMARY KEY, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
@@ -81,7 +81,7 @@ def init_db():
             conn.execute("CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, user_id INTEGER, title TEXT, message TEXT, is_read INTEGER DEFAULT 0, time TEXT)")
         else:
             conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, phone TEXT, balance INTEGER DEFAULT 0, referral_code TEXT UNIQUE, referred_by INTEGER DEFAULT 0, total_wins INTEGER DEFAULT 0)")
-            conn.execute("CREATE TABLE IF NOT EXISTS tournments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
+            conn.execute("CREATE TABLE IF NOT EXISTS tournments (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT, type TEXT, map TEXT DEFAULT 'Bermuda', time TEXT, prize INTEGER, first_prize INTEGER DEFAULT 0, second_prize INTEGER DEFAULT 0, third_prize INTEGER DEFAULT 0, fee INTEGER, per_kill INTEGER DEFAULT 0, total INTEGER DEFAULT 10, joined INTEGER DEFAULT 0, room_id TEXT, room_pass TEXT, status TEXT DEFAULT 'UPCOMING')")
             conn.execute("CREATE TABLE IF NOT EXISTS joined (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, tournament_id INTEGER, slot_no INTEGER DEFAULT 0, game_id TEXT DEFAULT '', game_name TEXT DEFAULT '')")
             conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, utr TEXT UNIQUE, status TEXT DEFAULT 'PENDING', time TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, upi_id TEXT, status TEXT DEFAULT 'PENDING', time TEXT)")
@@ -102,8 +102,23 @@ def migrate_game_id():
     except: pass
     finally: conn.close()
 
+def migrate_prizes():
+    conn = get_db()
+    try:
+        for q in [
+            "ALTER TABLE tournments ADD COLUMN first_prize INTEGER DEFAULT 0",
+            "ALTER TABLE tournments ADD COLUMN second_prize INTEGER DEFAULT 0",
+            "ALTER TABLE tournments ADD COLUMN third_prize INTEGER DEFAULT 0"
+        ]:
+            try: conn.execute(q)
+            except: pass
+        conn.commit()
+    except: pass
+    finally: conn.close()
+
 init_db()
 migrate_game_id()
+migrate_prizes()
 
 def generate_referral_code_unique(conn):
     for _ in range(10):
@@ -138,8 +153,11 @@ def generate_daily_matches(conn):
                 continue
             g,t_type,fee,prize,total = types[idx % len(types)]
             per_kill = 8 if t_type=='Solo' else 0
-            conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",
-                         (g,t_type,'Bermuda',full_time,prize,fee,per_kill,total,0))
+            first = prize
+            second = int(prize*0.6) if total>=4 else 0
+            third = int(prize*0.3) if total>=8 else 0
+            conn.execute("INSERT INTO tournments (game,type,map,time,prize,first_prize,second_prize,third_prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,0,'UPCOMING')",
+                         (g,t_type,'Bermuda',full_time,prize,first,second,third,fee,per_kill,total))
             created+=1
         conn.commit()
         return created
@@ -148,13 +166,10 @@ def generate_daily_matches(conn):
         traceback.print_exc()
         return 0
 
-# ===== BRO FIXED LOGIC - 0/8 DELETE, 1/8+ KEEP =====
 def cleanup_expired_matches(conn):
     try:
         now_str = now_ist().strftime("%Y-%m-%d %H:%M")
         one_hour_ago = (now_ist() - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
-        
-        # 0/8 + TIME AYIPOTHE = VENTANE DELETE
         expired_empty = conn.execute("SELECT id FROM tournments WHERE time < ? AND joined=0", (now_str,)).fetchall()
         for tour in expired_empty:
             try:
@@ -163,15 +178,12 @@ def cleanup_expired_matches(conn):
                 conn.execute("DELETE FROM joined WHERE tournament_id=?", (tid,))
                 print(f"🗑️ Deleted 0 Joined Match: {tid}")
             except: pass
-
-        # 1/8,5/8,8/8 + TIME AYINA KUDA - 1 HOUR TARWATA COMPLETED AVUTHADI, DELETE KADU
         expired_with = conn.execute("SELECT id FROM tournments WHERE time < ? AND joined>0 AND status IN ('UPCOMING','LIVE')", (one_hour_ago,)).fetchall()
         for tour in expired_with:
             try:
                 tid = tour['id'] if 'id' in tour else tour[0]
                 conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (tid,))
             except: pass
-
         if expired_empty or expired_with:
             conn.commit()
     except Exception as e:
@@ -234,7 +246,6 @@ def cleanup_only_expired():
     try:
         now_str = now_ist().strftime("%Y-%m-%d %H:%M")
         one_hour_ago = (now_ist() - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
-        # 0 JOINED = IMMEDIATE DELETE
         conn.execute("DELETE FROM tournments WHERE time < ? AND joined=0", (now_str,))
         conn.execute("UPDATE tournments SET status='COMPLETED' WHERE time < ? AND joined>0 AND status IN ('UPCOMING','LIVE')", (one_hour_ago,))
         conn.commit()
@@ -265,7 +276,10 @@ def debug_page():
     html = "<h2>DB:</h2>"
     for r in rows:
         d = dict(r)
-        html += f"{d['time']} - {d['type']} - {d['status']} - {d['joined']}/{d['total']}<br>"
+        fp = d.get('first_prize', d.get('prize',0))
+        sp = d.get('second_prize',0)
+        tp = d.get('third_prize',0)
+        html += f"{d['time']} - {d['type']} - {d['status']} - {d['joined']}/{d['total']} - 1st:{fp} 2nd:{sp} 3rd:{tp}<br>"
     html += "<br><a href='/'>Home</a> | <a href='/nuke'>Nuke</a> | <a href='/force'>Force</a>"
     return html
 
@@ -715,7 +729,7 @@ def my_tournments():
     conn = None
     try:
         conn = get_db()
-        data = conn.execute("SELECT j.*, t.game, t.type, t.time, t.map, t.prize, t.fee, t.per_kill, t.status, t.room_id, t.room_pass FROM joined j JOIN tournments t ON j.tournament_id=t.id WHERE j.user_id=? ORDER BY j.id DESC", (session['user_id'],)).fetchall()
+        data = conn.execute("SELECT j.*, t.game, t.type, t.time, t.map, t.prize, t.first_prize, t.second_prize, t.third_prize, t.fee, t.per_kill, t.status, t.room_id, t.room_pass FROM joined j JOIN tournments t ON j.tournament_id=t.id WHERE j.user_id=? ORDER BY j.id DESC", (session['user_id'],)).fetchall()
         user = conn.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
         conn.close()
         try:
@@ -822,9 +836,12 @@ def admin_panel():
             elif action == 'add_tournament':
                 game = request.form.get('game','Free Fire'); typ = request.form.get('type','Squad')
                 fee = int(request.form.get('entry_fee') or 25); prize = int(request.form.get('prize') or 150)
+                first_prize = int(request.form.get('first_prize') or prize)
+                second_prize = int(request.form.get('second_prize') or 0)
+                third_prize = int(request.form.get('third_prize') or 0)
                 total = int(request.form.get('total_slots') or 8); per_kill = int(request.form.get('per_kill') or 0)
                 time_str = request.form.get('time') or now_ist().strftime("%Y-%m-%d %H:%M")
-                conn.execute("INSERT INTO tournments (game,type,map,time,prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?, 'UPCOMING')",(game, typ, 'Bermuda', time_str, prize, fee, per_kill, total, 0)); conn.commit()
+                conn.execute("INSERT INTO tournments (game,type,map,time,prize,first_prize,second_prize,third_prize,fee,per_kill,total,joined,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,0,'UPCOMING')",(game, typ, 'Bermuda', time_str, prize, first_prize, second_prize, third_prize, fee, per_kill, total)); conn.commit()
             elif action == 'set_room':
                 mid = request.form.get('mid'); room_id = request.form.get('room_id'); room_pass = request.form.get('room_pass')
                 if mid: 
@@ -876,10 +893,16 @@ def admin_panel():
             elif action == 'declare_winner':
                 mid = request.form.get('match_id')
                 winner_id = request.form.get('winner_id')
+                prize_type = request.form.get('prize_type') or 'first'
                 custom_kills = request.form.get('custom_kills') or "0"
                 if mid and winner_id:
-                    tour = conn.execute("SELECT prize, per_kill FROM tournments WHERE id=?", (int(mid),)).fetchone()
-                    prize = int(tour['prize'] if tour and tour['prize'] else 0)
+                    tour = conn.execute("SELECT prize, first_prize, second_prize, third_prize, per_kill FROM tournments WHERE id=?", (int(mid),)).fetchone()
+                    prize_map = {
+                        'first': int(tour['first_prize'] if tour and tour['first_prize'] else tour['prize'] if tour else 0),
+                        'second': int(tour['second_prize'] if tour and tour['second_prize'] else 0),
+                        'third': int(tour['third_prize'] if tour and tour['third_prize'] else 0)
+                    }
+                    prize = prize_map.get(prize_type, prize_map['first'])
                     per_kill = int(tour['per_kill'] if tour and tour['per_kill'] else 0)
                     try:
                         kills = int(custom_kills)
@@ -890,8 +913,8 @@ def admin_panel():
                     total_prize = prize + (per_kill * kills)
                     if total_prize > 0:
                         conn.execute("UPDATE users SET balance=balance+?, total_wins=total_wins+1 WHERE id=?", (total_prize, int(winner_id)))
-                        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(winner_id), total_prize, 'CREDIT', f'Won Match {mid} {kills}K Prize {total_prize} Verified', now_ist().strftime("%d/%m %H:%M")))
-                        create_notification(conn, int(winner_id), "🏆 You Won!", f"Match {mid} - Prize ₹{total_prize} added! {kills} kills")
+                        conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (int(winner_id), total_prize, 'CREDIT', f'Won Match {mid} {prize_type} Prize {total_prize} ({kills}K)', now_ist().strftime("%d/%m %H:%M")))
+                        create_notification(conn, int(winner_id), "🏆 You Won!", f"Match {mid} - {prize_type} Prize ₹{total_prize} added! {kills} kills")
                     conn.execute("UPDATE tournments SET status='COMPLETED' WHERE id=?", (int(mid),))
                     conn.commit()
             elif action == 'cancel_tournament':
