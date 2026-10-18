@@ -37,7 +37,7 @@ input[type=file]{background:#222;color:#fff;padding:10px;border-radius:8px;width
 <body>
 <div class="header">
 <h2>🎮 MY TOURNAMENTS</h2>
-<p style="font-size:11px;color:#888;margin-top:4px">Your Joined Matches - Screenshot Only!</p>
+<p style="font-size:11px;color:#888;margin-top:4px">Your Joined Matches !</p>
 </div>
 <div class="container">
 {% if joined %}
@@ -63,13 +63,13 @@ input[type=file]{background:#222;color:#fff;padding:10px;border-radius:8px;width
 <!-- ✅ ONLY SCREENSHOT UPLOAD - NO KILLS INPUT - ADDED -->
 <div class="upload-box">
 <b>📸 UPLOAD RESULT SCREENSHOT ONLY</b><br>
-<span style="font-size:11px;color:#aaa">Kills maname check chesi prize istham - Fake screenshot reject</span>
+<span style="font-size:11px;color:#aaa">Auto Check Kills  - Fake screenshot reject</span>
 <form action="/submit_result" method="POST" enctype="multipart/form-data" style="margin-top:8px">
 <input type="hidden" name="match_id" value="{{j.tournament_id}}">
 <input type="file" name="screenshot" accept="image/*" required capture="environment">
 <button type="submit" class="btn-upload">📤 UPLOAD SCREENSHOT</button>
 </form>
-<div style="font-size:10px;color:#888;margin-top:6px">✅ Screenshot lo kills & rank kanipinchali | Edit cheste reject</div>
+<div style="font-size:10px;color:#888;margin-top:6px">✅ Screenshot lo kills & rank  | If You Edit Results Amount Not Credit</div>
 </div>
 
 {% if j.status=='COMPLETED' %}
