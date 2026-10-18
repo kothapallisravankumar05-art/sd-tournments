@@ -91,7 +91,7 @@ a { text-decoration: none; }
     <div class="refer-banner">
         🎉 <b>Referral Applied!</b><br>
         Code: <b style="color:gold;letter-spacing:2px">{{ ref_code }}</b><br>
-        <small>You & your friend get Rs 20 Bonus!</small>
+        <small>You & your friend get Rs 10 Bonus!</small>
     </div>
     {% endif %}
     {% if error %}
@@ -103,12 +103,12 @@ a { text-decoration: none; }
         <input type="password" name="password" id="password" placeholder="🔑 Password (min 4)" minlength="4" required autocomplete="new-password"><br>
         <div class="show-pass" onclick="togglePass()">👁️ Show Password</div>
         <button type="submit" id="regBtn">REGISTER</button>
-        <div class="save-txt">✅ Once Register = 10 Years No Login Needed</div>
+        <div class="save-txt">Login Data Saved</div>
     </form>
     {% if ref_code %}
-    <span class="small">✅ Using Refer Code {{ ref_code }} - You will get ₹20 Bonus after register!</span>
+    <span class="small"> Using Refer Code {{ ref_code }} - You will get ₹10 Bonus after register!</span>
     {% else %}
-    <span class="small">🎁 Referral bonus ₹20 - Join using Friend's Refer Link to get ₹20!</span>
+    <span class="small">🎁 Referral bonus ₹10 - Join using Friend's Refer Link to get ₹10!</span>
     {% endif %}
     <br>
     <a href="/login" style="color:#111827; font-weight:bold;">Already have account? Login</a>
