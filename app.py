@@ -230,7 +230,7 @@ def cleanup_only_expired():
         conn.execute("UPDATE tournments SET status='COMPLETED' WHERE time < ? AND joined>0 AND status IN ('UPCOMING','LIVE')", (one_hour_ago,))
         conn.commit()
         conn.close()
-        return f"<h1>✅ Cleaned<br><a href='/'>Home</a></h1>"
+        return f"<h1> Cleaned<br><a href='/'>Home</a></h1>"
     except Exception as e:
         conn.close()
         return f"Error {e}"
@@ -242,7 +242,7 @@ def force_generate():
     try:
         c = generate_daily_matches(conn)
         conn.close()
-        return f"<h1>✅ Generated {c}<br><a href='/'>Home</a> | <a href='/debug'>Debug</a></h1>"
+        return f"<h1> Generated {c}<br><a href='/'>Home</a> | <a href='/debug'>Debug</a></h1>"
     except Exception as e:
         conn.close()
         return f"<h1>Error {e}</h1>"
@@ -541,9 +541,9 @@ def withdraw_history():
 @nocache
 def get_qr():
     if 'user_id' not in session: return jsonify({"error": "login"}), 401
-    amount = request.args.get('amount', '50')
+    amount = request.args.get('amount', '20')
     try: amt = int(float(amount))
-    except: amt = 50
+    except: amt = 20
     upi_link = f"upi://pay?pa={MY_UPI_ID}&pn=SDTournament&am={amt}&cu=INR"
     qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={urllib.parse.quote(upi_link)}"
     return jsonify({"qr_url": qr_url, "upi_link": upi_link})
@@ -551,22 +551,22 @@ def get_qr():
 @app.route('/verify_upi', methods=['POST'])
 @nocache
 def verify_upi():
-    if 'user_id' not in session: return jsonify({"ok": False, "msg": "Login avvu bro!"}), 401
+    if 'user_id' not in session: return jsonify({"ok": False, "msg": "Login require!"}), 401
     conn = None
     try:
         data = request.get_json() if request.is_json else request.form
         utr = (data.get('utr') or "").strip().upper()
         amount = data.get('amount') or 0
-        if not utr or len(utr) < 6: return jsonify({"ok": False, "msg": "Valid UTR enter chey bro!"}), 400
+        if not utr or len(utr) < 6: return jsonify({"ok": False, "msg": "Enter Valid UTR !"}), 400
         conn = get_db()
         dup = conn.execute("SELECT id FROM payments WHERE utr=?", (utr,)).fetchone()
         if dup:
             conn.close()
-            return jsonify({"ok": False, "msg": "Ee UTR already use chesav bro!"}), 400
+            return jsonify({"ok": False, "msg": "UTR Used Enter Valid Utr !"}), 400
         amt_i = int(float(amount))
         conn.execute("INSERT INTO payments (user_id, amount, utr, status, time) VALUES (?,?,?,'PENDING',?)", (session['user_id'], amt_i, utr, now_ist().strftime("%d/%m %H:%M")))
         conn.commit(); conn.close()
-        return jsonify({"ok": True, "msg": f"✅ ₹{amt_i} Submitted!"})
+        return jsonify({"ok": True, "msg": f" ₹{amt_i} Submitted!"})
     except Exception as e:
         try:
             if conn: conn.close()
@@ -580,9 +580,9 @@ def forgot_password():
         phone = (request.form.get('phone') or request.form.get('username') or "").strip()
         new_pass = (request.form.get('new_password') or "").strip()
         confirm_pass = (request.form.get('confirm_password') or new_pass).strip()
-        if len(phone) < 4: return render_template('forgot.html', error="Phone/Username Enter Chey Bro!")
+        if len(phone) < 4: return render_template('forgot.html', error="Enter Phone/Username !")
         if len(new_pass) < 4: return render_template('forgot.html', error="Password Min 4 Characters!")
-        if new_pass != confirm_pass: return render_template('forgot.html', error="Passwords Match Kavatledu!")
+        if new_pass != confirm_pass: return render_template('forgot.html', error="Incorrect Password!")
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE phone=?", (phone,)).fetchone()
         if not user: user = conn.execute("SELECT * FROM users WHERE username=?", (phone,)).fetchone()
@@ -591,7 +591,7 @@ def forgot_password():
             return render_template('forgot.html', error="Account Not Found!")
         conn.execute("UPDATE users SET password=? WHERE id=?", (new_pass, user['id']))
         conn.commit(); conn.close()
-        return render_template('forgot.html', success="✅ Password Changed!")
+        return render_template('forgot.html', success=" Password Changed!")
     return render_template('forgot.html')
 
 @app.route('/slots/<int:tid>')
@@ -669,7 +669,7 @@ def join_tournament(tid):
         except: slot_no = 1
         if not game_id or not game_name:
             conn.close()
-            return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_no, error="Game ID & IGN Required Bro!")
+            return render_template('join_confirm.html', t=tour, tour=tour, user=user, slot_no=slot_no, error="Game ID & Game Name Required !")
         if int(user['balance'] or 0) < int(tour['fee'] or 0):
             conn.close()
             return redirect('/wallet')
@@ -684,7 +684,7 @@ def join_tournament(tid):
         conn.execute("UPDATE tournments SET joined=joined+1 WHERE id=?", (tid,))
         conn.execute("UPDATE users SET balance=balance-? WHERE id=?", (int(tour['fee']), session['user_id']))
         conn.execute("INSERT INTO transactions (user_id, amount, type, description, time) VALUES (?,?,?,?,?)", (session['user_id'], int(tour['fee']), 'DEBIT', f'Join T{tid} S{slot_no}', now_ist().strftime("%d/%m %H:%M")))
-        create_notification(conn, session['user_id'], "✅ Joined!", f"You joined {tour['type']} match at {tour['time']}. Room ID soon!")
+        create_notification(conn, session['user_id'], " Joined!", f"You joined {tour['type']} match at {tour['time']}. Room ID soon!")
         conn.commit()
         conn.close()
         return redirect('/my_tournments')
@@ -752,7 +752,7 @@ def submit_result():
         joined = conn.execute("SELECT id FROM joined WHERE user_id=? AND tournament_id=?", (session['user_id'], match_id)).fetchone()
         if not joined:
             conn.close()
-            return f"<h3>⚠️ Join kaledu bro! <a href='/'>Home</a></h3>"
+            return f"<h3>⚠️ Not Join! <a href='/'>Home</a></h3>"
         fname = ""
         if 'screenshot' in request.files:
             f = request.files['screenshot']
@@ -769,7 +769,7 @@ def submit_result():
                 fname = ex['screenshot']
             else:
                 conn.close()
-                return f"<h3>⚠️ Screenshot select chey bro! <a href='/my_tournments'>Back</a></h3>"
+                return f"<h3>⚠️ Select Screenshot ! <a href='/my_tournments'>Back</a></h3>"
         existing = conn.execute("SELECT id FROM results WHERE match_id=? AND user_id=?", (match_id, session['user_id'])).fetchone()
         if existing:
             conn.execute("UPDATE results SET kills=0, screenshot=?, status='PENDING', time=? WHERE id=?", (fname, now_ist().strftime("%d/%m %H:%M"), existing['id']))
@@ -912,7 +912,7 @@ def admin_panel():
                     if p and p['status'] == 'PENDING':
                         conn.execute("UPDATE payments SET status='APPROVED' WHERE id=?", (int(pid),))
                         conn.execute("UPDATE users SET balance=balance+? WHERE id=?", (int(p['amount']), int(p['user_id'])))
-                        create_notification(conn, int(p['user_id']), "✅ Payment Approved", f"₹{p['amount']} added to wallet!")
+                        create_notification(conn, int(p['user_id']), " Payment Approved", f"₹{p['amount']} added to wallet!")
                         conn.commit()
             elif action == 'reject_payment':
                 pid = request.form.get('payment_id')
