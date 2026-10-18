@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Join - Slot {{slot_no}} - SD TOURNAMENTS</title>
+<title>Join - Slots {{ slot_nos_str if slot_nos_str else slot_no }} - SD TOURNAMENTS</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
 body{background:#0f172a;color:#fff;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:15px}
@@ -18,44 +18,96 @@ input:focus{border-color:#00ff88}
 .btn:disabled{background:#334155;color:#64748b;cursor:not-allowed}
 .back{display:block;text-align:center;padding:12px;color:#94a3b8;text-decoration:none;font-size:13px;margin-top:12px;background:#0f172a;border-radius:8px;border:1px solid #1e293b}
 .err{background:#ff444422;border:1px solid #ff4444;color:#ff8888;padding:10px;border-radius:8px;text-align:center;font-size:12px;margin-bottom:12px}
-.slot-badge{display:inline-block;background:#00ff88;color:#000;padding:2px 8px;border-radius:20px;font-weight:900;font-size:11px}
+.slot-badge{display:inline-block;background:#00ff88;color:#000;padding:2px 8px;border-radius:20px;font-weight:900;font-size:11px;margin:2px}
 .warn{background:#f59e0b22;border:1px solid #f59e0b;color:#fbbf24;padding:10px;border-radius:8px;text-align:center;font-size:12px;margin-bottom:12px;font-weight:700}
 .add-btn{display:block;text-align:center;background:#f59e0b;color:#000;padding:12px;border-radius:10px;text-decoration:none;font-weight:900;margin-bottom:10px}
+.multi-box{background:linear-gradient(135deg,#00ff8822,#00ff8800);border:1px solid #00ff88;padding:12px;border-radius:12px;margin-bottom:14px;text-align:center}
+.multi-count{font-size:13px;color:#94a3b8}
+.multi-slots{font-size:16px;font-weight:900;color:#00ff88;margin:6px 0}
+.multi-total{font-size:14px;color:#fff}
+.multi-total b{color:#00ff88;font-size:18px}
 </style>
 </head>
 <body>
 
 <div class="box">
 <div class="h">🎮 JOIN CONFIRM</div>
-<div class="sub">Enter Your Game Details</div>
+<div class="sub">Enter Your Game Details - Multi Slot Supported</div>
+
+<div class="multi-box">
+  <div class="multi-count">
+    {% if slot_nos and slot_nos|length > 1 %}
+      🎯 {{ slot_nos|length }} SLOTS SELECTED
+    {% else %}
+      🎯 1 SLOT SELECTED
+    {% endif %}
+  </div>
+  <div class="multi-slots">
+    {% if slot_nos %}
+      {% for sn in slot_nos %}
+        <span class="slot-badge">#{{sn}}</span>
+      {% endfor %}
+    {% else %}
+      <span class="slot-badge">#{{slot_no}}</span>
+    {% endif %}
+  </div>
+  <div class="multi-total">
+    {% if slot_nos %}
+      {{ slot_nos|length }} x ₹{{t.fee}} = <b>₹{{ total_fee if total_fee else t.fee * slot_nos|length }}</b>
+    {% else %}
+      1 x ₹{{t.fee}} = <b>₹{{ t.fee }}</b>
+    {% endif %}
+  </div>
+</div>
 
 <div class="info">
 🎯 <b>{{t.game}} {{t.type}} #{{t.id}}</b><br>
 ⏰ {{t.time | time12}} | Prize <b style="color:gold">₹{{t.prize}}</b><br>
-📌 Slot: <span class="slot-badge">#{{slot_no}}</span> | Fee: <b style="color:#00ff88">₹{{t.fee}}</b><br>
-💰 Balance: <b style="color:{% if user.balance|default(0)|int >= t.fee|default(0)|int %}#00ff88{% else %}#ff4444{% endif %}">₹{{user.balance}}</b>
+📌 Slots: 
+  {% if slot_nos %}
+    {% for sn in slot_nos %}<span class="slot-badge">#{{sn}}</span> {% endfor %}
+  {% else %}
+    <span class="slot-badge">#{{slot_no}}</span>
+  {% endif %}
+  | Fee per slot: <b style="color:#00ff88">₹{{t.fee}}</b><br>
+💰 Balance: <b style="color:{% if user.balance|default(0)|int >= (total_fee if total_fee else t.fee)|int %}#00ff88{% else %}#ff4444{% endif %}">₹{{user.balance}}</b> | Need: <b>₹{{ total_fee if total_fee else t.fee }}</b>
 </div>
 
 {% if error %}
 <div class="err">⚠️ {{error}}</div>
 {% endif %}
 
-{% if user.balance|default(0)|int < t.fee|default(0)|int %}
-<div class="warn">⚠️ Low Balance - Add Money!</div>
-<a href="/wallet" class="add-btn">💸 ADD ₹{{ t.fee|default(0)|int - user.balance|default(0)|int + 10 }} TO WALLET</a>
+{% if user.balance|default(0)|int < (total_fee if total_fee else t.fee)|int %}
+<div class="warn">⚠️ Low Balance - Need ₹{{ (total_fee if total_fee else t.fee) - user.balance|default(0)|int }} more!</div>
+<a href="/wallet" class="add-btn">💸 ADD ₹{{ (total_fee if total_fee else t.fee)|int - user.balance|default(0)|int + 10 }} TO WALLET</a>
 {% endif %}
 
 <form method="POST" action="/join/{{t.id}}">
-<input type="hidden" name="slot_no" value="{{slot_no}}">
-<input type="text" name="game_id" placeholder=" Free Fire UID *" required minlength="2" maxlength="30">
-<input type="text" name="game_name" placeholder="🎯 In-Game Name (IGN) *" required minlength="2" maxlength="30">
-<button class="btn" {% if user.balance|default(0)|int < t.fee|default(0)|int %}disabled{% endif %}>
-{% if user.balance|default(0)|int >= t.fee|default(0)|int %} CONFIRM JOIN - ₹{{t.fee}}{% else %}❌ Insufficient Balance{% endif %}
+<input type="hidden" name="slot_nos_str" value="{{ slot_nos_str if slot_nos_str else slot_no }}">
+{% if slot_nos %}
+  {% for sn in slot_nos %}
+    <input type="hidden" name="slot_no" value="{{sn}}">
+  {% endfor %}
+{% else %}
+  <input type="hidden" name="slot_no" value="{{slot_no}}">
+{% endif %}
+
+<input type="text" name="game_id" placeholder=" Free Fire UID * (Same for all slots)" required minlength="2" maxlength="30">
+<input type="text" name="game_name" placeholder="🎯 In-Game Name (IGN) * (Same for all slots)" required minlength="2" maxlength="30">
+
+<button class="btn" {% if user.balance|default(0)|int < (total_fee if total_fee else t.fee)|int %}disabled{% endif %}>
+{% if user.balance|default(0)|int >= (total_fee if total_fee else t.fee)|int %}
+  {% if slot_nos and slot_nos|length > 1 %}
+    ✅ CONFIRM JOIN {{ slot_nos|length }} SLOTS - ₹{{ total_fee }}
+  {% else %}
+    ✅ CONFIRM JOIN - ₹{{ total_fee if total_fee else t.fee }}
+  {% endif %}
+{% else %}❌ Insufficient Balance{% endif %}
 </button>
 </form>
 
 <a href="/slots/{{t.id}}" class="back">← Back to Slot Select</a>
-<div style="text-align:center;margin-top:12px;font-size:10px;color:#475569">⚠️ Wrong Game ID prize Not Be Approve!</div>
+<div style="text-align:center;margin-top:12px;font-size:10px;color:#475569">⚠️ Wrong Game ID prize Not Be Approve! Same ID will be used for all {{ slot_nos|length if slot_nos else 1 }} slots</div>
 </div>
 
 </body>
