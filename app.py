@@ -172,7 +172,7 @@ def generate_daily_matches(conn):
         today = now.strftime("%Y-%m-%d")
         now_full = now.strftime("%Y-%m-%d %H:%M")
         exact_slots = ["09:00","09:40","10:20","11:00","11:40","12:20","13:00","13:40","14:20","15:00","15:40","16:20","17:00","17:40","18:20","19:00","19:40","20:20","21:00"]
-        types = [("Free Fire","Clash Squad",30,40,2),("Free Fire","Duo",30,80,4),("Free Fire","Squad",25,150,8),("Free Fire","Solo",15,1000,48)]
+        types = [("Free Fire","Clash Squad",30,50,2),("Free Fire","Duo",30,100,4),("Free Fire","Squad",25,180,8),("Free Fire","Solo",15,1000,48)]
         created=0
         for idx, slot in enumerate(exact_slots):
             full_time = f"{today} {slot}"
